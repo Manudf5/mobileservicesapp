@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 
 class HomeScreen extends StatefulWidget {
@@ -1046,6 +1048,8 @@ class ServiceDetailsScreen extends StatefulWidget {
 
 class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   final TextEditingController _searchController = TextEditingController();
+  List<dynamic> _suggestions = [];
+  bool _isLoadingSuggestions = false;
 
   @override
   void initState() {
@@ -1056,6 +1060,32 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
         statusBarIconBrightness: Brightness.dark,
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _getSuggestions(String query) async {
+    setState(() {
+      _isLoadingSuggestions = true;
+    });
+    final response = await http.get(Uri.parse(
+      'https://api.mapbox.com/geocoding/v5/mapbox.places/$query.json?access_token=pk.eyJ1IjoibWFudWRmNSIsImEiOiJjbHhqMmQ2eTkwMDR6MnJuMzdlZzR2eTVpIn0.OJFWwYM75x7q73oa_o3Uuw', // Reemplaza con tu API Key
+    ));
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      _suggestions = data['features'];
+    } else {
+      print('Error al obtener sugerencias: ${response.statusCode}');
+    }
+
+    setState(() {
+      _isLoadingSuggestions = false;
+    });
   }
 
   @override
@@ -1114,19 +1144,52 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                         border: InputBorder.none,
                       ),
                       onChanged: (text) {
-                        // Actualiza la ubicación en la barra de búsqueda
-                        setState(() {});
+                        if (text.isNotEmpty) {
+                          _getSuggestions(text);
+                        } else {
+                          setState(() {
+                            _suggestions = [];
+                          });
+                        }
                       },
                     ),
                   ),
                 ],
               ),
             ),
+            if (_isLoadingSuggestions)
+              const Center(
+                child: CircularProgressIndicator(color: Colors.green,),
+              )
+            else if (_suggestions.isNotEmpty)
+              SizedBox(
+                height: 150,
+                child: ListView.builder(
+                  itemCount: _suggestions.length,
+                  itemBuilder: (context, index) {
+                    final suggestion = _suggestions[index];
+                    final placeName = suggestion['place_name'];
+                    final text = suggestion['text'];
+                    return ListTile(
+                      title: Text(placeName),
+                      subtitle: Text(text),
+                      onTap: () {
+                        _searchController.text = placeName;
+                        setState(() {
+                          _suggestions = [];
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
             const SizedBox(height: 20),
             Center(
               child: ElevatedButton(
                 onPressed: () {
-                  
+                  // Realiza la acción al presionar "Continuar"
+                  // Puedes obtener la ubicación seleccionada de _searchController.text
+                  print('Ubicación seleccionada: ${_searchController.text}');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
