@@ -5,6 +5,9 @@ import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:geolocator/geolocator.dart';
+// ignore: unnecessary_import
+import 'package:geolocator_android/geolocator_android.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -1050,6 +1053,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<dynamic> _suggestions = [];
   bool _isLoadingSuggestions = false;
+  Position? _currentPosition;
+  bool _locationPermissionGranted = false; // Variable para controlar el permiso de ubicación
 
   @override
   void initState() {
@@ -1060,6 +1065,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
         statusBarIconBrightness: Brightness.dark,
       ),
     );
+    _checkLocationPermission(); // Verifica el permiso de ubicación al iniciar
   }
 
   @override
@@ -1068,12 +1074,41 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
     super.dispose();
   }
 
+  Future<void> _checkLocationPermission() async {
+    LocationPermission permission = await Geolocator.requestPermission();
+    setState(() {
+      _locationPermissionGranted = permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse;
+    });
+    if (_locationPermissionGranted) {
+      _getCurrentLocation(); // Obtiene la ubicación si el permiso está otorgado
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+      setState(() {
+        _currentPosition = position;
+      });
+    } catch (e) {
+      print('Error al obtener la ubicación: $e');
+    }
+  }
+
   Future<void> _getSuggestions(String query) async {
     setState(() {
       _isLoadingSuggestions = true;
     });
+
+    // Obtén la coordenada de la ubicación actual (si está disponible)
+    String? currentLocationQuery = _currentPosition != null
+        ? '${_currentPosition!.latitude},${_currentPosition!.longitude}'
+        : null;
+
     final response = await http.get(Uri.parse(
-      'https://api.mapbox.com/geocoding/v5/mapbox.places/$query.json?access_token=pk.eyJ1IjoibWFudWRmNSIsImEiOiJjbHhqMmQ2eTkwMDR6MnJuMzdlZzR2eTVpIn0.OJFWwYM75x7q73oa_o3Uuw', // Reemplaza con tu API Key
+      'https://api.mapbox.com/geocoding/v5/mapbox.places/$query.json?access_token=pk.eyJ1IjoibWFudWRmNSIsImEiOiJjbHhqMmQ2eTkwMDR6MnJuMzdlZzR2eTVpIn0.OJFWwYM75x7q73oa_o3Uuw&proximity=$currentLocationQuery&country=VE', // Reemplaza con tu API Key, incluye proximity y country
     ));
 
     if (response.statusCode == 200) {
