@@ -446,7 +446,7 @@ class _SearchScreenState extends State {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ServiceDetailsScreen(serviceName: text),
+            builder: (context) => LocationDetailsScreen(serviceName: text),
           ),
         );
       },
@@ -632,7 +632,7 @@ class _HogarScreenState extends State<HogarScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ServiceDetailsScreen(serviceName: text),
+            builder: (context) => LocationDetailsScreen(serviceName: text),
           ),
         );
       },
@@ -754,7 +754,7 @@ class _PersonalScreenState extends State<PersonalScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ServiceDetailsScreen(serviceName: text),
+            builder: (context) => LocationDetailsScreen(serviceName: text),
           ),
         );
       },
@@ -876,7 +876,7 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ServiceDetailsScreen(serviceName: text),
+            builder: (context) => LocationDetailsScreen(serviceName: text),
           ),
         );
       },
@@ -998,7 +998,7 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ServiceDetailsScreen(serviceName: text),
+            builder: (context) => LocationDetailsScreen(serviceName: text),
           ),
         );
       },
@@ -1041,15 +1041,15 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
   }
 }
 
-class ServiceDetailsScreen extends StatefulWidget {
+class LocationDetailsScreen extends StatefulWidget {
   final String serviceName;
-  const ServiceDetailsScreen({super.key, required this.serviceName});
+  const LocationDetailsScreen({super.key, required this.serviceName});
 
   @override
-  State<ServiceDetailsScreen> createState() => _ServiceDetailsScreenState();
+  State<LocationDetailsScreen> createState() => _LocationDetailsScreenState();
 }
 
-class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
+class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<dynamic> _suggestions = [];
   bool _isLoadingSuggestions = false;
