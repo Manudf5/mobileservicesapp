@@ -1113,6 +1113,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
         mapController.move(_selectedLatLng!, 15); // Zoom inicial
       });
     } catch (e) {
+      // ignore: avoid_print
       print('Error al obtener la ubicación: $e');
     }
   }
@@ -1130,6 +1131,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
       final data = jsonDecode(response.body);
       _suggestions = data['features'];
     } else {
+      // ignore: avoid_print
       print('Error al obtener sugerencias: ${response.statusCode}');
     }
 
@@ -1144,7 +1146,9 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
     // Eliminar el código para guardar en Firestore
 
     // Mostrar la latitud y longitud en consola
+    // ignore: avoid_print
     print('Latitud: ${_selectedLatLng?.latitude}');
+    // ignore: avoid_print
     print('Longitud: ${_selectedLatLng?.longitude}');
   }
 

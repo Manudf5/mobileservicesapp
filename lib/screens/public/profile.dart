@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -168,6 +169,23 @@ class _PerfilScreenState extends State<PerfilScreen> {
     );
   }
 
+  void _showAdminTempScreen() {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const AdminTempScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+                .animate(animation),
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+
   void _signOut() async {
     await FirebaseAuth.instance.signOut();
     Navigator.pushReplacement(
@@ -318,6 +336,13 @@ class _PerfilScreenState extends State<PerfilScreen> {
                       onPressed: _showHelpScreen,
                       icon: 'assets/images/IconHelp.png',
                       text: 'Ayuda',
+                    ),
+                    const SizedBox(height: 32.0),
+                    // Botón Administrador (Temporal)
+                    _buildCustomButton(
+                      onPressed: _showAdminTempScreen,
+                      icon: 'assets/images/IconAdmin.png',
+                      text: 'Administrador (Temporal)',
                     ),
                     const SizedBox(height: 32.0),
                     // Botón Cerrar Sesión
@@ -1000,6 +1025,551 @@ class _HelpScreen extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+class AdminTempScreen extends StatefulWidget {
+  // ignore: unused_element
+  const AdminTempScreen({super.key});
+
+  @override
+  State<AdminTempScreen> createState() => AdminTempScreenState();
+}
+
+class AdminTempScreenState extends State<AdminTempScreen> {
+
+void _showSuppliersScreen() {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const SuppliersScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+                .animate(animation),
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context); // Regresa a la pantalla anterior
+          },
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+        ),
+        title: const Text(
+          'Administrador (Temporal)',
+          style: TextStyle(color: Colors.black),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0), // Agrega un padding para espacio alrededor del botón
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch, // Expandir el botón a lo ancho
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  _showSuppliersScreen();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[200],
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0,
+                    vertical: 16.0,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10.0),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Icon(
+                      Icons.store_mall_directory_outlined, color: Colors.purple, // Icono para proveedores
+                      size: 28,
+                    ),
+                    SizedBox(width: 16.0),
+                    Text(
+                      'Proveedores',
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(width: 16.0),
+                    Icon(Icons.arrow_forward_ios_rounded, color: Colors.green),
+                  ],
+                ),
+              ),
+            ),
+            // Aquí puedes agregar más widgets debajo del botón
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SuppliersScreen extends StatefulWidget {
+  // ignore: unused_element
+  const SuppliersScreen({super.key});
+
+  @override
+  State<SuppliersScreen> createState() => SuppliersScreenState();
+}
+
+class SuppliersScreenState extends State<SuppliersScreen> {
+
+void _showSuppliersManagementScreen() {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const SuppliersManagementScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+                .animate(animation),
+            child: child,
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context); // Regresa a la pantalla anterior
+          },
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+        ),
+        title: const Text(
+          'Proveedores',
+          style: TextStyle(color: Colors.black),
+        ),
+      ),
+      body: Stack(
+        children: [
+          Container(), // Aquí va el contenido de la pantalla
+          Positioned(
+            bottom: 30.0, // Distancia desde la parte inferior
+            right: 30.0, // Distancia desde el lado derecho
+            child: FloatingActionButton(
+              onPressed: () {
+                _showSuppliersManagementScreen();
+              },
+              backgroundColor: Colors.green,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(10.0),
+                  topRight: Radius.circular(10.0),
+                  bottomRight: Radius.circular(10.0),
+                  bottomLeft: Radius.circular(10.0), 
+                ),
+              ),
+              child: const Icon(Icons.edit, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SuppliersManagementScreen extends StatefulWidget {
+  // ignore: unused_element
+  const SuppliersManagementScreen({super.key});
+
+  @override
+  State createState() => SuppliersManagementScreenState();
+}
+
+class SuppliersManagementScreenState extends State {
+  String? _selectedStatus;
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+        ),
+        title: const Text(
+          'Editar Proveedores',
+          style: TextStyle(color: Colors.black),
+        ),
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Campo ID
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        decoration: InputDecoration(
+                          labelText: 'ID',
+                          labelStyle: const TextStyle(color: Colors.black),
+                          hintText: 'Ingresa el ID',
+                          hintStyle: const TextStyle(color: Colors.grey),
+                          filled: true,
+                          fillColor: Colors.transparent,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16.0),
+                            borderSide: const BorderSide(color: Colors.blue),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 16.0,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8.0),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SearchUsersScreen(),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF08143C),
+                        padding: const EdgeInsets.all(10.0),
+                        shape: const CircleBorder(),
+                      ),
+                      child: const Icon(
+                        Icons.search,
+                        color: Colors.white,
+                        size: 24.0,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
+                // Campo Nombre
+                TextFormField(
+                  decoration: InputDecoration(
+                    labelText: 'Nombre',
+                    labelStyle: const TextStyle(color: Colors.black),
+                    hintText: 'Ingresa el nombre',
+                    hintStyle: const TextStyle(color: Colors.grey),
+                    filled: true,
+                    fillColor: Colors.transparent,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: const BorderSide(color: Colors.blue),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 16.0,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16.0),
+                // Campo Apellido
+                TextFormField(
+                  decoration: InputDecoration(
+                    labelText: 'Apellido',
+                    labelStyle: const TextStyle(color: Colors.black),
+                    hintText: 'Ingresa el apellido',
+                    hintStyle: const TextStyle(color: Colors.grey),
+                    filled: true,
+                    fillColor: Colors.transparent,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: const BorderSide(color: Colors.blue),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 16.0,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16.0),
+                // Lista desplegable "Activo"
+                DropdownButtonFormField(
+                  decoration: InputDecoration(
+                    labelText: 'Activo',
+                    labelStyle: const TextStyle(color: Colors.black),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: const BorderSide(color: Colors.blue),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 16.0,
+                    ),
+                  ),
+                  value: _selectedStatus,
+                  hint: const Text('Seleccione'),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedStatus = value;
+                    });
+                  },
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'SI',
+                      child: Text('SI'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'NO',
+                      child: Text('NO'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
+                // Botón "Guardar"
+                Center(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      // Aquí debes agregar la lógica para guardar los datos
+                      // en Firestore
+                      if (_formKey.currentState!.validate()) {
+                        // TODO: Guardar datos en Firestore
+                        print('Form is valid!');
+                        // Process data
+                      } else {
+                        print('Form is not valid');
+                        // TODO: Mostrar un mensaje de error
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1CA424),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 12.0,
+                      ),
+                      textStyle: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.0,
+                      ),
+                    ),
+                    child: const Text('Guardar'),
+                  ),
+                ),
+                const SizedBox(height: 16.0),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SearchUsersScreen extends StatefulWidget {
+  const SearchUsersScreen({Key? key}) : super(key: key);
+
+  @override
+  State<SearchUsersScreen> createState() => _SearchUsersScreenState();
+}
+
+class _SearchUsersScreenState extends State<SearchUsersScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _filteredUsers = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsers();
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.white,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+    );
+  }
+
+  Future<void> _fetchUsers() async {
+    try {
+      QuerySnapshot<Map<String, dynamic>> querySnapshot =
+          await FirebaseFirestore.instance.collection('users').get();
+      _users = querySnapshot.docs.map((doc) => doc.data()).toList();
+      _filteredUsers = _users;
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      // ignore: avoid_print
+      print('Error al obtener usuarios: $e');
+      // Manejar el error, mostrar un mensaje al usuario, etc.
+    }
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _filteredUsers = _users.where((user) =>
+              user['id'].toString().toLowerCase().contains(query.toLowerCase()) ||
+              user['email'].toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        title: const Text('Buscar usuarios'),
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Container(
+              height: 50,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: Colors.grey[200],
+              ),
+              child: Row(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(left: 16.0),
+                    child: Icon(
+                      Icons.search,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(width: 16.0),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: "Buscar usuario por ID o email",
+                        border: InputBorder.none,
+                      ),
+                      onChanged: _onSearchChanged,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 25.0),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filteredUsers.isEmpty
+                      ? const Center(
+                          child: Text('No se encontraron usuarios'),
+                        )
+                      : GridView.count(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          childAspectRatio: 16 / 14,
+                          children: _filteredUsers.map((user) {
+                            return _buildUserButton(user);
+                          }).toList(),
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserButton(Map<String, dynamic> user) {
+    return InkWell(
+      onTap: () {
+        // Aquí puedes implementar la acción al presionar un usuario
+        // por ejemplo, navegar a una pantalla de detalles del usuario
+        // o mostrar un diálogo con la información del usuario
+        // print('Usuario seleccionado: ${user['name']}');
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: const Color(0xFF08143C),
+            width: 1.0,
+          ),
+        ),
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            CircleAvatar(
+            radius: 30,
+            backgroundImage: user['profileImageUrl'] != null
+                ? NetworkImage(user['profileImageUrl'])
+                : const AssetImage('assets/images/ProfilePhoto_predetermined.png'), 
+          ),
+            const SizedBox(height: 8),
+            Text(
+              'ID: ${user['id']}',
+              style: const TextStyle(fontSize: 12),
+            ),
+            Text(
+              'Nombre: ${user['name']} ${user['lastName']}',
+              style: const TextStyle(fontSize: 12),
+            ),
+            Text(
+              'Permisos: ${user['permissions']}',
+              style: const TextStyle(fontSize: 12),
+            ),
+            Text(
+              'Correo: ${user['email']}',
+              style: const TextStyle(fontSize: 9),
             ),
           ],
         ),
