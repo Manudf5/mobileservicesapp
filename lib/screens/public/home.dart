@@ -8,6 +8,13 @@ import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 // ignore: unnecessary_import
 import 'package:geolocator_android/geolocator_android.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
+// ignore: unnecessary_import
+import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
+// ignore: unused_import
+import 'package:geocoding/geocoding.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -1051,10 +1058,20 @@ class LocationDetailsScreen extends StatefulWidget {
 
 class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _referenceController = TextEditingController();
   List<dynamic> _suggestions = [];
   bool _isLoadingSuggestions = false;
+  // ignore: unused_field
   Position? _currentPosition;
-  bool _locationPermissionGranted = false; // Variable para controlar el permiso de ubicación
+  bool _locationPermissionGranted = false;
+  // ignore: unused_field
+  String? _selectedLocationId;
+  // ignore: unused_field
+  String? _selectedLocationName;
+  LatLng? _selectedLatLng;
+  MapController mapController = MapController();
+
+  final String _mapboxAccessToken = 'pk.eyJ1IjoibWFudWRmNSIsImEiOiJjbHhqMjZmd3oxbWlyMmxvaGZ2dDAyZ3I0In0.f3Pxh3KWGKMEKuZuq2Wltg';
 
   @override
   void initState() {
@@ -1065,12 +1082,13 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
         statusBarIconBrightness: Brightness.dark,
       ),
     );
-    _checkLocationPermission(); // Verifica el permiso de ubicación al iniciar
+    _checkLocationPermission();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _referenceController.dispose();
     super.dispose();
   }
 
@@ -1081,7 +1099,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
           permission == LocationPermission.whileInUse;
     });
     if (_locationPermissionGranted) {
-      _getCurrentLocation(); // Obtiene la ubicación si el permiso está otorgado
+      _getCurrentLocation();
     }
   }
 
@@ -1091,6 +1109,8 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
           desiredAccuracy: LocationAccuracy.high);
       setState(() {
         _currentPosition = position;
+        _selectedLatLng = LatLng(position.latitude, position.longitude);
+        mapController.move(_selectedLatLng!, 15); // Zoom inicial
       });
     } catch (e) {
       print('Error al obtener la ubicación: $e');
@@ -1102,13 +1122,8 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
       _isLoadingSuggestions = true;
     });
 
-    // Obtén la coordenada de la ubicación actual (si está disponible)
-    String? currentLocationQuery = _currentPosition != null
-        ? '${_currentPosition!.latitude},${_currentPosition!.longitude}'
-        : null;
-
     final response = await http.get(Uri.parse(
-      'https://api.mapbox.com/geocoding/v5/mapbox.places/$query.json?access_token=pk.eyJ1IjoibWFudWRmNSIsImEiOiJjbHhqMmQ2eTkwMDR6MnJuMzdlZzR2eTVpIn0.OJFWwYM75x7q73oa_o3Uuw&proximity=$currentLocationQuery&country=VE', // Reemplaza con tu API Key, incluye proximity y country
+      'https://api.mapbox.com/geocoding/v5/mapbox.places/$query.json?access_token=$_mapboxAccessToken',
     ));
 
     if (response.statusCode == 200) {
@@ -1123,17 +1138,27 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
     });
   }
 
+  Future<void> _saveLocationDetails() async {
+    // Obtener el id del servicio
+    // ... (Firebase logic)
+    // Eliminar el código para guardar en Firestore
+
+    // Mostrar la latitud y longitud en consola
+    print('Latitud: ${_selectedLatLng?.latitude}');
+    print('Longitud: ${_selectedLatLng?.longitude}');
+  }
+
   @override
   Widget build(BuildContext context) {
-    String truncatedServiceName = widget.serviceName;
-    if (truncatedServiceName.length > 25) {
-      truncatedServiceName = '${truncatedServiceName.substring(0, 25)}...';
+    String selectedServiceName = widget.serviceName;
+    if (selectedServiceName.length > 25) {
+      selectedServiceName = '${selectedServiceName.substring(0, 25)}...';
     }
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: Text(truncatedServiceName),
+        title: Text(selectedServiceName),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
@@ -1203,13 +1228,17 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                   itemCount: _suggestions.length,
                   itemBuilder: (context, index) {
                     final suggestion = _suggestions[index];
-                    final placeName = suggestion['place_name'];
-                    final text = suggestion['text'];
                     return ListTile(
-                      title: Text(placeName),
-                      subtitle: Text(text),
+                      title: Text(suggestion['place_name']),
+                      subtitle: Text(suggestion['properties']['text'] ?? ''),
                       onTap: () {
-                        _searchController.text = placeName;
+                        _searchController.text = suggestion['place_name'];
+                        // Convertimos el place_id a una cadena de texto
+                        _selectedLocationId = suggestion['id'].toString();
+                        _selectedLatLng = LatLng(
+                            suggestion['geometry']['coordinates'][1],
+                            suggestion['geometry']['coordinates'][0]);
+                        mapController.move(_selectedLatLng!, 15);
                         setState(() {
                           _suggestions = [];
                         });
@@ -1219,13 +1248,99 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                 ),
               ),
             const SizedBox(height: 20),
+            Expanded(
+              child: PopupScope(
+                child: FlutterMap(
+                  mapController: mapController,
+                  options: MapOptions(
+                    center: _selectedLatLng ?? const LatLng(10.4806, -66.9036), // Caracas
+                    zoom: _selectedLatLng != null ? 15 : 5, // Zoom inicial
+                    interactiveFlags: InteractiveFlag.all,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      subdomains: const ['a', 'b', 'c'],
+                    ),
+                    MarkerClusterLayerWidget(
+                      options: MarkerClusterLayerOptions(
+                        maxClusterRadius: 20,
+                        disableClusteringAtZoom: 16,
+                        size: const Size(40, 40),
+                        builder: (context, markers) {
+                          return Container(
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.green,
+                            ),
+                            child: Text(
+                              '${markers.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                              ),
+                            ),
+                          );
+                        },
+                        polygonOptions: const PolygonOptions(
+                          borderColor: Colors.black,
+                          color: Colors.black12,
+                          borderStrokeWidth: 3,
+                        ),
+                        markers: [
+                          if (_selectedLatLng != null)
+                            Marker(
+                              width: 80,
+                              height: 80,
+                              point: _selectedLatLng!,
+                              builder: (ctx) => const Icon(Icons.location_pin, color: Colors.green, size: 40),
+                            ),
+                        ],
+                        popupOptions: PopupOptions(
+                          popupSnap: PopupSnap.markerTop,
+                          popupBuilder: (_, marker) => Container(
+                            width: 200,
+                            height: 100,
+                            color: Colors.white,
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(_searchController.text),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _referenceController,
+              decoration: InputDecoration(
+                labelText: 'Punto de referencia e información adicional',
+                labelStyle: const TextStyle(color: Colors.black),
+                hintText: 'Ej. Frente a la tienda, cerca del parque...',
+                hintStyle: const TextStyle(color: Colors.grey),
+                filled: true,
+                fillColor: Colors.transparent,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16.0),
+                  borderSide: const BorderSide(color: Colors.blue),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 16.0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
             Center(
               child: ElevatedButton(
-                onPressed: () {
-                  // Realiza la acción al presionar "Continuar"
-                  // Puedes obtener la ubicación seleccionada de _searchController.text
-                  print('Ubicación seleccionada: ${_searchController.text}');
-                },
+                onPressed: _selectedLatLng != null &&
+                        _referenceController.text.isNotEmpty
+                    ? _saveLocationDetails
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
