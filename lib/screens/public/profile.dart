@@ -1214,13 +1214,28 @@ class SuppliersManagementScreen extends StatefulWidget {
   State createState() => SuppliersManagementScreenState();
 }
 
-class SuppliersManagementScreenState extends State {
+class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
   String? _selectedStatus;
   final _formKey = GlobalKey<FormState>();
   Map<String, dynamic>? _selectedUser;
 
   final _idController = TextEditingController();
   final _nameController = TextEditingController();
+  // Lista para almacenar los servicios añadidos
+  final List<Map<String, dynamic>> _addedServices = [];
+
+  // Función para obtener los servicios de Firestore
+  Future<List<Map<String, dynamic>>> _fetchServices() async {
+    final QuerySnapshot snapshot = await FirebaseFirestore.instance
+        .collection('services')
+        .get();
+
+    List<Map<String, dynamic>> services = [];
+    for (var doc in snapshot.docs) {
+      services.add(doc.data() as Map<String, dynamic>);
+    }
+    return services;
+  }
 
   Future<void> _fetchUser(BuildContext context) async {
     // Aquí puedes usar la función para obtener datos del usuario,
@@ -1378,10 +1393,110 @@ class SuppliersManagementScreenState extends State {
                   ],
                 ),
                 const SizedBox(height: 16.0),
+
+                // Lista de servicios añadidos
+                ..._addedServices.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  Map<String, dynamic> serviceData = entry.value;
+
+                  return Column(
+                    children: [
+                      // Contenedor del servicio
+                      Container(
+                        margin: const EdgeInsets.only(top: 16.0),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: const Color(0xFF08143C),
+                          ),
+                          borderRadius: BorderRadius.circular(16.0),
+                        ),
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Lista desplegable de servicios
+                            FutureBuilder<List<Map<String, dynamic>>>(
+                              future: _fetchServices(),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasData) {
+                                  List<Map<String, dynamic>> services =
+                                      snapshot.data!;
+
+                                  return DropdownButtonFormField<String>(
+                                    value: serviceData['service'],
+                                    hint: const Text('Seleccione un servicio'),
+                                    onChanged: (newValue) {
+                                      setState(() {
+                                        serviceData['service'] = newValue;
+                                      });
+                                    },
+                                    items: services.map((service) {
+                                      return DropdownMenuItem<String>(
+                                        value: service['id'].toString(), // Utiliza el ID como value
+                                        child: Text(
+                                            '${service['id']} - ${service['serviceName']}'), // Muestra ID y nombre
+                                      );
+                                    }).toList(),
+                                  );
+                                } else if (snapshot.hasError) {
+                                  return const Text('Error al cargar los servicios');
+                                } else {
+                                  return const CircularProgressIndicator();
+                                }
+                              },
+                            ),
+
+                            const SizedBox(height: 16.0),
+
+                            // Campo de texto para la ganancia por hora
+                            TextFormField(
+                              initialValue:
+                                  serviceData['hourlyRate']?.toString(),
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'Ganancia por hora',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                ),
+                              ),
+                              onChanged: (newValue) {
+                                setState(() {
+                                  serviceData['hourlyRate'] =
+                                      double.tryParse(newValue);
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Botón para eliminar el servicio
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _addedServices.removeAt(index);
+                          });
+                        },
+                        icon: const Icon(Icons.delete),
+                      ),
+                    ],
+                  );
+                // ignore: unnecessary_to_list_in_spreads
+                }).toList(),
+
+                const SizedBox(height: 16.0),
                 // Botón "Añadir servicio"
                 Center(
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      // Agrega un nuevo servicio a la lista
+                      setState(() {
+                        _addedServices.add({
+                          'service': null, // Inicializa el servicio a null
+                          'hourlyRate': null, // Inicializa la ganancia a null
+                        });
+                      });
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF08143C),
                       foregroundColor: Colors.white,
@@ -1439,7 +1554,7 @@ class SuppliersManagementScreenState extends State {
 }
 
 class SearchUsersForSuppliersScreen extends StatefulWidget {
-  const SearchUsersForSuppliersScreen({Key? key}) : super(key: key);
+  const SearchUsersForSuppliersScreen({super.key});
 
   @override
   State<SearchUsersForSuppliersScreen> createState() =>
