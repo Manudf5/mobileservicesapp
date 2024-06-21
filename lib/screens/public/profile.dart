@@ -1217,10 +1217,21 @@ class SuppliersManagementScreen extends StatefulWidget {
 class SuppliersManagementScreenState extends State {
   String? _selectedStatus;
   final _formKey = GlobalKey<FormState>();
+  Map<String, dynamic>? _selectedUser;
+
+  final _idController = TextEditingController();
+  final _nameController = TextEditingController();
+
+  Future<void> _fetchUser(BuildContext context) async {
+    // Aquí puedes usar la función para obtener datos del usuario,
+    // por ejemplo, obtener los datos de Firestore o desde una API.
+    // Puedes usar la función _fetchUser para eso
+  }
 
   @override
   void initState() {
     super.initState();
+    _fetchUser(context); // Llama a la función para obtener datos del usuario
   }
 
   @override
@@ -1253,10 +1264,11 @@ class SuppliersManagementScreenState extends State {
                   children: [
                     Expanded(
                       child: TextFormField(
+                        controller: _idController, // Usa el TextEditingController
                         decoration: InputDecoration(
                           labelText: 'ID',
                           labelStyle: const TextStyle(color: Colors.black),
-                          hintText: 'Ingresa el ID',
+                          hintText: 'ID del usuario',
                           hintStyle: const TextStyle(color: Colors.grey),
                           filled: true,
                           fillColor: Colors.transparent,
@@ -1269,6 +1281,7 @@ class SuppliersManagementScreenState extends State {
                             vertical: 16.0,
                           ),
                         ),
+                        enabled: false,
                       ),
                     ),
                     const SizedBox(width: 8.0),
@@ -1277,9 +1290,20 @@ class SuppliersManagementScreenState extends State {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SearchUsersScreen(),
+                            builder: (context) =>
+                                const SearchUsersForSuppliersScreen(),
                           ),
-                        );
+                        ).then((value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedUser = value;
+                              _idController.text =
+                                  _selectedUser!['id'].toString(); // Actualiza el controlador
+                              _nameController.text =
+                                  '${_selectedUser!['name']} ${_selectedUser!['lastName']}'; // Actualiza el controlador
+                            });
+                          }
+                        });
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF08143C),
@@ -1295,12 +1319,13 @@ class SuppliersManagementScreenState extends State {
                   ],
                 ),
                 const SizedBox(height: 16.0),
-                // Campo Nombre
+                // Campo Nombre y apellido
                 TextFormField(
+                  controller: _nameController, // Usa el TextEditingController
                   decoration: InputDecoration(
-                    labelText: 'Nombre',
+                    labelText: 'Nombre y apellido',
                     labelStyle: const TextStyle(color: Colors.black),
-                    hintText: 'Ingresa el nombre',
+                    hintText: 'Nombre y apellido del usuario',
                     hintStyle: const TextStyle(color: Colors.grey),
                     filled: true,
                     fillColor: Colors.transparent,
@@ -1313,26 +1338,7 @@ class SuppliersManagementScreenState extends State {
                       vertical: 16.0,
                     ),
                   ),
-                ),
-                const SizedBox(height: 16.0),
-                // Campo Apellido
-                TextFormField(
-                  decoration: InputDecoration(
-                    labelText: 'Apellido',
-                    labelStyle: const TextStyle(color: Colors.black),
-                    hintText: 'Ingresa el apellido',
-                    hintStyle: const TextStyle(color: Colors.grey),
-                    filled: true,
-                    fillColor: Colors.transparent,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: const BorderSide(color: Colors.blue),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 16.0,
-                    ),
-                  ),
+                  enabled: false,
                 ),
                 const SizedBox(height: 16.0),
                 // Lista desplegable "Activo"
@@ -1349,7 +1355,11 @@ class SuppliersManagementScreenState extends State {
                       vertical: 16.0,
                     ),
                   ),
-                  value: _selectedStatus,
+                  value: _selectedUser != null
+                      ? _selectedUser!['permissions'] == 1
+                          ? 'SI'
+                          : 'NO'
+                      : _selectedStatus,
                   hint: const Text('Seleccione'),
                   onChanged: (value) {
                     setState(() {
@@ -1366,6 +1376,26 @@ class SuppliersManagementScreenState extends State {
                       child: Text('NO'),
                     ),
                   ],
+                ),
+                const SizedBox(height: 16.0),
+                // Botón "Añadir servicio"
+                Center(
+                  child: ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF08143C),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 12.0,
+                      ),
+                      textStyle: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16.0,
+                      ),
+                    ),
+                    child: const Text('Añadir servicio'),
+                  ),
                 ),
                 const SizedBox(height: 16.0),
                 // Botón "Guardar"
@@ -1385,6 +1415,7 @@ class SuppliersManagementScreenState extends State {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1CA424),
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 24.0,
                         vertical: 12.0,
@@ -1407,14 +1438,16 @@ class SuppliersManagementScreenState extends State {
   }
 }
 
-class SearchUsersScreen extends StatefulWidget {
-  const SearchUsersScreen({Key? key}) : super(key: key);
+class SearchUsersForSuppliersScreen extends StatefulWidget {
+  const SearchUsersForSuppliersScreen({Key? key}) : super(key: key);
 
   @override
-  State<SearchUsersScreen> createState() => _SearchUsersScreenState();
+  State<SearchUsersForSuppliersScreen> createState() =>
+      _SearchUsersForSuppliersScreenState();
 }
 
-class _SearchUsersScreenState extends State<SearchUsersScreen> {
+class _SearchUsersForSuppliersScreenState
+    extends State<SearchUsersForSuppliersScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _filteredUsers = [];
@@ -1531,10 +1564,7 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
   Widget _buildUserButton(Map<String, dynamic> user) {
     return InkWell(
       onTap: () {
-        // Aquí puedes implementar la acción al presionar un usuario
-        // por ejemplo, navegar a una pantalla de detalles del usuario
-        // o mostrar un diálogo con la información del usuario
-        // print('Usuario seleccionado: ${user['name']}');
+        Navigator.of(context).pop(user); // Corrección aquí
       },
       child: Container(
         decoration: BoxDecoration(
@@ -1549,11 +1579,11 @@ class _SearchUsersScreenState extends State<SearchUsersScreen> {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             CircleAvatar(
-            radius: 30,
-            backgroundImage: user['profileImageUrl'] != null
-                ? NetworkImage(user['profileImageUrl'])
-                : const AssetImage('assets/images/ProfilePhoto_predetermined.png'), 
-          ),
+              radius: 30,
+              backgroundImage: user['profileImageUrl'] != null
+                  ? NetworkImage(user['profileImageUrl'])
+                  : const AssetImage('assets/images/ProfilePhoto_predetermined.png'),
+            ),
             const SizedBox(height: 8),
             Text(
               'ID: ${user['id']}',
