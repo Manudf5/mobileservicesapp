@@ -1124,7 +1124,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
     });
 
     final response = await http.get(Uri.parse(
-      'https://api.mapbox.com/geocoding/v5/mapbox.places/$query.json?access_token=$_mapboxAccessToken',
+      'https://api.mapbox.com/geocoding/v5/mapbox.places/$query.json?access_token=$_mapboxAccessToken&country=ve',
     ));
 
     if (response.statusCode == 200) {

@@ -1143,8 +1143,12 @@ class SuppliersScreen extends StatefulWidget {
 }
 
 class SuppliersScreenState extends State<SuppliersScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _filteredUsers = [];
+  bool _isLoading = true;
 
-void _showSuppliersManagementScreen() {
+  void _showSuppliersManagementScreen() {
     Navigator.push(
       context,
       PageRouteBuilder(
@@ -1157,6 +1161,48 @@ void _showSuppliersManagementScreen() {
             child: child,
           );
         },
+      ),
+    );
+  }
+
+  Future<void> _fetchUsers() async {
+    try {
+      QuerySnapshot<Map<String, dynamic>> querySnapshot =
+          await FirebaseFirestore.instance.collection('users').get();
+      _users = querySnapshot.docs
+          .where((doc) => doc.data()['permissions'] == 1)
+          .map((doc) => doc.data())
+          .toList();
+      _filteredUsers = _users;
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      // ignore: avoid_print
+      print('Error al obtener usuarios: $e');
+      // Manejar el error, mostrar un mensaje al usuario, etc.
+    }
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _filteredUsers = _users.where((user) =>
+              user['id'].toString().toLowerCase().contains(query.toLowerCase()) ||
+              (user['name'] + ' ' + user['lastName'])
+                  .toLowerCase()
+                  .contains(query.toLowerCase()))
+          .toList();
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUsers();
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.white,
+        statusBarIconBrightness: Brightness.dark,
       ),
     );
   }
@@ -1180,7 +1226,58 @@ void _showSuppliersManagementScreen() {
       ),
       body: Stack(
         children: [
-          Container(), // Aquí va el contenido de la pantalla
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: Colors.grey[200],
+                  ),
+                  child: Row(
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(left: 16.0),
+                        child: Icon(
+                          Icons.search,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(width: 16.0),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchController,
+                          decoration: const InputDecoration(
+                            hintText: "Buscar usuario por ID o nombre",
+                            border: InputBorder.none,
+                          ),
+                          onChanged: _onSearchChanged,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 25.0),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _filteredUsers.isEmpty
+                          ? const Center(
+                              child: Text('No se encontraron usuarios'),
+                            )
+                          : ListView.builder(
+                              itemCount: _filteredUsers.length,
+                              itemBuilder: (context, index) {
+                                final user = _filteredUsers[index];
+                                return _buildUserTile(user);
+                              },
+                            ),
+                ),
+              ],
+            ),
+          ),
           Positioned(
             bottom: 30.0, // Distancia desde la parte inferior
             right: 30.0, // Distancia desde el lado derecho
@@ -1194,10 +1291,47 @@ void _showSuppliersManagementScreen() {
                   topLeft: Radius.circular(10.0),
                   topRight: Radius.circular(10.0),
                   bottomRight: Radius.circular(10.0),
-                  bottomLeft: Radius.circular(10.0), 
+                  bottomLeft: Radius.circular(10.0),
                 ),
               ),
               child: const Icon(Icons.edit, color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserTile(Map<String, dynamic> user) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: const Color(0xFF08143C),
+          width: 1.0,
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundImage: user['profileImageUrl'] != null
+                ? NetworkImage(user['profileImageUrl'])
+                : const AssetImage('assets/images/ProfilePhoto_predetermined.png'),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${user['name']} ${user['lastName']}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text('ID: ${user['id']}'),
+              ],
             ),
           ),
         ],
@@ -1218,6 +1352,7 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
   String? _selectedStatus;
   final _formKey = GlobalKey<FormState>();
   Map<String, dynamic>? _selectedUser;
+  DocumentSnapshot? _supplierData; // Almacena los datos del proveedor
 
   final _idController = TextEditingController();
   final _nameController = TextEditingController();
@@ -1241,6 +1376,32 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
     // Aquí puedes usar la función para obtener datos del usuario,
     // por ejemplo, obtener los datos de Firestore o desde una API.
     // Puedes usar la función _fetchUser para eso
+  }
+
+  Future<void> _loadSupplierData(String userId) async {
+    _supplierData = await FirebaseFirestore.instance
+        .collection('suppliers')
+        .doc(userId)
+        .get();
+
+    if (_supplierData != null && _supplierData!.exists) {
+      // Verifica si 'services' es una lista
+      if (_supplierData!['services'] is List) {
+        // Convierte 'services' a una lista de mapas
+        List<Map<String, dynamic>> servicesList =
+            _supplierData!['services'].cast<Map<String, dynamic>>();
+        // Actualiza _addedServices con los servicios del proveedor
+        setState(() {
+          _addedServices.clear();
+          _addedServices.addAll(servicesList);
+        });
+      }
+    } else {
+      // Limpia _addedServices si no hay datos de proveedor
+      setState(() {
+        _addedServices.clear();
+      });
+    }
   }
 
   @override
@@ -1316,6 +1477,10 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                                   _selectedUser!['id'].toString(); // Actualiza el controlador
                               _nameController.text =
                                   '${_selectedUser!['name']} ${_selectedUser!['lastName']}'; // Actualiza el controlador
+                              _selectedStatus = _selectedUser!['permissions'] == 1
+                                  ? 'SI'
+                                  : 'NO'; // Actualiza el status
+                              _loadSupplierData(_selectedUser!['id'].toString()); // Carga los datos del proveedor si existen
                             });
                           }
                         });
@@ -1370,11 +1535,7 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                       vertical: 16.0,
                     ),
                   ),
-                  value: _selectedUser != null
-                      ? _selectedUser!['permissions'] == 1
-                          ? 'SI'
-                          : 'NO'
-                      : _selectedStatus,
+                  value: _selectedStatus,
                   hint: const Text('Seleccione'),
                   onChanged: (value) {
                     setState(() {
@@ -1394,7 +1555,15 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                 ),
                 const SizedBox(height: 16.0),
 
-                // Lista de servicios añadidos
+                // Muestra los servicios del proveedor si existen
+                if (_supplierData != null && _supplierData!.exists)
+                  const Text(
+                    'Servicios actuales:',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ..._addedServices.asMap().entries.map((entry) {
                   int index = entry.key;
                   Map<String, dynamic> serviceData = entry.value;
@@ -1432,14 +1601,28 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                                     },
                                     items: services.map((service) {
                                       return DropdownMenuItem<String>(
-                                        value: service['id'].toString(), // Utiliza el ID como value
-                                        child: Text(
-                                            '${service['id']} - ${service['serviceName']}'), // Muestra ID y nombre
+                                        value: service['id'].toString(),
+                                        // Utiliza el ID como value
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(7), // Agrega redondeo a los bordes
+                                       ),
+                                        padding: const EdgeInsets.all(0.4), // Agrega padding
+                                        child: SizedBox(
+                                          width:
+                                              320, // Ajusta el ancho según sea necesario
+                                          child: Text(
+                                            '${service['id']} - ${service['serviceName']}',
+                                          ),
+                                        ),
+                                      ),
                                       );
                                     }).toList(),
                                   );
                                 } else if (snapshot.hasError) {
-                                  return const Text('Error al cargar los servicios');
+                                  return const Text(
+                                      'Error al cargar los servicios');
                                 } else {
                                   return const CircularProgressIndicator();
                                 }
@@ -1516,16 +1699,50 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                 // Botón "Guardar"
                 Center(
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       // Aquí debes agregar la lógica para guardar los datos
                       // en Firestore
                       if (_formKey.currentState!.validate()) {
-                        // TODO: Guardar datos en Firestore
+                        
+                        // ignore: avoid_print
                         print('Form is valid!');
-                        // Process data
+
+                        // Obtén el ID del usuario desde el controlador
+                        String userId = _idController.text;
+
+                        // Crea un mapa con los datos del usuario
+                        Map<String, dynamic> userData = {
+                          'name': _nameController.text,
+                          'services': _addedServices,
+                          'permissions':
+                              _selectedStatus == 'SI' ? 1 : 0, // Agrega permissions
+                        };
+
+                        // Guarda los datos del usuario en una nueva colección
+                        await FirebaseFirestore.instance
+                            .collection('suppliers')
+                            .doc(userId)
+                            .set(userData);
+
+                        // Actualiza el estado de "Activo" en la colección "users"
+                        await FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(userId)
+                            .update({'permissions': _selectedStatus == 'SI' ? 1 : 0});
+
+                        // Navega a la pantalla anterior o muestra un mensaje de éxito
+                        // ignore: use_build_context_synchronously
+                        Navigator.pop(context);
+                        // Muestra un mensaje de éxito
+                        // ignore: use_build_context_synchronously
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Proveedor guardado correctamente'),
+                          ),
+                        );
                       } else {
+                        // ignore: avoid_print
                         print('Form is not valid');
-                        // TODO: Mostrar un mensaje de error
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -1552,7 +1769,6 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
     );
   }
 }
-
 class SearchUsersForSuppliersScreen extends StatefulWidget {
   const SearchUsersForSuppliersScreen({super.key});
 
