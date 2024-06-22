@@ -429,15 +429,15 @@ class _SearchScreenState extends State {
                   : _filteredServices.isEmpty
                       ? const Center(
                           child: Text('No se encontraron servicios'),
-                        )
+                                                  )
                       : GridView.count(
                           crossAxisCount: 2,
                           crossAxisSpacing: 10,
                           mainAxisSpacing: 10,
                           childAspectRatio: 9 / 7,
-                          children: _filteredServices.map((service) {
+children: _filteredServices.map((service) {
                             return _buildServiceButton(
-                                service['imageUrl'], service['serviceName']);
+                                service['imageUrl'], service['serviceName'], service['id']);
                           }).toList(),
                         ),
             ),
@@ -447,13 +447,13 @@ class _SearchScreenState extends State {
     );
   }
 
-  Widget _buildServiceButton(String imagePath, String text) {
+  Widget _buildServiceButton(String imagePath, String text, String serviceId) {
     return InkWell(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(serviceName: text),
+            builder: (context) => LocationDetailsScreen(serviceName: text, id: serviceId,),
           ),
         );
       },
@@ -626,20 +626,20 @@ class _HogarScreenState extends State<HogarScreen> {
                     childAspectRatio: 9 / 7,
                     children: _services.map((service) {
                       return _buildServiceButton(
-                          service['imageUrl'], service['serviceName']);
+                          service['imageUrl'], service['serviceName'], service['id']);
                     }).toList(),
                   ),
       ),
     );
   }
 
-  Widget _buildServiceButton(String imagePath, String text) {
+  Widget _buildServiceButton(String imagePath, String text, String serviceId) {
     return InkWell(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(serviceName: text),
+            builder: (context) => LocationDetailsScreen(serviceName: text, id: serviceId,),
           ),
         );
       },
@@ -748,20 +748,20 @@ class _PersonalScreenState extends State<PersonalScreen> {
                 childAspectRatio: 9 / 7,
                 children: _services.map((service) {
                   return _buildServiceButton(
-                      service['imageUrl'], service['serviceName']);
+                      service['imageUrl'], service['serviceName'], service['id']);
                 }).toList(),
               ),
       ),
     );
   }
 
-  Widget _buildServiceButton(String imagePath, String text) {
+  Widget _buildServiceButton(String imagePath, String text, String serviceId) {
     return InkWell(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(serviceName: text),
+            builder: (context) => LocationDetailsScreen(serviceName: text, id: serviceId,),
           ),
         );
       },
@@ -870,20 +870,20 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
                 childAspectRatio: 9 / 7,
                 children: _services.map((service) {
                   return _buildServiceButton(
-                      service['imageUrl'], service['serviceName']);
+                      service['imageUrl'], service['serviceName'], service['id']);
                 }).toList(),
               ),
       ),
     );
   }
 
-  Widget _buildServiceButton(String imagePath, String text) {
+  Widget _buildServiceButton(String imagePath, String text, String serviceId) {
     return InkWell(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(serviceName: text),
+            builder: (context) => LocationDetailsScreen(serviceName: text, id: serviceId,),
           ),
         );
       },
@@ -992,20 +992,20 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
                 childAspectRatio: 9 / 7,
                 children: _services.map((service) {
                   return _buildServiceButton(
-                      service['imageUrl'], service['serviceName']);
+                      service['imageUrl'], service['serviceName'], service['id']);
                 }).toList(),
               ),
       ),
     );
   }
 
-  Widget _buildServiceButton(String imagePath, String text) {
+  Widget _buildServiceButton(String imagePath, String text, String serviceId) {
     return InkWell(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(serviceName: text),
+            builder: (context) => LocationDetailsScreen(serviceName: text, id: serviceId,),
           ),
         );
       },
@@ -1050,38 +1050,37 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
 
 class LocationDetailsScreen extends StatefulWidget {
   final String serviceName;
-  const LocationDetailsScreen({super.key, required this.serviceName});
+  final String id; // Agregar el ID del servicio
+
+  const LocationDetailsScreen(
+      {super.key, required this.serviceName, required this.id});
 
   @override
-  State<LocationDetailsScreen> createState() => _LocationDetailsScreenState();
+  State createState() => _LocationDetailsScreenState();
 }
 
 class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _referenceController = TextEditingController();
-  List<dynamic> _suggestions = [];
+  List _suggestions = [];
   bool _isLoadingSuggestions = false;
   // ignore: unused_field
   Position? _currentPosition;
   bool _locationPermissionGranted = false;
-  // ignore: unused_field
-  String? _selectedLocationId;
-  // ignore: unused_field
-  String? _selectedLocationName;
-  LatLng? _selectedLatLng;
+  LatLng? _selectedLatLng; // Coordenadas de la ubicación seleccionada por el usuario
+  LatLng? _markerLatLng; // Coordenadas del marcador en el mapa
   MapController mapController = MapController();
 
-  final String _mapboxAccessToken = 'pk.eyJ1IjoibWFudWRmNSIsImEiOiJjbHhqMjZmd3oxbWlyMmxvaGZ2dDAyZ3I0In0.f3Pxh3KWGKMEKuZuq2Wltg';
+  final String _mapboxAccessToken =
+      'pk.eyJ1IjoibWFudWRmNSIsImEiOiJjbHhqMjZmd3oxbWlyMmxvaGZ2dDAyZ3I0In0.f3Pxh3KWGKMEKuZuq2Wltg';
 
   @override
   void initState() {
     super.initState();
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.white,
-        statusBarIconBrightness: Brightness.dark,
-      ),
-    );
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.white,
+      statusBarIconBrightness: Brightness.dark,
+    ));
     _checkLocationPermission();
   }
 
@@ -1092,24 +1091,26 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
     super.dispose();
   }
 
-  Future<void> _checkLocationPermission() async {
+  Future _checkLocationPermission() async {
     LocationPermission permission = await Geolocator.requestPermission();
     setState(() {
-      _locationPermissionGranted = permission == LocationPermission.always ||
-          permission == LocationPermission.whileInUse;
+      _locationPermissionGranted =
+          permission == LocationPermission.always ||
+              permission == LocationPermission.whileInUse;
     });
     if (_locationPermissionGranted) {
       _getCurrentLocation();
     }
   }
 
-  Future<void> _getCurrentLocation() async {
+  Future _getCurrentLocation() async {
     try {
       Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
       setState(() {
         _currentPosition = position;
         _selectedLatLng = LatLng(position.latitude, position.longitude);
+        _markerLatLng = _selectedLatLng; // Inicializar _markerLatLng con la ubicación actual
         mapController.move(_selectedLatLng!, 15); // Zoom inicial
       });
     } catch (e) {
@@ -1118,7 +1119,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
     }
   }
 
-  Future<void> _getSuggestions(String query) async {
+  Future _getSuggestions(String query) async {
     setState(() {
       _isLoadingSuggestions = true;
     });
@@ -1140,16 +1141,30 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
     });
   }
 
-  Future<void> _saveLocationDetails() async {
+  Future _saveLocationDetails() async {
     // Obtener el id del servicio
     // ... (Firebase logic)
     // Eliminar el código para guardar en Firestore
 
     // Mostrar la latitud y longitud en consola
     // ignore: avoid_print
-    print('Latitud: ${_selectedLatLng?.latitude}');
+    print('Latitud: ${_markerLatLng?.latitude}'); // Usar _markerLatLng aquí
     // ignore: avoid_print
-    print('Longitud: ${_selectedLatLng?.longitude}');
+    print('Longitud: ${_markerLatLng?.longitude}'); // Usar _markerLatLng aquí
+
+    // Navegar a la pantalla SelectSuppliersScreen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SelectSuppliersScreen(
+          serviceName: widget.serviceName,
+          id: widget.id, // Pasar el ID del servicio
+          latitude: _markerLatLng!.latitude, // Pasar la latitud
+          longitude: _markerLatLng!.longitude, // Pasar la longitud
+          reference: _referenceController.text, // Pasar el punto de referencia
+        ),
+      ),
+    );
   }
 
   @override
@@ -1184,6 +1199,13 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
               ),
             ),
             const SizedBox(height: 10),
+            const Text(
+              "Ingrese su ubicación en la barra de búsqueda o para mayor precisión, seleccione su dirección interactuando dentro del mapa:",
+              style: TextStyle(
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 15),
             Container(
               height: 50,
               decoration: BoxDecoration(
@@ -1238,10 +1260,10 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                       onTap: () {
                         _searchController.text = suggestion['place_name'];
                         // Convertimos el place_id a una cadena de texto
-                        _selectedLocationId = suggestion['id'].toString();
                         _selectedLatLng = LatLng(
                             suggestion['geometry']['coordinates'][1],
                             suggestion['geometry']['coordinates'][0]);
+                        _markerLatLng = _selectedLatLng; // Actualizar _markerLatLng al seleccionar una sugerencia
                         mapController.move(_selectedLatLng!, 15);
                         setState(() {
                           _suggestions = [];
@@ -1257,13 +1279,23 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                 child: FlutterMap(
                   mapController: mapController,
                   options: MapOptions(
-                    center: _selectedLatLng ?? const LatLng(10.4806, -66.9036), // Caracas
+                    center: _selectedLatLng ??
+                        const LatLng(10.4806, -66.9036), // Caracas
                     zoom: _selectedLatLng != null ? 15 : 5, // Zoom inicial
                     interactiveFlags: InteractiveFlag.all,
+                    onTap: (tapPosition, latLng) {
+                      setState(() {
+                        _selectedLatLng = latLng;
+                        _markerLatLng = latLng; // Actualizar _markerLatLng al tocar el mapa
+                        print('Latitud: ${_markerLatLng?.latitude}'); // Imprimir las coordenadas
+                        print('Longitud: ${_markerLatLng?.longitude}'); // Imprimir las coordenadas
+                      });
+                    },
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                       subdomains: const ['a', 'b', 'c'],
                     ),
                     MarkerClusterLayerWidget(
@@ -1292,12 +1324,13 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                           borderStrokeWidth: 3,
                         ),
                         markers: [
-                          if (_selectedLatLng != null)
+                          if (_markerLatLng != null) // Usar _markerLatLng aquí
                             Marker(
                               width: 80,
                               height: 80,
-                              point: _selectedLatLng!,
-                              builder: (ctx) => const Icon(Icons.location_pin, color: Colors.green, size: 40),
+                              point: _markerLatLng!,
+                              builder: (ctx) => const Icon(Icons.location_pin,
+                                  color: Colors.green, size: 40),
                             ),
                         ],
                         popupOptions: PopupOptions(
@@ -1341,13 +1374,14 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
             const SizedBox(height: 20),
             Center(
               child: ElevatedButton(
-                onPressed: _selectedLatLng != null &&
+                onPressed: _markerLatLng != null &&
                         _referenceController.text.isNotEmpty
                     ? _saveLocationDetails
                     : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 40, vertical: 15),
                   textStyle: const TextStyle(fontSize: 16),
                 ),
                 child: const Text(
@@ -1361,6 +1395,182 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// Nueva pantalla SelectSuppliersScreen
+class SelectSuppliersScreen extends StatefulWidget {
+  final String serviceName;
+  final String id;
+  final double latitude;
+  final double longitude;
+  final String reference;
+
+  const SelectSuppliersScreen({
+    super.key,
+    required this.serviceName,
+    required this.id,
+    required this.latitude,
+    required this.longitude,
+    required this.reference,
+  });
+
+  @override
+  State<SelectSuppliersScreen> createState() => _SelectSuppliersScreenState();
+}
+
+class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
+  List<DocumentSnapshot<Map<String, dynamic>>> _suppliers = [];
+  List<DocumentSnapshot<Map<String, dynamic>>> _filteredSuppliers = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchSuppliers();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.white,
+      statusBarIconBrightness: Brightness.dark,
+    ));
+  }
+
+  Future _fetchSuppliers() async {
+    try {
+      // Obtener la colección de proveedores desde Firestore
+      QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+          .instance
+          .collection('suppliers')
+          .get();
+      _suppliers = querySnapshot.docs;
+
+      // Filtrar los proveedores que ofrecen el servicio solicitado
+      _filteredSuppliers = _suppliers.where((supplier) {
+        if (supplier.data()?['services'] != null) {
+          // Buscar coincidencia exacta en el id
+          return supplier.data()?['services'].any((service) {
+            return service['service'] == widget.id; // Comparación directa del id
+          });
+        }
+        return false;
+      }).toList();
+
+      // Obtener las imágenes de perfil de los usuarios (asumiendo que el id del proveedor
+      // es el mismo que el id del usuario)
+      for (var supplier in _filteredSuppliers) {
+        // Obtén la referencia del documento del usuario en la colección "users"
+        DocumentReference<Map<String, dynamic>> userDocRef =
+            FirebaseFirestore.instance.collection('users').doc(supplier.id);
+
+        // Obtén el documento del usuario
+        DocumentSnapshot<Map<String, dynamic>> userDoc =
+            await userDocRef.get();
+
+        // Actualiza la información de la imagen de perfil del proveedor
+        if (userDoc.exists) {
+          supplier.reference.update({'profileImageUrl': userDoc.data()?['profileImageUrl']});
+        }
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      // ignore: avoid_print
+      print('Error al obtener proveedores: $e');
+      // Manejar el error, mostrar un mensaje al usuario, etc.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+        ),
+        title: const Text(
+          'Selecciona a tu agente',
+          style: TextStyle(color: Colors.black),
+        ),
+        actions: [
+          IconButton(
+            onPressed: () {
+              // Implementar la funcionalidad de filtros aquí
+            },
+            icon: const Icon(Icons.filter_list, color: Colors.black),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 25.0),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _filteredSuppliers.isEmpty
+                          ? const Center(
+                              child: Text('No se encontraron agentes'),
+                            )
+                          : ListView.builder(
+                              itemCount: _filteredSuppliers.length,
+                              itemBuilder: (context, index) {
+                                final supplier = _filteredSuppliers[index];
+                                return _buildSupplierTile(supplier);
+                              },
+                            ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSupplierTile(DocumentSnapshot<Map<String, dynamic>> supplier) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: const Color(0xFF08143C),
+          width: 1.0,
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 30,
+            backgroundImage: supplier.data()?['profileImageUrl'] != null
+                ? NetworkImage(supplier.data()?['profileImageUrl'])
+                : const AssetImage('assets/images/ProfilePhoto_predetermined.png'),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${supplier.data()?['name']}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text('ID: ${supplier.id}'), // Se usa supplier.id para obtener el ID del documento
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
