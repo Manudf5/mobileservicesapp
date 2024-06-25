@@ -1445,32 +1445,34 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
           .get();
       _suppliers = querySnapshot.docs;
 
-      // Filtrar los proveedores que ofrecen el servicio solicitado
+      // Filtrar los proveedores que ofrecen el servicio solicitado y tienen permisos
       _filteredSuppliers = _suppliers.where((supplier) {
-        if (supplier.data()?['services'] != null) {
-          // Buscar coincidencia exacta en el id
+        if (supplier.data()?['services'] != null &&
+            supplier.data()?['permissions'] == 1) {
           return supplier.data()?['services'].any((service) {
-            return service['service'] == widget.id; // Comparación directa del id
+            return service['service'] == widget.id;
           });
         }
         return false;
       }).toList();
 
-      // Obtener las imágenes de perfil de los usuarios (asumiendo que el id del proveedor
-      // es el mismo que el id del usuario)
+      // Actualizar las imágenes de perfil y la calificación de los proveedores
+      // desde la colección "users" si hay cambios
       for (var supplier in _filteredSuppliers) {
         // Obtén la referencia del documento del usuario en la colección "users"
         DocumentReference<Map<String, dynamic>> userDocRef =
             FirebaseFirestore.instance.collection('users').doc(supplier.id);
 
-        // Obtén el documento del usuario
-        DocumentSnapshot<Map<String, dynamic>> userDoc =
-            await userDocRef.get();
-
-        // Actualiza la información de la imagen de perfil del proveedor
-        if (userDoc.exists) {
-          supplier.reference.update({'profileImageUrl': userDoc.data()?['profileImageUrl']});
-        }
+        // Escucha los cambios en el documento del usuario
+        userDocRef.snapshots().listen((userDoc) {
+          if (userDoc.exists) {
+            // Actualiza la imagen de perfil del proveedor en la colección "suppliers"
+            supplier.reference.update({
+              'profileImageUrl': userDoc.data()?['profileImageUrl'],
+              'assessment': userDoc.data()?['assessment']
+            });
+          }
+        });
       }
 
       setState(() {
@@ -1539,6 +1541,19 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
   }
 
   Widget _buildSupplierTile(DocumentSnapshot<Map<String, dynamic>> supplier) {
+    // Obtener la ganancia por hora del proveedor
+    double hourlyRate = 0.0;
+    if (supplier.data()?['services'] != null) {
+      for (var service in supplier.data()?['services']) {
+        if (service['service'] == widget.id) {
+          hourlyRate = service['hourlyRate'] != null
+              ? service['hourlyRate'].toDouble()
+              : 0.0; // Corrección aquí
+          break;
+        }
+      }
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
@@ -1563,11 +1578,36 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${supplier.data()?['name']}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  'ID: ${supplier.id}',
+                  style: const TextStyle(fontSize: 8.0),
                 ),
-                Text('ID: ${supplier.id}'), // Se usa supplier.id para obtener el ID del documento
+                Text(
+                  '${supplier.data()?['name']}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                Text(
+                  widget.serviceName,
+                  style: const TextStyle(fontSize: 14.0, fontStyle: FontStyle.italic), // Mostrar el nombre del servicio
+                ),
+                Row(
+                  children: [
+                    const Icon(Icons.star, size: 16.0, color: Color(0xFF1ca424),),
+                    const SizedBox(width: 4.0),
+                    Text(
+                      '${supplier.data()?['assessment'] ?? 'Sin calificación'}',
+                      style: const TextStyle(fontSize: 12.0),
+                    ),
+                  ],
+                ),
               ],
+            ),
+          ),
+          // Mostrar la ganancia por hora del lado derecho
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0),
+            child: Text(
+              hourlyRate == 0.0 ? 'Gratis' : '\$${hourlyRate.toStringAsFixed(2)}/hr',
+              style: const TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold, color: Color(0xFF08143C)),
             ),
           ),
         ],
