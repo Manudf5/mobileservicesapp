@@ -1508,14 +1508,12 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
     return distance;
   }
 
-  void _sortSuppliersByPriceAscending() {
+ void _sortSuppliersByPriceAscending() {
     _filteredSuppliers.sort((a, b) {
-      double hourlyRateA = a.data()?['services']
-              .firstWhere((service) => service['service'] == widget.id)['hourlyRate']
-          as double;
-      double hourlyRateB = b.data()?['services']
-              .firstWhere((service) => service['service'] == widget.id)['hourlyRate']
-          as double;
+      double hourlyRateA = double.tryParse(a.data()?['services']
+              .firstWhere((service) => service['service'] == widget.id)['hourlyRate'].toString() ?? '0') ?? 0.0;
+      double hourlyRateB = double.tryParse(b.data()?['services']
+              .firstWhere((service) => service['service'] == widget.id)['hourlyRate'].toString() ?? '0') ?? 0.0;
 
       return hourlyRateA.compareTo(hourlyRateB);
     });
@@ -1523,12 +1521,10 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
 
   void _sortSuppliersByPriceDescending() {
     _filteredSuppliers.sort((a, b) {
-      double hourlyRateA = a.data()?['services']
-              .firstWhere((service) => service['service'] == widget.id)['hourlyRate']
-          as double;
-      double hourlyRateB = b.data()?['services']
-              .firstWhere((service) => service['service'] == widget.id)['hourlyRate']
-          as double;
+      double hourlyRateA = double.tryParse(a.data()?['services']
+              .firstWhere((service) => service['service'] == widget.id)['hourlyRate'].toString() ?? '0') ?? 0.0;
+      double hourlyRateB = double.tryParse(b.data()?['services']
+              .firstWhere((service) => service['service'] == widget.id)['hourlyRate'].toString() ?? '0') ?? 0.0;
 
       return hourlyRateB.compareTo(hourlyRateA);
     });
@@ -1762,12 +1758,12 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
 
   Widget _buildSupplierButton(
       DocumentSnapshot<Map<String, dynamic>> supplier) {
-    double hourlyRate = 0.0;
+    double hourlyRate = 0.0; 
     if (supplier.data()?['services'] != null) {
       for (var service in supplier.data()?['services']) {
         if (service['service'] == widget.id) {
           hourlyRate = service['hourlyRate'] != null
-              ? service['hourlyRate'].toDouble()
+              ? double.tryParse(service['hourlyRate'].toString()) ?? 0.0 
               : 0.0; 
           break;
         }
@@ -2013,7 +2009,7 @@ class SelectedSuppliersScreen extends StatefulWidget {
   final String id;
   final double latitude;
   final double longitude;
-  final String reference;
+  final String reference; // Referencia del proveedor
 
   const SelectedSuppliersScreen({
     super.key,
@@ -2030,8 +2026,38 @@ class SelectedSuppliersScreen extends StatefulWidget {
       _SelectedSuppliersScreenState();
 }
 
-class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen> {
+class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
+    with SingleTickerProviderStateMixin {
   bool _showProfileImage = false;
+  bool _showReservationModal = false;
+  final _reservationTextController = TextEditingController();
+  late AnimationController _animationController;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this, // 'this' se refiere al widget State
+      duration: const Duration(milliseconds: 300),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 1), // Comienza fuera de la pantalla
+      end: Offset.zero, // Termina visible
+    ).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeInOut, // Curva de animación suave
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    _reservationTextController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2054,11 +2080,11 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen> {
         children: [
           // Contenido principal
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(23.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // CircleAvatar con la foto de perfil
+                // CircleAvatar con la foto de perfil y marco
                 Center(
                   child: GestureDetector(
                     onTap: () {
@@ -2068,33 +2094,77 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen> {
                     },
                     child: Hero(
                       tag: 'profileImage',
-                      child: CircleAvatar(
-                        radius: 60,
-                        backgroundImage:
-                            widget.selectedSupplier.data()?['profileImageUrl'] !=
-                                    null
-                                ? NetworkImage(
-                                    widget.selectedSupplier.data()?['profileImageUrl'])
-                                : const AssetImage(
-                                    'assets/images/ProfilePhoto_predetermined.png'),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFF08143C),
+                            width: 3.0,
+                          ),
+                        ),
+                        child: CircleAvatar(
+                          radius: 60,
+                          backgroundImage: widget.selectedSupplier.data()?['profileImageUrl'] !=
+                                  null
+                              ? NetworkImage(
+                                  widget.selectedSupplier.data()?['profileImageUrl'])
+                              : const AssetImage(
+                                  'assets/images/ProfilePhoto_predetermined.png'),
+                        ),
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 20),
                 // Nombre del agente
-                Text(
-                  '${widget.selectedSupplier.data()?['name']}',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${widget.selectedSupplier.data()?['name']}',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    // Calificación del agente
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 5.0,
+                        horizontal: 10.0,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10.0),
+                        border: Border.all(
+                          color: const Color(0xFF08143C),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.star,
+                            size: 18.0,
+                            color: Color(0xFF1ca424),
+                          ),
+                          const SizedBox(width: 4.0),
+                          Text(
+                            '${widget.selectedSupplier.data()?['assessment'] ?? 'Sin calificación'}',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
                 // ID del agente
                 Text(
                   'ID: ${widget.selectedSupplier.id}',
-                  style: const TextStyle(fontSize: 16),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.normal,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 // Servicio seleccionado
@@ -2103,52 +2173,12 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen> {
                   style: const TextStyle(fontSize: 16),
                 ),
                 const SizedBox(height: 10),
-                // Calificación del agente
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.star,
-                      size: 16.0,
-                      color: Color(0xFF1ca424),
-                    ),
-                    const SizedBox(width: 4.0),
-                    Text(
-                      '${widget.selectedSupplier.data()?['assessment'] ?? 'Sin calificación'}',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                // Ganancia por hora del agente
+                // Tarifa por hora del agente
                 Text(
-                  'Ganancia por hora: ${_getHourlyRate(widget.selectedSupplier, widget.id)}', // Llama a _getHourlyRate con el id
+                  'Tarifa por hora: ${_getHourlyRate(widget.selectedSupplier, widget.id)}', // Llama a _getHourlyRate con el id
                   style: const TextStyle(fontSize: 16),
                 ),
                 const SizedBox(height: 20),
-                // Botón "Contactar"
-                ElevatedButton(
-                  onPressed: () {
-                    // Aquí puedes implementar la lógica para contactar al agente
-                    // Por ejemplo, puedes mostrar un diálogo para ingresar el mensaje
-                    // o abrir un chat.
-                    print('Contactar al agente con ID: ${widget.id}');
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF08143C),
-                    foregroundColor: Colors.white,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text('Contactar'),
-                ),
               ],
             ),
           ),
@@ -2166,23 +2196,156 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen> {
                 child: Center(
                   child: Hero(
                     tag: 'profileImage',
-
                     child: CircleAvatar(
-                      radius: 175, // Ajusta el tamaño del CircleAvatar
-                      backgroundImage:
-                          widget.selectedSupplier.data()?['profileImageUrl'] !=
-                                  null
-                              ? NetworkImage(
-                                  widget.selectedSupplier.data()?['profileImageUrl'])
-                              : const AssetImage(
-                                  'assets/images/ProfilePhoto_predetermined.png'),
+                      radius: 175,
+                      backgroundImage: widget.selectedSupplier.data()?['profileImageUrl'] !=
+                              null
+                          ? NetworkImage(
+                              widget.selectedSupplier.data()?['profileImageUrl'])
+                          : const AssetImage(
+                              'assets/images/ProfilePhoto_predetermined.png'),
                     ),
                   ),
                 ),
               ),
             ),
+
+          // Ventana de reserva
+          if (_showReservationModal)
+            SlideTransition(
+              position: _slideAnimation,
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _showReservationModal = false;
+                    _animationController.reverse(); // Invierte la animación
+                  });
+                },
+                child: Stack(
+                  children: [
+                    // Fondo opaco oscuro
+                    Container(
+                      color: Colors.black.withOpacity(0.5),
+                    ),
+                    // Ventana de reserva
+                    Positioned(
+                      bottom: 0, // Posiciona la ventana en la parte inferior
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(20.0),
+                        decoration: const BoxDecoration(
+                          color: Colors.white, // Color de fondo del diálogo
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(25.0),
+                            topRight: Radius.circular(25.0),
+                          ), // Redondear las esquinas superiores
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              'Detalles de la Reserva',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF08143C), // Color del texto
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            // Campo de texto para el motivo de la reserva
+                            TextField(
+                              controller: _reservationTextController,
+                              maxLines: 6,
+                              style: const TextStyle(color: Color(0xFF08143C)), // Color del texto
+                              decoration:  InputDecoration(
+                                hintText:
+                                'Ingrese el motivo de la reserva y especificaciones de su solicitud (máx. 500 caracteres)',
+                                hintStyle: const TextStyle(color: Colors.black), // Color del texto de la sugerencia
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(20),),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            // Botón para confirmar la reserva
+                            ElevatedButton(
+                              onPressed: () {
+                                // Aquí puedes implementar la lógica para procesar la reserva
+                                print(
+                                    'Confirmar reserva con detalles: ${_reservationTextController.text}');
+                                setState(() {
+                                  _showReservationModal = false;
+                                  _animationController.reverse();
+                                });
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1ca424),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 40,
+                                  vertical: 15,
+                                ),
+                                textStyle: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              child: const Text(
+                                'Confirmar reserva',
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
+      // FloatingActionButton
+      floatingActionButton: _showReservationModal
+          ? null // Ocultar el botón
+          : SizedBox(
+        width: double.infinity, // Ocupar todo el ancho de la pantalla
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0),
+          child: ElevatedButton(
+            onPressed: () async { // Uso de async
+              setState(() {
+                _showReservationModal = true;
+              });
+              // Esperar a que _animationController esté inicializado
+              await Future.delayed(Duration.zero);
+              _animationController.forward(); 
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1ca424),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 40,
+                vertical: 15,
+              ),
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              'Reservar servicio',
+            ),
+          ),
+        ),
+      ),
+      // Quitar el espacio alrededor del botón
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -2202,7 +2365,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen> {
     if (hourlyRate == 0.0) {
       return 'Gratis';
     } else {
-      return '\$${hourlyRate.toStringAsFixed(2)}/hr';
+      return '\$${hourlyRate.toStringAsFixed(2)}';
     }
   }
 }
