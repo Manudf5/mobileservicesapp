@@ -1,3 +1,5 @@
+import 'dart:ui';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -1142,9 +1144,6 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
   }
 
   Future _saveLocationDetails() async {
-    // Obtener el id del servicio
-    // ... (Firebase logic)
-    // Eliminar el código para guardar en Firestore
 
     // Mostrar la latitud y longitud en consola
     // ignore: avoid_print
@@ -1374,8 +1373,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
             const SizedBox(height: 20),
             Center(
               child: ElevatedButton(
-                onPressed: _markerLatLng != null &&
-                        _referenceController.text.isNotEmpty
+                onPressed: _markerLatLng != null
                     ? _saveLocationDetails
                     : null,
                 style: ElevatedButton.styleFrom(
@@ -1425,6 +1423,14 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
   List<DocumentSnapshot<Map<String, dynamic>>> _suppliers = [];
   List<DocumentSnapshot<Map<String, dynamic>>> _filteredSuppliers = [];
   bool _isLoading = true;
+  bool _showFilterDialog = false; 
+
+  // Variables para controlar la selección de filtros
+  String _selectedFilter = 'Recomendados'; 
+  bool _preciosBajosSelected = false;
+  bool _preciosAltosSelected = false;
+  bool _mayorCantidadTareasSelected = false;
+  bool _masCercanosSelected = false;
 
   @override
   void initState() {
@@ -1438,38 +1444,43 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
 
   Future _fetchSuppliers() async {
     try {
-      // Obtener la colección de proveedores desde Firestore
       QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
           .instance
           .collection('suppliers')
           .get();
       _suppliers = querySnapshot.docs;
 
-      // Filtrar los proveedores que ofrecen el servicio solicitado y tienen permisos
       _filteredSuppliers = _suppliers.where((supplier) {
         if (supplier.data()?['services'] != null &&
             supplier.data()?['permissions'] == 1) {
-          return supplier.data()?['services'].any((service) {
+          bool offersService = supplier.data()?['services'].any((service) {
             return service['service'] == widget.id;
           });
+
+          double distance = calculateDistance(
+            widget.latitude,
+            widget.longitude,
+            supplier.data()?['location'].latitude,
+            supplier.data()?['location'].longitude,
+          );
+
+          bool withinRange = distance <= 10;
+
+          return offersService && withinRange;
         }
         return false;
       }).toList();
 
-      // Actualizar las imágenes de perfil y la calificación de los proveedores
-      // desde la colección "users" si hay cambios
       for (var supplier in _filteredSuppliers) {
-        // Obtén la referencia del documento del usuario en la colección "users"
         DocumentReference<Map<String, dynamic>> userDocRef =
             FirebaseFirestore.instance.collection('users').doc(supplier.id);
 
-        // Escucha los cambios en el documento del usuario
         userDocRef.snapshots().listen((userDoc) {
           if (userDoc.exists) {
-            // Actualiza la imagen de perfil del proveedor en la colección "suppliers"
             supplier.reference.update({
               'profileImageUrl': userDoc.data()?['profileImageUrl'],
               'assessment': userDoc.data()?['assessment']
+            }).then((_) {
             });
           }
         });
@@ -1479,9 +1490,107 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      // ignore: avoid_print
       print('Error al obtener proveedores: $e');
-      // Manejar el error, mostrar un mensaje al usuario, etc.
+    }
+  }
+
+  double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+    const earthRadius = 6371.0; 
+    double dLat = (lat2 - lat1) * (pi / 180);
+    double dLon = (lon2 - lon1) * (pi / 180);
+    double a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1 * (pi / 180)) *
+            cos(lat2 * (pi / 180)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    double distance = earthRadius * c;
+    return distance;
+  }
+
+  void _sortSuppliersByPriceAscending() {
+    _filteredSuppliers.sort((a, b) {
+      double hourlyRateA = a.data()?['services']
+              .firstWhere((service) => service['service'] == widget.id)['hourlyRate']
+          as double;
+      double hourlyRateB = b.data()?['services']
+              .firstWhere((service) => service['service'] == widget.id)['hourlyRate']
+          as double;
+
+      return hourlyRateA.compareTo(hourlyRateB);
+    });
+  }
+
+  void _sortSuppliersByPriceDescending() {
+    _filteredSuppliers.sort((a, b) {
+      double hourlyRateA = a.data()?['services']
+              .firstWhere((service) => service['service'] == widget.id)['hourlyRate']
+          as double;
+      double hourlyRateB = b.data()?['services']
+              .firstWhere((service) => service['service'] == widget.id)['hourlyRate']
+          as double;
+
+      return hourlyRateB.compareTo(hourlyRateA);
+    });
+  }
+
+  void _sortSuppliersByDistanceAscending() {
+    _filteredSuppliers.sort((a, b) {
+      double distanceA = calculateDistance(
+        widget.latitude,
+        widget.longitude,
+        a.data()?['location'].latitude,
+        a.data()?['location'].longitude,
+      );
+      double distanceB = calculateDistance(
+        widget.latitude,
+        widget.longitude,
+        b.data()?['location'].latitude,
+        b.data()?['location'].longitude,
+      );
+
+      return distanceA.compareTo(distanceB);
+    });
+  }
+
+  void _applyFilter(String filter) {
+    setState(() {
+      _selectedFilter = filter; 
+      _showFilterDialog = false; 
+    });
+
+    switch (filter) {
+      case 'Precios bajos':
+        _sortSuppliersByPriceAscending();
+        break;
+      case 'Precios altos':
+        _sortSuppliersByPriceDescending();
+        break;
+      case 'Más cercanos':
+        _sortSuppliersByDistanceAscending();
+        break;
+      case 'Recomendados':
+        _filteredSuppliers = _suppliers.where((supplier) {
+          if (supplier.data()?['services'] != null &&
+              supplier.data()?['permissions'] == 1) {
+            bool offersService = supplier.data()?['services'].any((service) {
+              return service['service'] == widget.id;
+            });
+
+            double distance = calculateDistance(
+              widget.latitude,
+              widget.longitude,
+              supplier.data()?['location'].latitude,
+              supplier.data()?['location'].longitude,
+            );
+
+            bool withinRange = distance <= 10;
+
+            return offersService && withinRange;
+          }
+          return false;
+        }).toList();
+        break;
     }
   }
 
@@ -1504,7 +1613,9 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
         actions: [
           IconButton(
             onPressed: () {
-              // Implementar la funcionalidad de filtros aquí
+              setState(() {
+                _showFilterDialog = true; 
+              });
             },
             icon: const Icon(Icons.filter_list, color: Colors.black),
           ),
@@ -1517,6 +1628,17 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 25.0),
+                Text(
+                  _selectedFilter == 'Recomendados'
+                      ? 'Recomendados'
+                      : 'Resultados por $_selectedFilter', 
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16.0),
                 Expanded(
                   child: _isLoading
                       ? const Center(child: CircularProgressIndicator())
@@ -1526,92 +1648,561 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                             )
                           : ListView.builder(
                               itemCount: _filteredSuppliers.length,
+                              shrinkWrap: true,
+                              padding: const EdgeInsets.only(top: 10.0),
                               itemBuilder: (context, index) {
-                                final supplier = _filteredSuppliers[index];
-                                return _buildSupplierTile(supplier);
+                                return Padding(
+                                  padding: const EdgeInsets.only(
+                                      bottom: 10.0), 
+                                  child: _buildSupplierButton(
+                                      _filteredSuppliers[index]),
+                                );
                               },
                             ),
                 ),
               ],
             ),
           ),
+
+          if (_showFilterDialog)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _showFilterDialog = false; 
+                  });
+                },
+                child: IgnorePointer(
+                  child: AnimatedOpacity(
+                    opacity: _showFilterDialog ? 0.5 : 0.0,
+                    duration: const Duration(milliseconds: 300), 
+                    child: Container(
+                      color: Colors.black.withOpacity(0.3),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                        child: Container(
+                          color: Colors.transparent, 
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (_showFilterDialog)
+            Center(
+              child: FilterDialog(
+                onFilterApplied: _applyFilter,
+                preciosBajosSelected: _preciosBajosSelected,
+                preciosAltosSelected: _preciosAltosSelected,
+                mayorCantidadTareasSelected: _mayorCantidadTareasSelected,
+                masCercanosSelected: _masCercanosSelected,
+                onPreciosBajosSelected: (value) {
+                  setState(() {
+                    _preciosBajosSelected = value;
+                    _preciosAltosSelected = false;
+                    _mayorCantidadTareasSelected = false;
+                    _masCercanosSelected = false;
+
+                    if (value) {
+                      _applyFilter('Precios bajos'); 
+                    } else {
+                      _applyFilter('Recomendados'); 
+                    }
+                  });
+                },
+                onPreciosAltosSelected: (value) {
+                  setState(() {
+                    _preciosAltosSelected = value;
+                    _preciosBajosSelected = false;
+                    _mayorCantidadTareasSelected = false;
+                    _masCercanosSelected = false;
+
+                    if (value) {
+                      _applyFilter('Precios altos'); 
+                    } else {
+                      _applyFilter('Recomendados'); 
+                    }
+                  });
+                },
+                onMayorCantidadTareasSelected: (value) {
+                  setState(() {
+                    _mayorCantidadTareasSelected = value;
+                    _preciosAltosSelected = false;
+                    _preciosBajosSelected = false;
+                    _masCercanosSelected = false;
+
+                    if (value) {
+                      _applyFilter('Mayor cantidad de tareas completadas');
+                    } else {
+                      _applyFilter('Recomendados'); 
+                    }
+                  });
+                },
+                onMasCercanosSelected: (value) {
+                  setState(() {
+                    _masCercanosSelected = value;
+                    _preciosAltosSelected = false;
+                    _preciosBajosSelected = false;
+                    _mayorCantidadTareasSelected = false;
+
+                    if (value) {
+                      _applyFilter('Más cercanos'); 
+                    } else {
+                      _applyFilter('Recomendados'); 
+                    }
+                  });
+                },
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildSupplierTile(DocumentSnapshot<Map<String, dynamic>> supplier) {
-    // Obtener la ganancia por hora del proveedor
+  Widget _buildSupplierButton(
+      DocumentSnapshot<Map<String, dynamic>> supplier) {
     double hourlyRate = 0.0;
     if (supplier.data()?['services'] != null) {
       for (var service in supplier.data()?['services']) {
         if (service['service'] == widget.id) {
           hourlyRate = service['hourlyRate'] != null
               ? service['hourlyRate'].toDouble()
-              : 0.0; // Corrección aquí
+              : 0.0; 
           break;
         }
       }
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: const Color(0xFF08143C),
-          width: 1.0,
+    double distance = calculateDistance(
+      widget.latitude,
+      widget.longitude,
+      supplier.data()?['location'].latitude,
+      supplier.data()?['location'].longitude,
+    );
+
+    String formattedDistance;
+    if (distance < 1) {
+      formattedDistance = '${(distance * 1000).toStringAsFixed(0)} m';
+    } else {
+      formattedDistance = '${distance.toStringAsFixed(1)} km';
+    }
+
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SelectedSuppliersScreen(
+              selectedSupplier: supplier,
+              serviceName: widget.serviceName,
+              id: widget.id,
+              latitude: widget.latitude,
+              longitude: widget.longitude,
+              reference: widget.reference, // Pasa la referencia del proveedor
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: const Color(0xFF08143C),
+            width: 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 30,
+              backgroundImage: supplier.data()?['profileImageUrl'] != null
+                  ? NetworkImage(supplier.data()?['profileImageUrl'])
+                  : const AssetImage(
+                      'assets/images/ProfilePhoto_predetermined.png'),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ID: ${supplier.id}',
+                    style: const TextStyle(fontSize: 8.0),
+                  ),
+                  Text(
+                    '${supplier.data()?['name']}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  Text(
+                    widget.serviceName,
+                    style: const TextStyle(
+                        fontSize: 14.0, fontStyle: FontStyle.italic), 
+                  ),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.social_distance_outlined,
+                        size: 16.0,
+                        color: Colors.red,
+                      ),
+                      const SizedBox(width: 4.0),
+                      Text(
+                        formattedDistance,
+                        style: const TextStyle(fontSize: 12.0),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.star,
+                        size: 16.0,
+                        color: Color(0xFF1ca424),
+                      ),
+                      const SizedBox(width: 4.0),
+                      Text(
+                        '${supplier.data()?['assessment'] ?? 'Sin calificación'}',
+                        style: const TextStyle(fontSize: 12.0),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 16.0),
+              child: Text(
+                hourlyRate == 0.0 ? 'Gratis' : '\$${hourlyRate.toStringAsFixed(2)}/hr',
+                style: const TextStyle(
+                    fontSize: 16.0,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF08143C)),
+              ),
+            ),
+          ],
         ),
       ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundImage: supplier.data()?['profileImageUrl'] != null
-                ? NetworkImage(supplier.data()?['profileImageUrl'])
-                : const AssetImage('assets/images/ProfilePhoto_predetermined.png'),
+    );
+  }
+}
+
+class FilterDialog extends StatelessWidget {
+  final Function(String filter) onFilterApplied;
+  final bool preciosBajosSelected;
+  final bool preciosAltosSelected;
+  final bool mayorCantidadTareasSelected;
+  final bool masCercanosSelected;
+  final ValueChanged onPreciosBajosSelected;
+  final ValueChanged onPreciosAltosSelected;
+  final ValueChanged onMayorCantidadTareasSelected;
+  final ValueChanged onMasCercanosSelected;
+
+  const FilterDialog({
+    super.key,
+    required this.onFilterApplied,
+    required this.preciosBajosSelected,
+    required this.preciosAltosSelected,
+    required this.mayorCantidadTareasSelected,
+    required this.masCercanosSelected,
+    required this.onPreciosBajosSelected,
+    required this.onPreciosAltosSelected,
+    required this.onMayorCantidadTareasSelected,
+    required this.onMasCercanosSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(16.0), 
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16.0),
+        color: Colors.white, 
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Filtros de búsqueda',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16.0),
+            _buildFilterItem(
+              label: 'Recomendados',
+              isSelected: false, 
+              onPressed: () {
+                onFilterApplied('Recomendados'); 
+              },
+            ),
+            _buildFilterItem(
+              label: 'Precios bajos',
+              isSelected: preciosBajosSelected,
+              onPressed: () => onPreciosBajosSelected(!preciosBajosSelected),
+            ),
+            _buildFilterItem(
+              label: 'Precios altos',
+              isSelected: preciosAltosSelected,
+              onPressed: () => onPreciosAltosSelected(!preciosAltosSelected),
+            ),
+            _buildFilterItem(
+              label: 'Mayor cantidad de tareas completadas',
+              isSelected: mayorCantidadTareasSelected,
+              onPressed: () => onMayorCantidadTareasSelected(
+                  !mayorCantidadTareasSelected),
+            ),
+            _buildFilterItem(
+              label: 'Más cercanos',
+              isSelected: masCercanosSelected,
+              onPressed: () => onMasCercanosSelected(!masCercanosSelected),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterItem({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onPressed,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(
+            color: Color(0xFF08143C),
           ),
-          const SizedBox(width: 16),
-          Expanded(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          backgroundColor: isSelected
+              ? const Color(0xFF08143C).withOpacity(0.1)
+              : Colors.transparent, 
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: isSelected
+                ? const Color(0xFF08143C)
+                : const Color(0xFF08143C), 
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+class SelectedSuppliersScreen extends StatefulWidget {
+  final DocumentSnapshot<Map<String, dynamic>> selectedSupplier;
+  final String serviceName;
+  final String id;
+  final double latitude;
+  final double longitude;
+  final String reference;
+
+  const SelectedSuppliersScreen({
+    super.key,
+    required this.selectedSupplier,
+    required this.serviceName,
+    required this.id,
+    required this.latitude,
+    required this.longitude,
+    required this.reference, // Referencia del proveedor
+  });
+
+  @override
+  State<SelectedSuppliersScreen> createState() =>
+      _SelectedSuppliersScreenState();
+}
+
+class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen> {
+  bool _showProfileImage = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+        ),
+        title: const Text(
+          'Agente seleccionado',
+          style: TextStyle(color: Colors.black),
+        ),
+      ),
+      body: Stack(
+        children: [
+          // Contenido principal
+          Padding(
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'ID: ${supplier.id}',
-                  style: const TextStyle(fontSize: 8.0),
+                // CircleAvatar con la foto de perfil
+                Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showProfileImage = true;
+                      });
+                    },
+                    child: Hero(
+                      tag: 'profileImage',
+                      child: CircleAvatar(
+                        radius: 60,
+                        backgroundImage:
+                            widget.selectedSupplier.data()?['profileImageUrl'] !=
+                                    null
+                                ? NetworkImage(
+                                    widget.selectedSupplier.data()?['profileImageUrl'])
+                                : const AssetImage(
+                                    'assets/images/ProfilePhoto_predetermined.png'),
+                      ),
+                    ),
+                  ),
                 ),
+                const SizedBox(height: 20),
+                // Nombre del agente
                 Text(
-                  '${supplier.data()?['name']}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  '${widget.selectedSupplier.data()?['name']}',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
+                const SizedBox(height: 10),
+                // ID del agente
                 Text(
-                  widget.serviceName,
-                  style: const TextStyle(fontSize: 14.0, fontStyle: FontStyle.italic), // Mostrar el nombre del servicio
+                  'ID: ${widget.selectedSupplier.id}',
+                  style: const TextStyle(fontSize: 16),
                 ),
+                const SizedBox(height: 10),
+                // Servicio seleccionado
+                Text(
+                  'Servicio: ${widget.serviceName}',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 10),
+                // Calificación del agente
                 Row(
                   children: [
-                    const Icon(Icons.star, size: 16.0, color: Color(0xFF1ca424),),
+                    const Icon(
+                      Icons.star,
+                      size: 16.0,
+                      color: Color(0xFF1ca424),
+                    ),
                     const SizedBox(width: 4.0),
                     Text(
-                      '${supplier.data()?['assessment'] ?? 'Sin calificación'}',
-                      style: const TextStyle(fontSize: 12.0),
+                      '${widget.selectedSupplier.data()?['assessment'] ?? 'Sin calificación'}',
+                      style: const TextStyle(fontSize: 16),
                     ),
                   ],
+                ),
+                const SizedBox(height: 10),
+                // Ganancia por hora del agente
+                Text(
+                  'Ganancia por hora: ${_getHourlyRate(widget.selectedSupplier, widget.id)}', // Llama a _getHourlyRate con el id
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+                // Botón "Contactar"
+                ElevatedButton(
+                  onPressed: () {
+                    // Aquí puedes implementar la lógica para contactar al agente
+                    // Por ejemplo, puedes mostrar un diálogo para ingresar el mensaje
+                    // o abrir un chat.
+                    print('Contactar al agente con ID: ${widget.id}');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF08143C),
+                    foregroundColor: Colors.white,
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Contactar'),
                 ),
               ],
             ),
           ),
-          // Mostrar la ganancia por hora del lado derecho
-          Padding(
-            padding: const EdgeInsets.only(left: 16.0),
-            child: Text(
-              hourlyRate == 0.0 ? 'Gratis' : '\$${hourlyRate.toStringAsFixed(2)}/hr',
-              style: const TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold, color: Color(0xFF08143C)),
+
+          // Ampliación de la imagen de perfil
+          if (_showProfileImage)
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  _showProfileImage = false;
+                });
+              },
+              child: Container(
+                color: Colors.black.withOpacity(0.5),
+                child: Center(
+                  child: Hero(
+                    tag: 'profileImage',
+
+                    child: CircleAvatar(
+                      radius: 175, // Ajusta el tamaño del CircleAvatar
+                      backgroundImage:
+                          widget.selectedSupplier.data()?['profileImageUrl'] !=
+                                  null
+                              ? NetworkImage(
+                                  widget.selectedSupplier.data()?['profileImageUrl'])
+                              : const AssetImage(
+                                  'assets/images/ProfilePhoto_predetermined.png'),
+                    ),
+                  ),
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
+  }
+
+  String _getHourlyRate(
+      DocumentSnapshot<Map<String, dynamic>> supplier, String id) {
+    double hourlyRate = 0.0;
+    if (supplier.data()?['services'] != null) {
+      for (var service in supplier.data()?['services']) {
+        if (service['service'] == id) {
+          hourlyRate = service['hourlyRate'] != null
+              ? service['hourlyRate'].toDouble()
+              : 0.0;
+          break;
+        }
+      }
+    }
+    if (hourlyRate == 0.0) {
+      return 'Gratis';
+    } else {
+      return '\$${hourlyRate.toStringAsFixed(2)}/hr';
+    }
   }
 }
