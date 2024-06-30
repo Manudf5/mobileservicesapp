@@ -8,19 +8,20 @@ import '../intro_screen.dart'; // Importa intro_screen.dart
 import 'package:image_picker/image_picker.dart'; // Importa image_picker
 import 'package:url_launcher/url_launcher.dart'; // Importa url_launcher
 
-class PerfilScreen extends StatefulWidget {
-  const PerfilScreen({super.key});
+class ProfileScreen extends StatefulWidget {
+  const ProfileScreen({super.key});
 
   @override
   // ignore: library_private_types_in_public_api
-  _PerfilScreenState createState() => _PerfilScreenState();
+  _ProfileScreenState createState() => _ProfileScreenState();
 }
 
-class _PerfilScreenState extends State<PerfilScreen> {
+class _ProfileScreenState extends State<ProfileScreen> {
   String _userName = '';
   String _userLastName = '';
   String _userBio = '';
   String _profileImageUrl = '';
+  String _userAssessment = ''; // Variable para la calificación
 
   @override
   void initState() {
@@ -42,6 +43,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
           _userLastName = userDoc.data()!['lastName'];
           _userBio = userDoc.data()!['bio'] ?? '';
           _profileImageUrl = userDoc.data()!['profileImageUrl'] ?? '';
+          _userAssessment = userDoc.data()!['assessment'] ?? ''; // Obtén la calificación
         });
       }
     }
@@ -198,6 +200,28 @@ class _PerfilScreenState extends State<PerfilScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        title: const Text(
+          'Perfil',
+          style: TextStyle(
+            fontSize: 24.0,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        centerTitle: true, // Centra el texto del AppBar
+        actions: [
+          IconButton(
+            onPressed: _showHelpScreen,
+            icon: Image.asset(
+              'assets/images/IconHelp.png',
+              height: 24,
+              width: 24,
+            ),
+          ),
+        ],
+      ),
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Center(
@@ -208,18 +232,6 @@ class _PerfilScreenState extends State<PerfilScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 20.0),
-                // AppBar personalizado
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  child: const Text(
-                    'Perfil',
-                    style: TextStyle(
-                      fontSize: 24.0,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
 
                 // Foto de perfil
                 Stack(
@@ -273,19 +285,19 @@ class _PerfilScreenState extends State<PerfilScreen> {
                         color: Colors.blue[900],
                         borderRadius: BorderRadius.circular(10.0),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            '4.7/5',
-                            style: TextStyle(
+                            _userAssessment, // Mostrar la calificación real
+                            style: const TextStyle(
                               fontSize: 16.0,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
                           ),
-                          SizedBox(width: 5.0),
-                          Icon(
+                          const SizedBox(width: 5.0),
+                          const Icon(
                             Icons.star,
                             size: 16.0,
                             color: Colors.amber,
@@ -315,65 +327,71 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 const SizedBox(height: 24.0),
 
                 // Botones de acción
-                Column(
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Botón Editar Perfil
-                    _buildCustomButton(
-                      onPressed: _showEditProfileScreen,
-                      icon: 'assets/images/IconEditProfile.png',
-                      text: 'Editar Perfil',
-                    ),
-                    const SizedBox(height: 10.0),
-                    // Botón Configuración
-                    _buildCustomButton(
-                      onPressed: _showSettingsScreen,
-                      icon: 'assets/images/IconConfig.png',
-                      text: 'Configuración',
-                    ),
-                    const SizedBox(height: 10.0),
-                    // Botón Ayuda
-                    _buildCustomButton(
-                      onPressed: _showHelpScreen,
-                      icon: 'assets/images/IconHelp.png',
-                      text: 'Ayuda',
-                    ),
-                    const SizedBox(height: 32.0),
-                    // Botón Administrador (Temporal)
-                    _buildCustomButton(
-                      onPressed: _showAdminTempScreen,
-                      icon: 'assets/images/IconAdmin.png',
-                      text: 'Administrador (Temporal)',
-                    ),
-                    const SizedBox(height: 32.0),
-                    // Botón Cerrar Sesión
                     ElevatedButton(
-                      onPressed: _signOut,
+                      onPressed: _showEditProfileScreen,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red[300],
+                        backgroundColor: Colors.grey[200], // Formato diferente
                         foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 40.0,
-                          vertical: 16.0,
+                          horizontal: 10.0,
+                          vertical: 8.0,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24.0),
+                          borderRadius: BorderRadius.circular(10.0),
                         ),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.center, 
                         children: [
                           Image.asset(
-                            'assets/images/IconLogout.png',
-                            height: 24,
-                            width: 24,
+                            'assets/images/IconEditProfile.png',
+                            height: 14,
+                            width: 14,
                           ),
-                          const SizedBox(width: 10.0),
-                          const Text(
-                            'Cerrar Sesión',
+                          const SizedBox(width: 5.0), 
+                          Text(
+                            'Editar Perfil',
                             style: TextStyle(
-                              fontSize: 16.0,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10.0),
+                    // Botón Configuración
+                    ElevatedButton(
+                      onPressed: _showSettingsScreen,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[200], // Formato diferente
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10.0,
+                          vertical: 8.0,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center, 
+                        children: [
+                          Image.asset(
+                            'assets/images/IconConfig.png',
+                            height: 14,
+                            width: 14,
+                          ),
+                          const SizedBox(width: 5.0), 
+                          Text(
+                            'Configuración',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ],
@@ -381,59 +399,82 @@ class _PerfilScreenState extends State<PerfilScreen> {
                     ),
                   ],
                 ),
+
+                const SizedBox(height: 24.0),
+
+                // Botón Administrador (Temporal)
+                ElevatedButton(
+                  onPressed: _showAdminTempScreen,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[200], // Formato diferente
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20.0,
+                      vertical: 16.0,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center, 
+                    children: [
+                      Image.asset(
+                        'assets/images/IconAdmin.png',
+                        height: 24,
+                        width: 24,
+                      ),
+                      const SizedBox(width: 10.0), 
+                      Text(
+                        'Administrador (Temporal)',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 32.0),
+
+                // Botón Cerrar Sesión
+                ElevatedButton(
+                  onPressed: _signOut,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[300],
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40.0,
+                      vertical: 16.0,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24.0),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/IconLogout.png',
+                        height: 24,
+                        width: 24,
+                      ),
+                      const SizedBox(width: 10.0),
+                      const Text(
+                        'Cerrar Sesión',
+                        style: TextStyle(
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  // Función para crear un botón personalizado con icono y flecha
-  Widget _buildCustomButton({
-    required VoidCallback onPressed,
-    required String icon,
-    required String text,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.grey[200],
-          foregroundColor: Colors.black,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20.0,
-            vertical: 16.0,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10.0),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // Icono de cambiar contraseña
-            Image.asset(
-              icon,
-              height: 24,
-              width: 24,
-            ),
-            // Espacio entre los iconos
-            const SizedBox(width: 16.0),
-            // Texto del botón
-            Text(
-              text,
-              style: const TextStyle(
-                fontSize: 16.0,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            // Espacio entre el texto y el ícono de flecha
-            const SizedBox(width: 16.0),
-            // Icono de flecha
-            const Icon(Icons.arrow_forward_ios_rounded, color: Colors.green),
-          ],
         ),
       ),
     );

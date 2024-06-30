@@ -1,23 +1,9 @@
 import 'package:flutter/material.dart';
 import 'profile.dart'; // Importa el nuevo archivo profile.dart
 import 'home.dart'; // Importa el nuevo archivo home.dart
+import 'tasks.dart'; // Importa el nuevo archivo tasks.dart
 
 // Define las pantallas para cada botón
-class InicioScreen extends StatelessWidget {
-  const InicioScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white
-      ),
-      child: const Center(
-        child: Text('Pantalla de inicio'),
-      ),
-    );
-  }
-}
 
 class ChatScreen extends StatelessWidget {
   const ChatScreen({super.key});
@@ -35,24 +21,8 @@ class ChatScreen extends StatelessWidget {
   }
 }
 
-class TareasScreen extends StatelessWidget {
-  const TareasScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white
-      ),
-      child: const Center(
-        child: Text('Pantalla de Tareas'),
-      ),
-    );
-  }
-}
-
-class MonederoScreen extends StatelessWidget {
-  const MonederoScreen({super.key});
+class WalletScreen extends StatelessWidget {
+  const WalletScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -79,11 +49,11 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const HomeScreen(),
+    const HomeScreen(), // Ahora utiliza HomeScreen de home.dart
     const ChatScreen(),
-    const TareasScreen(), // Ahora utiliza TareasScreen de home.dart
-    const MonederoScreen(),
-    const PerfilScreen(), // Ahora utiliza PerfilScreen de profile.dart
+    const TasksScreen(), // Ahora utiliza TasksScreen de tasks.dart
+    const WalletScreen(),
+    const ProfileScreen(), // Ahora utiliza ProfileScreen de profile.dart
   ];
 
   @override
