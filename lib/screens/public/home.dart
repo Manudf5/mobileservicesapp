@@ -2245,7 +2245,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             const Text(
-                              'Detalles de la Reserva',
+                              'DETALLES DE LA RESERVA',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -2260,8 +2260,8 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                               style: const TextStyle(color: Color(0xFF08143C)), // Color del texto
                               decoration:  InputDecoration(
                                 hintText:
-                                'Ingrese el motivo de la reserva y especificaciones de su solicitud (máx. 500 caracteres)',
-                                hintStyle: const TextStyle(color: Colors.black), // Color del texto de la sugerencia
+                                'Indica brevemente qué problema o situación te lleva a solicitar del servicio. Esta información ayudará al agente a entender tus necesidades y ofrecerte una solución óptima.',
+                                hintStyle: const TextStyle(color: Color.fromARGB(129, 0, 0, 0)), // Color del texto de la sugerencia
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(20),),
                               ),
                             ),
