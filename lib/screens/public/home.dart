@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,6 +18,8 @@ import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
 // ignore: unused_import
 import 'package:geocoding/geocoding.dart';
+import 'package:mobileservicesapp/screens/public/homepage.dart';
+
 
 
 class HomeScreen extends StatefulWidget {
@@ -1286,8 +1289,12 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                       setState(() {
                         _selectedLatLng = latLng;
                         _markerLatLng = latLng; // Actualizar _markerLatLng al tocar el mapa
-                        print('Latitud: ${_markerLatLng?.latitude}'); // Imprimir las coordenadas
-                        print('Longitud: ${_markerLatLng?.longitude}'); // Imprimir las coordenadas
+                        if (kDebugMode) {
+                          print('Latitud: ${_markerLatLng?.latitude}');
+                        } // Imprimir las coordenadas
+                        if (kDebugMode) {
+                          print('Longitud: ${_markerLatLng?.longitude}');
+                        } // Imprimir las coordenadas
                       });
                     },
                   ),
@@ -1490,7 +1497,9 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error al obtener proveedores: $e');
+      if (kDebugMode) {
+        print('Error al obtener proveedores: $e');
+      }
     }
   }
 
@@ -2065,12 +2074,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-        ),
+        // No se necesita leading
         title: const Text(
           'Agente seleccionado',
           style: TextStyle(color: Colors.black),
@@ -2268,10 +2272,83 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                             const SizedBox(height: 20),
                             // Botón para confirmar la reserva
                             ElevatedButton(
-                              onPressed: () {
-                                // Aquí puedes implementar la lógica para procesar la reserva
-                                print(
-                                    'Confirmar reserva con detalles: ${_reservationTextController.text}');
+                              onPressed: () async {
+                                // Obtener el ID del usuario actual
+                                final user = FirebaseAuth.instance.currentUser;
+                                final clientID = user?.uid;
+                                String clientName = "";
+                                String clientIDString = "";
+                                
+                                // Obtener el nombre completo del usuario de "users"
+                                await FirebaseFirestore.instance
+                                    .collection('users')
+                                    .where('uid', isEqualTo: clientID)
+                                    .get()
+                                    .then((QuerySnapshot snapshot) {
+                                      if (snapshot.docs.isNotEmpty) {
+                                        final doc = snapshot.docs.first;
+                                        clientName = '${doc['name']} ${doc['lastName']}';
+                                        clientIDString = doc['id'];
+                                      }
+                                    });
+
+                                // Obtener la tarifa por hora del agente
+                                final hourlyRate = _getHourlyRate(widget.selectedSupplier, widget.id)
+                                    .replaceAll('\$', '')
+                                    .trim();
+
+                                // Guardar la reserva en la colección "tasks"
+                                final taskData = {
+                                  'clientID': clientIDString,
+                                  'clientLocation': GeoPoint(widget.latitude, widget.longitude),
+                                  'clientName': clientName,
+                                  'hourlyRate': double.tryParse(hourlyRate) ?? 0.0, // Convierte a double
+                                  'referencePoint': widget.reference.isEmpty ? null : widget.reference, // Campo opcional
+                                  'reservation': Timestamp.now(),
+                                  'service': widget.serviceName,
+                                  'serviceDetails': _reservationTextController.text,
+                                  'serviceID': widget.id,
+                                  'state': 'Pendiente',
+                                  'supplierID': widget.selectedSupplier.id,
+                                  'supplierName': widget.selectedSupplier.data()?['name'],
+                                };
+
+                                await FirebaseFirestore.instance
+                                    .collection('tasks')
+                                    .add(taskData)
+                                    .then((_) {
+                                      // Redirigir a TasksScreen y mostrar Snackbar
+                                      Navigator.pushAndRemoveUntil(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => const HomePage(selectedIndex: 2), // Reemplaza con la ruta correcta
+                                        ),
+                                        (route) => false, // Eliminar todas las rutas anteriores
+                                      );
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            '¡Servicio reservado con éxito!',
+                                          ),
+                                          backgroundColor: Colors.green, // Color del Snackbar
+                                        ),
+                                      );
+                                    })
+                                    .catchError((error) {
+                                      if (kDebugMode) {
+                                        print('Error al guardar la tarea: $error');
+                                      }
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Error al reservar el servicio.',
+                                          ),
+                                          backgroundColor: Colors.red, // Color del Snackbar
+                                        ),
+                                      );
+                                    });
+
                                 setState(() {
                                   _showReservationModal = false;
                                   _animationController.reverse();

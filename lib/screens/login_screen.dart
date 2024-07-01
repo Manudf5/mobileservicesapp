@@ -43,7 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
           Navigator.pushReplacement(
             // ignore: use_build_context_synchronously
             context,
-            MaterialPageRoute(builder: (context) => const HomePage()),
+            MaterialPageRoute(builder: (context) => const HomePage(selectedIndex: 0,)),
           );
         } else {
           // Usuario no encontrado

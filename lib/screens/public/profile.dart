@@ -353,7 +353,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             width: 14,
                           ),
                           const SizedBox(width: 5.0), 
-                          Text(
+                          const Text(
                             'Editar Perfil',
                             style: TextStyle(
                               fontSize: 12,
@@ -387,7 +387,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             width: 14,
                           ),
                           const SizedBox(width: 5.0), 
-                          Text(
+                          const Text(
                             'Configuración',
                             style: TextStyle(
                               fontSize: 12,
@@ -425,7 +425,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         width: 24,
                       ),
                       const SizedBox(width: 10.0), 
-                      Text(
+                      const Text(
                         'Administrador (Temporal)',
                         style: TextStyle(
                           fontSize: 16,

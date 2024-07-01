@@ -38,7 +38,8 @@ class WalletScreen extends StatelessWidget {
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final int selectedIndex;
+   const HomePage({super.key, required this.selectedIndex});
 
   @override
   // ignore: library_private_types_in_public_api
@@ -47,6 +48,12 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+
+    @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.selectedIndex; // Inicializa el estado con el valor del parámetro
+  }
 
   final List<Widget> _screens = [
     const HomeScreen(), // Ahora utiliza HomeScreen de home.dart

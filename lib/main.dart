@@ -29,7 +29,7 @@ class MyApp extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             // Usuario autenticado
-            return const HomePage();
+            return const HomePage(selectedIndex: 0,);
           } else {
             // Usuario no autenticado
             return const IntroScreen();
