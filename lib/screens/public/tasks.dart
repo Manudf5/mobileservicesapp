@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 // ignore: unnecessary_import
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:geocoding/geocoding.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -637,6 +636,24 @@ class TaskDetailsScreen extends StatefulWidget {
 class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
   bool _showProfileImage = false;
 
+  // Formatea la fecha y hora en el formato deseado (12h)
+  String formatDateTime(Timestamp? dateTime) {
+    if (dateTime == null) {
+      return 'No disponible';
+    }
+    // Convierte el Timestamp a DateTime
+    final convertedDateTime = dateTime.toDate();
+
+    final formattedDate =
+        "${convertedDateTime.day.toString().padLeft(2, '0')}/${convertedDateTime.month.toString().padLeft(2, '0')}/${convertedDateTime.year}";
+
+    // Formatea la hora en formato 12h
+    final formattedTime =
+        '${convertedDateTime.hour % 12 == 0 ? 12 : convertedDateTime.hour % 12}:${convertedDateTime.minute.toString().padLeft(2, '0')} ${convertedDateTime.hour >= 12 ? 'PM' : 'AM'}';
+
+    return "$formattedDate a las $formattedTime";
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -649,307 +666,272 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
           style: TextStyle(color: Colors.black),
         ),
       ),
-      body: Stack(
-        children: [
-          // Contenido principal
-          Padding(
-            padding: const EdgeInsets.all(23.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // CircleAvatar con la foto de perfil y marco
-                Center(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _showProfileImage = true;
-                      });
-                    },
-                    child: Hero(
-                      tag: 'profileImage',
-                      child: Container(
+      body: SingleChildScrollView( // Agrega SingleChildScrollView para el scroll
+        child: Stack(
+          children: [
+            // Contenido principal
+            Padding(
+              padding: const EdgeInsets.all(23.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // CircleAvatar con la foto de perfil y marco
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _showProfileImage = true;
+                        });
+                      },
+                      child: Hero(
+                        tag: 'profileImage',
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFF08143C),
+                              width: 3.0,
+                            ),
+                          ),
+                          child: CircleAvatar(
+                            radius: 60,
+                            backgroundImage: widget.supplier?.data()?['profileImageUrl'] != null
+                                ? NetworkImage(
+                                    widget.supplier?.data()?['profileImageUrl'])
+                                : const AssetImage(
+                                    'assets/images/ProfilePhoto_predetermined.png'),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Nombre del agente
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${widget.supplier?.data()?['name']}',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      // Calificación del agente
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 5.0,
+                          horizontal: 10.0,
+                        ),
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10.0),
                           border: Border.all(
                             color: const Color(0xFF08143C),
-                            width: 3.0,
+                            width: 1.0,
                           ),
                         ),
-                        child: CircleAvatar(
-                          radius: 60,
-                          backgroundImage: widget.supplier?.data()?['profileImageUrl'] != null
-                              ? NetworkImage(
-                                  widget.supplier?.data()?['profileImageUrl'])
-                              : const AssetImage(
-                                  'assets/images/ProfilePhoto_predetermined.png'),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.star,
+                              size: 18.0,
+                              color: Color(0xFF1ca424),
+                            ),
+                            const SizedBox(width: 4.0),
+                            Text(
+                              '${widget.supplierInfo?.data()?['assessment'] ?? 'Sin calificación'}',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ],
                         ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Nombre del agente
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${widget.supplier?.data()?['name']}',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    // Calificación del agente
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 5.0,
-                        horizontal: 10.0,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10.0),
-                        border: Border.all(
-                          color: const Color(0xFF08143C),
-                          width: 1.0,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.star,
-                            size: 18.0,
-                            color: Color(0xFF1ca424),
-                          ),
-                          const SizedBox(width: 4.0),
-                          Text(
-                            '${widget.supplierInfo?.data()?['assessment'] ?? 'Sin calificación'}',
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                // ID del agente
-                Text(
-                  'ID: ${widget.supplier?.id}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.normal,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // Servicio seleccionado
-                Text(
-                  'Servicio: ${widget.task.data()['service']}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 10),
-                // Detalles del servicio
-                Text(
-                  'Detalles: ${widget.task.data()['serviceDetails']}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 10),
-                // Tarifa por hora del agente
-                Text(
-                  'Tarifa por hora: \$${widget.task.data()['hourlyRate'].toStringAsFixed(2)}/hr',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 10),
-                // Estado de la tarea
-                Text(
-                  'Estado: ${widget.task.data()['state']}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 10),
-                // Evaluación del agente
-                Text(
-                  'Evaluación: ${widget.supplierInfo?.data()?['assessment'] ?? 'Sin calificación'}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 10),
-                // Fecha y hora de la reservación
-                Text(
-                  'Reservado: ${widget.task.data()['reservation'] != null ? DateTime.fromMillisecondsSinceEpoch(widget.task.data()['reservation'].millisecondsSinceEpoch).toLocal().toString() : 'No disponible'}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 10),
-                // Punto de referencia
-                Text(
-                  'Punto de referencia: ${widget.task.data()['referencePoint'] ?? 'No disponible'}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 10),
-
-                // Fecha y hora de inicio (solo para tareas activas y completadas)
-                if (widget.task.data()['state'] == 'En proceso' ||
-                    widget.task.data()['state'] == 'Finalizada')
-                  Text(
-                    'Inicio: ${widget.task.data()['start'] != null ? DateTime.fromMillisecondsSinceEpoch(widget.task.data()['start'].millisecondsSinceEpoch).toLocal().toString() : 'No disponible'}',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                const SizedBox(height: 10),
-
-                // Fecha y hora de finalización (solo para tareas completadas)
-                if (widget.task.data()['state'] == 'Finalizada')
-                  Text(
-                    'Finalización: ${widget.task.data()['end'] != null ? DateTime.fromMillisecondsSinceEpoch(widget.task.data()['end'].millisecondsSinceEpoch).toLocal().toString() : 'No disponible'}',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                const SizedBox(height: 10),
-
-                // Comentario del cliente (solo para tareas completadas)
-                if (widget.task.data()['state'] == 'Finalizada')
-                  Text(
-                    'Comentario: ${widget.task.data()['clientComment'] ?? 'No disponible'}',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                const SizedBox(height: 10),
-
-                // Evaluación del cliente (solo para tareas completadas)
-                if (widget.task.data()['state'] == 'Finalizada')
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.star,
-                        size: 18.0,
-                        color: Color(0xFF1ca424),
-                      ),
-                      const SizedBox(width: 4.0),
-                      Text(
-                        '${widget.task.data()['clientEvaluation'] ?? 'No disponible'}',
-                        style: const TextStyle(fontSize: 16),
                       ),
                     ],
                   ),
+                  // ID del agente
+                  Text(
+                    'ID: ${widget.supplier?.id}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Servicio seleccionado
+                  Text(
+                    'Servicio: ${widget.task.data()['service']}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 10),
+                  // Detalles del servicio
+                  Text(
+                    'Detalles: ${widget.task.data()['serviceDetails']}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 10),
+                  // Tarifa por hora del agente
+                  Text(
+                    'Tarifa por hora: \$${widget.task.data()['hourlyRate'].toStringAsFixed(2)}/hr',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 10),
+                  // Estado de la tarea
+                  Text(
+                    'Estado: ${widget.task.data()['state']}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 10),
+                  // Evaluación del agente
+                  Text(
+                    'Evaluación: ${widget.supplierInfo?.data()?['assessment'] ?? 'Sin calificación'}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 10),
+                  // Fecha y hora de la reservación
+                  Text(
+                    'Reservado: ${formatDateTime(widget.task.data()['reservation'] as Timestamp?)}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 10),
+                  // Punto de referencia
+                  Text(
+                    'Punto de referencia: ${widget.task.data()['referencePoint'] ?? 'No disponible'}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 10),
 
-                  // Obtiene la ubicación del cliente desde el campo 'clientLocation' en la tarea
-                  if (widget.task.data()['clientLocation'] != null)
-                    Center(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // Obtén las coordenadas de GeoPoint
-                          final GeoPoint clientLocation =
-                              widget.task.data()['clientLocation'];
+                  // Fecha y hora de inicio (solo para tareas activas y completadas)
+                  if (widget.task.data()['state'] == 'En proceso' ||
+                      widget.task.data()['state'] == 'Finalizada')
+                    Text(
+                      'Inicio: ${formatDateTime(widget.task.data()['start'] as Timestamp?)}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  const SizedBox(height: 10),
 
-                          // Crea un LatLng para el mapa
-                          final LatLng clientLatLng =
-                              LatLng(clientLocation.latitude, clientLocation.longitude);
+                  // Fecha y hora de finalización (solo para tareas completadas)
+                  if (widget.task.data()['state'] == 'Finalizada')
+                    Text(
+                      'Finalización: ${formatDateTime(widget.task.data()['end'] as Timestamp?)}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  const SizedBox(height: 10),
 
-                          // Navega a la pantalla LocationMapScreen y envía las coordenadas
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => LocationMapScreen(
-                                clientLatLng: clientLatLng,
-                              ),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 40, vertical: 15),
-                          textStyle: const TextStyle(fontSize: 16),
+                  // Comentario del cliente (solo para tareas completadas)
+                  if (widget.task.data()['state'] == 'Finalizada')
+                    Text(
+                      'Comentario: ${widget.task.data()['clientComment'] ?? 'No disponible'}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  const SizedBox(height: 10),
+
+                  // Evaluación del cliente (solo para tareas completadas)
+                  if (widget.task.data()['state'] == 'Finalizada')
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.star,
+                          size: 18.0,
+                          color: Color(0xFF1ca424),
                         ),
-                        child: const Text(
-                          'Ver Ubicación',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 17,
+                        const SizedBox(width: 4.0),
+                        Text(
+                          '${widget.task.data()['clientEvaluation'] ?? 'No disponible'}',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 10),
+
+                  // Ubicación del servicio (cambiado el texto)
+                  if (widget.task.data()['clientLocation'] != null)
+                    Column(
+                      children: [
+                        const Text(
+                          'Ubicación del servicio:',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: 200, // Ajusta la altura del mapa
+                          child: ClientLocationMap(
+                            clientLatLng: LatLng(
+                                widget.task.data()['clientLocation'].latitude,
+                                widget.task.data()['clientLocation'].longitude),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // Ampliación de la imagen de perfil
-          if (_showProfileImage)
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _showProfileImage = false;
-                });
-              },
-              child: Container(
-                color: Colors.black.withOpacity(0.5),
-                child: Center(
-                  child: Hero(
-                    tag: 'profileImage',
-                    child: CircleAvatar(
-                      radius: 175,
-                      backgroundImage: widget.supplier?.data()?['profileImageUrl'] != null
-                          ? NetworkImage(
-                              widget.supplier?.data()?['profileImageUrl'])
-                          : const AssetImage(
-                              'assets/images/ProfilePhoto_predetermined.png'),
+            // Ampliación de la imagen de perfil
+            if (_showProfileImage)
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _showProfileImage = false;
+                  });
+                },
+                child: Container(
+                  color: Colors.black.withOpacity(0.5),
+                  child: Center(
+                    child: Hero(
+                      tag: 'profileImage',
+                      child: CircleAvatar(
+                        radius: 175,
+                        backgroundImage: widget.supplier?.data()?['profileImageUrl'] != null
+                            ? NetworkImage(
+                                widget.supplier?.data()?['profileImageUrl'])
+                            : const AssetImage(
+                                'assets/images/ProfilePhoto_predetermined.png'),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
-// Pantalla para mostrar el mapa con la ubicación del cliente
-class LocationMapScreen extends StatefulWidget {
+// Widget para mostrar el mapa con la ubicación del cliente
+class ClientLocationMap extends StatelessWidget {
   final LatLng clientLatLng;
 
-  const LocationMapScreen({super.key, required this.clientLatLng});
-
-  @override
-  State<LocationMapScreen> createState() => _LocationMapScreenState();
-}
-
-class _LocationMapScreenState extends State<LocationMapScreen> {
-  late MapController _mapController;
-
-  @override
-  void initState() {
-    super.initState();
-    _mapController = MapController();
-  }
+  const ClientLocationMap({super.key, required this.clientLatLng});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ubicación del Cliente'),
+    return FlutterMap(
+      options: MapOptions(
+        center: clientLatLng,
+        zoom: 15,
+        interactiveFlags: InteractiveFlag.all,
       ),
-      body: FlutterMap(
-        mapController: _mapController,
-        options: MapOptions(
-          center: widget.clientLatLng,
-          zoom: 15,
-          interactiveFlags: InteractiveFlag.all,
+      children: [
+        TileLayer(
+          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          subdomains: const ['a', 'b', 'c'],
         ),
-        children: [
-          TileLayer(
-            urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            subdomains: const ['a', 'b', 'c'],
-          ),
-          MarkerLayer(
-            markers: [
-              Marker(
-                width: 80,
-                height: 80,
-                point: widget.clientLatLng,
-                builder: (ctx) => const Icon(
-                  Icons.location_pin,
-                  color: Colors.red,
-                  size: 40,
-                ),
+        MarkerLayer(
+          markers: [
+            Marker(
+              width: 80,
+              height: 80,
+              point: clientLatLng,
+              builder: (ctx) => const Icon(
+                Icons.location_pin,
+                color: Colors.red,
+                size: 40,
               ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
