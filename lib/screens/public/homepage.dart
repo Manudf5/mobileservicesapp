@@ -5,8 +5,8 @@ import 'tasks.dart'; // Importa el nuevo archivo tasks.dart
 
 // Define las pantallas para cada botón
 
-class ChatScreen extends StatelessWidget {
-  const ChatScreen({super.key});
+class SocialScreen extends StatelessWidget {
+  const SocialScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +15,7 @@ class ChatScreen extends StatelessWidget {
         color: Colors.white
       ),
       child: const Center(
-        child: Text('Pantalla de chat'),
+        child: Text('Pantalla social'),
       ),
     );
   }
@@ -57,7 +57,7 @@ class _HomePageState extends State<HomePage> {
 
   final List<Widget> _screens = [
     const HomeScreen(), // Ahora utiliza HomeScreen de home.dart
-    const ChatScreen(),
+    const SocialScreen(),
     const TasksScreen(), // Ahora utiliza TasksScreen de tasks.dart
     const WalletScreen(),
     const ProfileScreen(), // Ahora utiliza ProfileScreen de profile.dart
@@ -96,7 +96,7 @@ class _HomePageState extends State<HomePage> {
               width: 24,
               height: 24,
             ),
-            label: 'Chat',
+            label: 'Social',
           ),
           BottomNavigationBarItem(
             icon: Image.asset(

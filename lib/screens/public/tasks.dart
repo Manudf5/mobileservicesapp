@@ -108,7 +108,7 @@ class _TasksScreenState extends State {
                           return const Center(child: Text('Error al obtener tareas'));
                         }
                         if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                          return const Center(child: CircularProgressIndicator(color: Colors.green,));
                         }
 
                         final tasks = snapshot.data!.docs;
@@ -136,7 +136,7 @@ class _TasksScreenState extends State {
                                 }
                                 if (supplierSnapshot.connectionState == ConnectionState.waiting) {
                                   return const ListTile(
-                                    title: Center(child: CircularProgressIndicator()),
+                                    title: Center(child: CircularProgressIndicator(color: Colors.green,)),
                                   );
                                 }
 
@@ -161,7 +161,7 @@ class _TasksScreenState extends State {
                                     }
                                     if (supplierInfoSnapshot.connectionState == ConnectionState.waiting) {
                                       return const ListTile(
-                                        title: Center(child: CircularProgressIndicator()),
+                                        title: Center(child: CircularProgressIndicator(color: Colors.green,)),
                                       );
                                     }
 
@@ -214,7 +214,7 @@ class _TasksScreenState extends State {
                                                       style: const TextStyle(fontSize: 8.0),
                                                     ),
                                                     Text(
-                                                      '${supplier.data()?['name']}',
+                                                      '${task.data()['supplierName']}',
                                                       style: const TextStyle(
                                                           fontWeight: FontWeight.bold, fontSize: 16),
                                                     ),
@@ -280,7 +280,7 @@ class _TasksScreenState extends State {
                           return const Center(child: Text('Error al obtener tareas'));
                         }
                         if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                          return const Center(child: CircularProgressIndicator(color: Colors.green,));
                         }
 
                         final tasks = snapshot.data!.docs;
@@ -308,7 +308,7 @@ class _TasksScreenState extends State {
                                 }
                                 if (supplierSnapshot.connectionState == ConnectionState.waiting) {
                                   return const ListTile(
-                                    title: Center(child: CircularProgressIndicator()),
+                                    title: Center(child: CircularProgressIndicator(color: Colors.green,)),
                                   );
                                 }
 
@@ -333,7 +333,7 @@ class _TasksScreenState extends State {
                                     }
                                     if (supplierInfoSnapshot.connectionState == ConnectionState.waiting) {
                                       return const ListTile(
-                                        title: Center(child: CircularProgressIndicator()),
+                                        title: Center(child: CircularProgressIndicator(color: Colors.green,)),
                                       );
                                     }
 
@@ -386,7 +386,7 @@ class _TasksScreenState extends State {
                                                       style: const TextStyle(fontSize: 8.0),
                                                     ),
                                                     Text(
-                                                      '${supplier.data()?['name']}',
+                                                      '${task.data()['supplierName']}',
                                                       style: const TextStyle(
                                                           fontWeight: FontWeight.bold, fontSize: 16),
                                                     ),
@@ -452,7 +452,7 @@ class _TasksScreenState extends State {
                           return const Center(child: Text('Error al obtener tareas'));
                         }
                         if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator());
+                          return const Center(child: CircularProgressIndicator(color: Colors.green,));
                         }
 
                         final tasks = snapshot.data!.docs;
@@ -480,7 +480,7 @@ class _TasksScreenState extends State {
                                 }
                                 if (supplierSnapshot.connectionState == ConnectionState.waiting) {
                                   return const ListTile(
-                                    title: Center(child: CircularProgressIndicator()),
+                                    title: Center(child: CircularProgressIndicator(color: Colors.green,)),
                                   );
                                 }
 
@@ -505,7 +505,7 @@ class _TasksScreenState extends State {
                                     }
                                     if (supplierInfoSnapshot.connectionState == ConnectionState.waiting) {
                                       return const ListTile(
-                                        title: Center(child: CircularProgressIndicator()),
+                                        title: Center(child: CircularProgressIndicator(color: Colors.green,)),
                                       );
                                     }
 
@@ -558,7 +558,7 @@ class _TasksScreenState extends State {
                                                       style: const TextStyle(fontSize: 8.0),
                                                     ),
                                                     Text(
-                                                      '${supplier.data()?['name']}',
+                                                      '${task.data()['supplierName']}',
                                                       style: const TextStyle(
                                                           fontWeight: FontWeight.bold, fontSize: 16),
                                                     ),
@@ -711,7 +711,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '${widget.supplier?.data()?['name']}',
+                        '${widget.task.data()['supplierName']}',
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -757,93 +757,272 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
+
+                  // Estado de la tarea
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        size: 18.0,
+                        color: Color(0xFF08143C),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Estado: ${widget.task.data()['state']}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(width: 3),
+                      // Usa la función getColoredIcon para el icono del estado
+                      getColoredIcon(widget.task.data()['state']),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   // Servicio seleccionado
-                  Text(
-                    'Servicio: ${widget.task.data()['service']}',
-                    style: const TextStyle(fontSize: 16),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.shopping_cart,
+                        size: 18.0,
+                        color: Color(0xFF08143C),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Servicio: ${widget.task.data()['service']}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 10),
                   // Detalles del servicio
-                  Text(
-                    'Detalles: ${widget.task.data()['serviceDetails']}',
-                    style: const TextStyle(fontSize: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10.0),
+                      border: Border.all(
+                        color: const Color(0xFF08143C),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Detalles',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.description,
+                              size: 18.0,
+                              color: Color(0xFF08143C),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                '${widget.task.data()['serviceDetails']}',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 10),
                   // Tarifa por hora del agente
-                  Text(
-                    'Tarifa por hora: \$${widget.task.data()['hourlyRate'].toStringAsFixed(2)}/hr',
-                    style: const TextStyle(fontSize: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10.0),
+                      border: Border.all(
+                        color: const Color(0xFF1ca424),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Tarifa por hora',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.attach_money,
+                              size: 18.0,
+                              color: Color(0xFF08143C),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                '\$${widget.task.data()['hourlyRate'].toStringAsFixed(2)}/hr',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 10),
-                  // Estado de la tarea
-                  Text(
-                    'Estado: ${widget.task.data()['state']}',
-                    style: const TextStyle(fontSize: 16),
+                  // Reservado
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_today,
+                        size: 18.0,
+                        color: Color(0xFF08143C),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Reservado: ${formatDateTime(widget.task.data()['reservation'] as Timestamp?)}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 10),
-                  // Evaluación del agente
-                  Text(
-                    'Evaluación: ${widget.supplierInfo?.data()?['assessment'] ?? 'Sin calificación'}',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 10),
-                  // Fecha y hora de la reservación
-                  Text(
-                    'Reservado: ${formatDateTime(widget.task.data()['reservation'] as Timestamp?)}',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 10),
-                  // Punto de referencia
-                  Text(
-                    'Punto de referencia: ${widget.task.data()['referencePoint'] ?? 'No disponible'}',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Fecha y hora de inicio (solo para tareas activas y completadas)
+                  // Inicio
                   if (widget.task.data()['state'] == 'En proceso' ||
                       widget.task.data()['state'] == 'Finalizada')
-                    Text(
-                      'Inicio: ${formatDateTime(widget.task.data()['start'] as Timestamp?)}',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  const SizedBox(height: 10),
-
-                  // Fecha y hora de finalización (solo para tareas completadas)
-                  if (widget.task.data()['state'] == 'Finalizada')
-                    Text(
-                      'Finalización: ${formatDateTime(widget.task.data()['end'] as Timestamp?)}',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  const SizedBox(height: 10),
-
-                  // Comentario del cliente (solo para tareas completadas)
-                  if (widget.task.data()['state'] == 'Finalizada')
-                    Text(
-                      'Comentario: ${widget.task.data()['clientComment'] ?? 'No disponible'}',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  const SizedBox(height: 10),
-
-                  // Evaluación del cliente (solo para tareas completadas)
-                  if (widget.task.data()['state'] == 'Finalizada')
                     Row(
                       children: [
                         const Icon(
-                          Icons.star,
+                          Icons.schedule,
                           size: 18.0,
-                          color: Color(0xFF1ca424),
+                          color: Color(0xFF08143C),
                         ),
-                        const SizedBox(width: 4.0),
+                        const SizedBox(width: 10),
                         Text(
-                          '${widget.task.data()['clientEvaluation'] ?? 'No disponible'}',
+                          'Inicio: ${formatDateTime(widget.task.data()['start'] as Timestamp?)}',
                           style: const TextStyle(fontSize: 16),
                         ),
                       ],
                     ),
                   const SizedBox(height: 10),
+                  // Finalización
+                  if (widget.task.data()['state'] == 'Finalizada')
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.stop_circle,
+                          size: 18.0,
+                          color: Color(0xFF08143C),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          'Finalización: ${formatDateTime(widget.task.data()['end'] as Timestamp?)}',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 10),
+                  // Punto de referencia
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.location_pin,
+                        size: 18.0,
+                        color: Color(0xFF08143C),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Punto de referencia: ${widget.task.data()['referencePoint'] ?? 'No disponible'}',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Comentario del cliente (solo para tareas completadas)
+                  if (widget.task.data()['state'] == 'Finalizada')
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10.0),
+                        border: Border.all(
+                          color: const Color(0xFF08143C),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.comment,
+                                size: 18.0,
+                                color: Color(0xFF08143C),
+                              ),
+                              SizedBox(width: 10),
+                              Text(
+                                'Calificación obtenida',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10.0),
+                              border: Border.all(
+                                color: const Color(0xFF1ca424),
+                                width: 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                              const Icon(
+                                Icons.comment,
+                                size: 18.0,
+                                color: Color(0xFF08143C),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  '${widget.task.data()['clientComment'] ?? 'No disponible'}',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ),
+                            ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                                const Icon(
+                                  Icons.star,
+                                  size: 18.0,
+                                  color: Color(0xFF1ca424),
+                                ),
+                                const SizedBox(width: 4.0),
+                                Text(
+                                  '${widget.task.data()['clientEvaluation'] ?? 'No disponible'}',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 10),
 
-                  // Ubicación del servicio (cambiado el texto)
+                                    // Ubicación del servicio
                   if (widget.task.data()['clientLocation'] != null)
                     Column(
                       children: [
@@ -852,12 +1031,21 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 10),
-                        SizedBox(
-                          height: 200, // Ajusta la altura del mapa
-                          child: ClientLocationMap(
-                            clientLatLng: LatLng(
-                                widget.task.data()['clientLocation'].latitude,
-                                widget.task.data()['clientLocation'].longitude),
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10.0),
+                            border: Border.all(
+                              color: const Color(0xFF08143C),
+                              width: 1.0,
+                            ),
+                          ),
+                          child: SizedBox(
+                            height: 200, // Ajusta la altura del mapa
+                            child: ClientLocationMap(
+                              clientLatLng: LatLng(
+                                  widget.task.data()['clientLocation'].latitude,
+                                  widget.task.data()['clientLocation'].longitude),
+                            ),
                           ),
                         ),
                       ],
@@ -933,5 +1121,33 @@ class ClientLocationMap extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+// Función para obtener el ícono correspondiente al estado de la tarea
+IconData getIconForState(String state) {
+  switch (state) {
+    case 'Pendiente':
+      return Icons.pending_actions;
+    case 'En proceso':
+      return Icons.play_arrow;
+    case 'Finalizada':
+      return Icons.check_circle;
+    default:
+      return Icons.info_outline;
+  }
+}
+
+// Función para crear un Icon widget con el color correspondiente
+Widget getColoredIcon(String state) {
+  switch (state) {
+    case 'Pendiente':
+      return Icon(getIconForState(state), color: Colors.amber); // Color mostaza
+    case 'En proceso':
+      return Icon(getIconForState(state), color: Colors.lightGreen); // Verde claro
+    case 'Finalizada':
+      return Icon(getIconForState(state), color: Colors.green); // Verde oscuro
+    default:
+      return Icon(getIconForState(state));
   }
 }
