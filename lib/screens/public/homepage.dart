@@ -1,25 +1,10 @@
 import 'package:flutter/material.dart';
-import 'profile.dart'; // Importa el nuevo archivo profile.dart
-import 'home.dart'; // Importa el nuevo archivo home.dart
-import 'tasks.dart'; // Importa el nuevo archivo tasks.dart
+import 'profile.dart';
+import 'tasks.dart';
+import 'home.dart';
+import 'social.dart'; // Importa el nuevo archivo social.dart
 
 // Define las pantallas para cada botón
-
-class SocialScreen extends StatelessWidget {
-  const SocialScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white
-      ),
-      child: const Center(
-        child: Text('Pantalla social'),
-      ),
-    );
-  }
-}
 
 class WalletScreen extends StatelessWidget {
   const WalletScreen({super.key});
@@ -91,8 +76,8 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
             icon: Image.asset(
               _selectedIndex == 1
-                  ? 'assets/images/IconChat_selected.png'
-                  : 'assets/images/IconChat.png',
+                  ? 'assets/images/IconSocial_selected.png'
+                  : 'assets/images/IconSocial.png',
               width: 24,
               height: 24,
             ),

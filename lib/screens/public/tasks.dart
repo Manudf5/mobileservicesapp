@@ -65,7 +65,7 @@ class _TasksScreenState extends State {
             'Tareas',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 24,
+              fontSize: 28,
             ),
           ),
           actions: [
@@ -242,14 +242,30 @@ class _TasksScreenState extends State {
                                               ),
                                               Padding(
                                                 padding: const EdgeInsets.only(left: 16.0),
-                                                child: Text(
-                                                  task.data()['hourlyRate'] == 0.0
-                                                      ? 'Gratis'
-                                                      : '\$${task.data()['hourlyRate'].toStringAsFixed(2)}/hr',
-                                                  style: const TextStyle(
-                                                      fontSize: 16.0,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Color(0xFF08143C)),
+                                                child: Column( // Use a Column to stack the text widgets
+                                                  crossAxisAlignment: CrossAxisAlignment.start, // Align text to the start
+                                                  children: [
+                                                    Text(
+                                                      '${task.data()['state']}',
+                                                      style: const TextStyle(
+                                                        fontSize: 14.0,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Color(0xFF00C853),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 1), // Add some space between the text widgets
+                                                    Text(
+                                                      // Formatea la fecha desde Timestamp a DD/MM/YYYY
+                                                      task.data()['reservation'] != null
+                                                          ? DateFormat('dd/MM/yyyy').format(
+                                                              (task.data()['reservation'] as Timestamp).toDate())
+                                                          : 'Sin fecha',
+                                                      style: const TextStyle(
+                                                        fontSize: 10.0, // Smaller font size for the date
+                                                        color: Color(0xFF08143C),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
                                             ],
@@ -414,14 +430,30 @@ class _TasksScreenState extends State {
                                               ),
                                               Padding(
                                                 padding: const EdgeInsets.only(left: 16.0),
-                                                child: Text(
-                                                  task.data()['hourlyRate'] == 0.0
-                                                      ? 'Gratis'
-                                                      : '\$${task.data()['hourlyRate'].toStringAsFixed(2)}/hr',
-                                                  style: const TextStyle(
-                                                      fontSize: 16.0,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Color(0xFF08143C)),
+                                                child: Column( // Use a Column to stack the text widgets
+                                                  crossAxisAlignment: CrossAxisAlignment.start, // Align text to the start
+                                                  children: [
+                                                    Text(
+                                                      '${task.data()['state']}',
+                                                      style: const TextStyle(
+                                                        fontSize: 14.0,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Color(0xFF00C853),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 1), // Add some space between the text widgets
+                                                    Text(
+                                                      // Formatea la fecha desde Timestamp a DD/MM/YYYY
+                                                      task.data()['start'] != null
+                                                          ? DateFormat('dd/MM/yyyy').format(
+                                                              (task.data()['start'] as Timestamp).toDate())
+                                                          : 'Sin fecha',
+                                                      style: const TextStyle(
+                                                        fontSize: 10.0, // Smaller font size for the date
+                                                        color: Color(0xFF08143C),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
                                             ],
@@ -586,14 +618,30 @@ class _TasksScreenState extends State {
                                               ),
                                               Padding(
                                                 padding: const EdgeInsets.only(left: 16.0),
-                                                child: Text(
-                                                  task.data()['hourlyRate'] == 0.0
-                                                      ? 'Gratis'
-                                                      : '\$${task.data()['hourlyRate'].toStringAsFixed(2)}/hr',
-                                                  style: const TextStyle(
-                                                      fontSize: 16.0,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Color(0xFF08143C)),
+                                                child: Column( // Use a Column to stack the text widgets
+                                                  crossAxisAlignment: CrossAxisAlignment.start, // Align text to the start
+                                                  children: [
+                                                    Text(
+                                                      '${task.data()['state']}',
+                                                      style: const TextStyle(
+                                                        fontSize: 14.0,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: Color(0xFF00C853),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 1), // Add some space between the text widgets
+                                                    Text(
+                                                      // Formatea la fecha desde Timestamp a DD/MM/YYYY
+                                                      task.data()['end'] != null
+                                                          ? DateFormat('dd/MM/yyyy').format(
+                                                              (task.data()['end'] as Timestamp).toDate())
+                                                          : 'Sin fecha',
+                                                      style: const TextStyle(
+                                                        fontSize: 10.0, // Smaller font size for the date
+                                                        color: Color(0xFF08143C),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
                                             ],
