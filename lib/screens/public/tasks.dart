@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 // ignore: unnecessary_import
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -250,7 +251,7 @@ class _TasksScreenState extends State {
                                                       style: const TextStyle(
                                                         fontSize: 14.0,
                                                         fontWeight: FontWeight.bold,
-                                                        color: Color(0xFF00C853),
+                                                        color: Color(0xFFE65100),
                                                       ),
                                                     ),
                                                     const SizedBox(height: 1), // Add some space between the text widgets
@@ -438,7 +439,7 @@ class _TasksScreenState extends State {
                                                       style: const TextStyle(
                                                         fontSize: 14.0,
                                                         fontWeight: FontWeight.bold,
-                                                        color: Color(0xFF00C853),
+                                                        color: Colors.amber,
                                                       ),
                                                     ),
                                                     const SizedBox(height: 1), // Add some space between the text widgets
@@ -1134,6 +1135,31 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
   }
 }
 
+Icon getColoredIcon(String state) {
+    switch (state) {
+      case 'Pendiente':
+        return const Icon(
+          Icons.circle,
+          size: 18.0,
+          color: Color.fromRGBO(230, 81, 0, 1),
+        );
+      case 'En proceso':
+        return const Icon(
+          Icons.circle,
+          size: 18.0,
+          color: Colors.amber,
+        );
+      case 'Finalizada':
+        return const Icon(
+          Icons.circle,
+          size: 18.0,
+          color: Color.fromRGBO(0, 200, 83, 1),
+        );
+      default:
+        return const Icon(Icons.circle);
+    }
+  }
+
 // Widget para mostrar el mapa con la ubicación del cliente
 class ClientLocationMap extends StatelessWidget {
   final LatLng clientLatLng;
@@ -1169,33 +1195,5 @@ class ClientLocationMap extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-// Función para obtener el ícono correspondiente al estado de la tarea
-IconData getIconForState(String state) {
-  switch (state) {
-    case 'Pendiente':
-      return Icons.pending_actions;
-    case 'En proceso':
-      return Icons.play_arrow;
-    case 'Finalizada':
-      return Icons.check_circle;
-    default:
-      return Icons.info_outline;
-  }
-}
-
-// Función para crear un Icon widget con el color correspondiente
-Widget getColoredIcon(String state) {
-  switch (state) {
-    case 'Pendiente':
-      return Icon(getIconForState(state), color: Colors.amber); // Color mostaza
-    case 'En proceso':
-      return Icon(getIconForState(state), color: Colors.lightGreen); // Verde claro
-    case 'Finalizada':
-      return Icon(getIconForState(state), color: Colors.green); // Verde oscuro
-    default:
-      return Icon(getIconForState(state));
   }
 }

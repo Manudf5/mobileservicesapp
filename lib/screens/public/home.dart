@@ -89,152 +89,167 @@ class _HomeScreenState extends State {
     return '';
   }
 
-  @override
+   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Center(
           child: Text(
-            '',
+            'MSA [Proveedores]',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.green,
             ),
           ),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Mostrar el saludo y el nombre solo si están cargados
-            if (greeting.isNotEmpty && userName.isNotEmpty)
-              AnimatedTextKit(
-                animatedTexts: [
-                  // Combina el saludo y el nombre en un solo TyperAnimatedText
-                  TyperAnimatedText(
-                    '¡$greeting, $userName!',
-                    textStyle: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+      // Agrega un Container para el degradado
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.white, // Color del AppBar
+              Colors.white, // Color del fondo de la pantalla
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Mostrar el saludo y el nombre solo si están cargados
+              if (greeting.isNotEmpty && userName.isNotEmpty)
+                AnimatedTextKit(
+                  animatedTexts: [
+                    // Combina el saludo y el nombre en un solo TyperAnimatedText
+                    TyperAnimatedText(
+                      '¡$greeting, $userName!',
+                      textStyle: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      speed: const Duration(milliseconds: 50),
+                      textAlign: TextAlign.start,
                     ),
-                    speed: const Duration(milliseconds: 50),
-                    textAlign: TextAlign.start,
+                  ],
+                  isRepeatingAnimation: false,
+                )
+              else
+                const CircularProgressIndicator(color: Colors.green),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SearchScreen(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        height: 50,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          color: Colors.grey[200],
+                        ),
+                        child: const Row(
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.only(left: 16.0),
+                              child: Icon(
+                                Icons.search,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            SizedBox(width: 16.0),
+                            Expanded(
+                              child: Text(
+                                "¿Que servicio necesitas hoy?",
+                                style: TextStyle(
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ],
-                isRepeatingAnimation: false,
-              )
-            else
-              const CircularProgressIndicator(color: Colors.green),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
+                  const SizedBox(width: 10),
+                  GestureDetector(
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const SearchScreen(),
+                          builder: (context) => const NotificacionesScreen(),
                         ),
                       );
                     },
                     child: Container(
-                      height: 50,
+                      height: 45,
+                      width: 45,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(10),
                         color: Colors.grey[200],
                       ),
-                      child: const Row(
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.only(left: 16.0),
-                            child: Icon(
-                              Icons.search,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          SizedBox(width: 16.0),
-                          Expanded(
-                            child: Text(
-                              "¿Que servicio necesitas hoy?",
-                              style: TextStyle(
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ),
-                        ],
+                      padding: const EdgeInsets.all(5),
+                      child: Image.asset(
+                        'assets/images/IconNotification.png',
+                        height: 22,
+                        width: 22,
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const NotificacionesScreen(),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    height: 45,
-                    width: 45,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      color: Colors.grey[200],
-                    ),
-                    padding: const EdgeInsets.all(5),
-                    child: Image.asset(
-                      'assets/images/IconNotification.png',
-                      height: 22,
-                      width: 22,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                children: [
-                  _buildButton(
-                    'assets/images/IconHome_Screen.png',
-                    'Hogar',
-                    context,
-                  ),
-                  _buildButton(
-                    'assets/images/IconWelfare_Screen.png',
-                    'Personal',
-                    context,
-                  ),
-                  _buildButton(
-                    'assets/images/IconProfessional_Screen.png',
-                    'Profesional',
-                    context,
-                  ),
-                  _buildButton(
-                    'assets/images/IconEntertainment_Screen.png',
-                    'Entretenimiento',
-                    context,
                   ),
                 ],
               ),
-            )
-          ],
+              const SizedBox(height: 17),
+              Expanded(
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 9 / 10.1,
+                  children: [
+                    _buildButton(
+                      'assets/images/IconHome_Screen.jpg',
+                      'Hogar',
+                      context,
+                    ),
+                    _buildButton(
+                      'assets/images/IconWelfare_Screen.jpg',
+                      'Personal',
+                      context,
+                    ),
+                    _buildButton(
+                      'assets/images/IconProfessional_Screen.jpg',
+                      'Profesional',
+                      context,
+                    ),
+                    _buildButton(
+                      'assets/images/IconEntertainment_Screen.jpg',
+                      'Entretenimiento',
+                      context,
+                    ),
+                  ],
+                ),
+              )
+            ],
+          ),
         ),
       ),
     );
   }
+}
 
   Widget _buildButton(
       String imagePath, String text, BuildContext context) {
@@ -305,23 +320,28 @@ class _HomeScreenState extends State {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
-          color: Colors.grey[200],
+          color: Colors.green[100],
         ),
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(3),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              imagePath,
-              height: 100,
-              width: 100,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10), // Aplica el borde redondeado a la imagen
+              child: Image.asset(
+                imagePath,
+                height: 170,
+                width: 200,
+                fit: BoxFit.cover, // Opcional: ajusta la imagen al contenedor
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
               text,
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
             ),
           ],
@@ -329,7 +349,6 @@ class _HomeScreenState extends State {
       ),
     );
   }
-}
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});

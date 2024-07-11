@@ -2,29 +2,12 @@ import 'package:flutter/material.dart';
 import 'profile.dart';
 import 'tasks.dart';
 import 'home.dart';
-import 'social.dart'; // Importa el nuevo archivo social.dart
-
-// Define las pantallas para cada botón
-
-class WalletScreen extends StatelessWidget {
-  const WalletScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white
-      ),
-      child: const Center(
-        child: Text('Pantalla de Monedero'),
-      ),
-    );
-  }
-}
+import 'social.dart';
+import 'wallet.dart';
 
 class HomePage extends StatefulWidget {
   final int selectedIndex;
-   const HomePage({super.key, required this.selectedIndex});
+  const HomePage({super.key, required this.selectedIndex});
 
   @override
   // ignore: library_private_types_in_public_api
@@ -34,18 +17,18 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
-    @override
+  @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.selectedIndex; // Inicializa el estado con el valor del parámetro
+    _selectedIndex = widget.selectedIndex;
   }
 
   final List<Widget> _screens = [
-    const HomeScreen(), // Ahora utiliza HomeScreen de home.dart
+    const HomeScreen(),
     const SocialScreen(),
-    const TasksScreen(), // Ahora utiliza TasksScreen de tasks.dart
+    const TasksScreen(),
     const WalletScreen(),
-    const ProfileScreen(), // Ahora utiliza ProfileScreen de profile.dart
+    const ProfileScreen(),
   ];
 
   @override
@@ -53,7 +36,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
-        child: _screens[_selectedIndex], // Centra verticalmente el contenido de las pantallas
+        child: _screens[_selectedIndex],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
@@ -117,8 +100,8 @@ class _HomePageState extends State<HomePage> {
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold), // Estilo para el texto seleccionado
-        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal), // Estilo para el texto sin seleccionar
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+        unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
       ),
     );
   }
