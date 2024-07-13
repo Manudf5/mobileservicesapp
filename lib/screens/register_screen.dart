@@ -110,6 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen>
 
       // 5. Almacena los datos del usuario en Firestore
       if (user != null) {
+        String walletBalanceDefault = '0.00';
         String combinedId =
             '${_idLetterController.text.trim()}${_idNumberController.text.trim()}';
         String combinedPhoneNumber =
@@ -132,6 +133,13 @@ class _RegisterScreenState extends State<RegisterScreen>
           'gender': _selectedGender, // Almacena el género seleccionado
           'acceptTerms': _acceptTerms, // Almacena si el usuario aceptó los términos
           'permissions': 0 // Añade el campo de permisos con valor 0
+        });
+
+        await FirebaseFirestore.instance
+            .collection('wallets')
+            .doc(combinedId) // Usa el ID combinado como el ID del documento
+            .set({
+          'walletBalance': walletBalanceDefault,
         });
 
         // 6. Registro exitoso, navega a LoginScreen y muestra un mensaje
