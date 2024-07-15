@@ -52,6 +52,8 @@ dependencies:
   latlong2: ^0.9.1
   flutter_map_marker_cluster: ^1.2.0
   flutter_map_marker_popup: ^5.2.0
+  cloud_functions: ^5.0.3
+  
   
 
   

@@ -132,7 +132,8 @@ class _RegisterScreenState extends State<RegisterScreen>
           'password': _passwordController.text.trim(), // Almacena la contraseña
           'gender': _selectedGender, // Almacena el género seleccionado
           'acceptTerms': _acceptTerms, // Almacena si el usuario aceptó los términos
-          'permissions': 0 // Añade el campo de permisos con valor 0
+          'permissions': 0, // Añade el campo de permisos con valor 0
+          'status': 0 // Añade el campo de permisos con valor 0
         });
 
         await FirebaseFirestore.instance
