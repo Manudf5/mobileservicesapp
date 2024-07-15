@@ -12,7 +12,8 @@ import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-
+// ignore: depend_on_referenced_packages
+import 'package:cross_file/cross_file.dart';
 import 'package:mobileservicesapp/screens/public/homepage.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -1814,7 +1815,7 @@ class TransactionReceiptScreen extends StatelessWidget {
   final String recipientName;
   final double amount;
 
-  const TransactionReceiptScreen({
+  TransactionReceiptScreen({
     super.key,
     required this.paymentType,
     required this.date,
@@ -1824,6 +1825,8 @@ class TransactionReceiptScreen extends StatelessWidget {
     required this.recipientName,
     required this.amount,
   });
+
+  final ScreenshotController screenshotController = ScreenshotController();
 
   @override
   Widget build(BuildContext context) {
@@ -1837,7 +1840,9 @@ class TransactionReceiptScreen extends StatelessWidget {
         );
       },
       child: Scaffold(
+        backgroundColor: Colors.white,
         appBar: AppBar(
+          backgroundColor: Colors.white,
           title: const Text('Detalle de Transacción'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
@@ -1850,56 +1855,117 @@ class TransactionReceiptScreen extends StatelessWidget {
           ),
         ),
         body: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Center(
-                  child: Icon(
-                    Icons.check_circle_outline_rounded,
-                    color: Colors.green,
-                    size: 80,
+          child: Column(
+            children: [
+              Screenshot(
+                controller: screenshotController,
+                child: Container(
+                  color: Colors.white,
+                  child: Column(
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text(
+                          'Mobile Services App',
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Center(
+                              child: Icon(
+                                Icons.check_circle_outline_rounded,
+                                color: Colors.green,
+                                size: 80,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            const Center(
+                              child: Text(
+                                '¡Transacción aprobada!',
+                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            _buildInfoCard(context),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Center(
-                  child: Text(
-                    '¡Transacción aprobada!',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.share, color: Color(0xFF1CA424)), // Color del icono
+                      label: const Text('Compartir', style: TextStyle(color: Colors.white)), // Color del texto
+                      onPressed: () => _shareScreenshot(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF08143C), // Fondo del botón
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.download, color: Color(0xFF1CA424)), // Color del icono
+                      label: const Text('Descargar', style: TextStyle(color: Colors.white)), // Color del texto
+                      onPressed: () => _saveScreenshot(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF08143C), // Fondo del botón
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
-                _buildInfoCard(),
-              ],
-            ),
+              )
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildInfoCard() {
-    return Card(
-      elevation: 4,
+  Widget _buildInfoCard(BuildContext context) {
+  return Card(
+    elevation: 4,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16), // Establece el radio de los bordes aquí
+    ),
+    child: Container(
+      decoration: BoxDecoration(
+        color: Colors.blueGrey[50], // Establece el color de fondo aquí
+        borderRadius: BorderRadius.circular(16), // Asegúrate de que coincida con el radio de la tarjeta
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildInfoRow('Fecha', DateFormat('dd/MM/yyyy HH:mm').format(date)),
-            _buildInfoRow('Referencia', transactionId, isCopiable: true),
-            _buildInfoRow('Concepto', concept),
-            _buildInfoRow('Destinatario ID', recipientId),
-            _buildInfoRow('Destinatario', recipientName),
-            _buildInfoRow('Monto', '\$ ${amount.toStringAsFixed(2)}'),
+            Center(
+              child: Text(
+                paymentType,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.indigo),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildInfoRow(context, 'Fecha', DateFormat('dd/MM/yyyy HH:mm').format(date)),
+            _buildInfoRow(context, 'Referencia', transactionId, isCopiable: true),
+            _buildInfoRow(context, 'Concepto', concept),
+            _buildInfoRow(context, 'Destinatario ID ', recipientId),
+            _buildInfoRow(context, 'Destinatario', recipientName),
+            _buildInfoRow(context, 'Monto', '\$ ${amount.toStringAsFixed(2)}'),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
-  Widget _buildInfoRow(String label, String value, {bool isCopiable = false}) {
+  Widget _buildInfoRow(BuildContext context, String label, String value, {bool isCopiable = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -1914,6 +1980,9 @@ class TransactionReceiptScreen extends StatelessWidget {
                   icon: const Icon(Icons.copy, size: 20),
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: value));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Referencia copiada al portapapeles')),
+                    );
                   },
                 ),
             ],
@@ -1921,6 +1990,38 @@ class TransactionReceiptScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _shareScreenshot(BuildContext context) async {
+  final Uint8List? image = await screenshotController.capture();
+  if (image != null) {
+    final directory = await getTemporaryDirectory();
+    final imagePath = await File('${directory.path}/transaction_receipt.png').create();
+    await imagePath.writeAsBytes(image);
+    
+    final xFile = XFile(imagePath.path);
+    await Share.shareXFiles([xFile], text: 'Comprobante de transacción');
+  }
+}
+
+  Future<void> _saveScreenshot(BuildContext context) async {
+    try {
+      final Uint8List? image = await screenshotController.capture();
+      if (image != null) {
+        final directory = await getExternalStorageDirectory();
+        final imagePath = await File('${directory!.path}/transaction_receipt_${DateTime.now().millisecondsSinceEpoch}.png').create();
+        await imagePath.writeAsBytes(image);
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Imagen guardada en ${imagePath.path}')),
+        );
+      }
+    } catch (e) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al guardar la imagen: $e')),
+      );
+    }
   }
 }
 
