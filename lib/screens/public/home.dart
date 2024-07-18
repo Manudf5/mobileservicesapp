@@ -20,8 +20,6 @@ import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:mobileservicesapp/screens/public/homepage.dart';
 
-
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -69,18 +67,19 @@ class _HomeScreenState extends State {
           greeting = 'Buenas noches';
         }
         // ignore: avoid_print
-        print('Greeting: $greeting, userName: $userName'); // Imprime los valores para comprobar
+        print(
+            'Greeting: $greeting, userName: $userName'); // Imprime los valores para comprobar
       });
     }
   }
 
   // Función para obtener el ID combinado de Firestore
   Future _getCombinedIdFromFirestore(String uid) async {
-    QuerySnapshot<Map<String, dynamic>> querySnapshot =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .where('uid', isEqualTo: uid)
-            .get();
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+        .instance
+        .collection('users')
+        .where('uid', isEqualTo: uid)
+        .get();
 
     if (querySnapshot.docs.isNotEmpty) {
       return querySnapshot.docs.first.id;
@@ -89,7 +88,7 @@ class _HomeScreenState extends State {
     return '';
   }
 
-   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -251,104 +250,108 @@ class _HomeScreenState extends State {
   }
 }
 
-  Widget _buildButton(
-      String imagePath, String text, BuildContext context) {
-    return InkWell(
-      onTap: () {
-        if (text == 'Hogar') {
-          Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  const HogarScreen(),
-              transitionDuration: const Duration(milliseconds: 500),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return ScaleTransition(
-                  scale: animation,
-                  child: child,
-                );
-              },
-            ),
-          );
-        } else if (text == 'Personal') {
-          Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  const PersonalScreen(),
-              transitionDuration: const Duration(milliseconds: 500),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return ScaleTransition(
-                  scale: animation,
-                  child: child,
-                );
-              },
-            ),
-          );
-        } else if (text == 'Profesional') {
-          Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  const ProfesionalScreen(),
-              transitionDuration: const Duration(milliseconds: 500),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return ScaleTransition(
-                  scale: animation,
-                  child: child,
-                );
-              },
-            ),
-          );
-        } else if (text == 'Entretenimiento') {
-          Navigator.push(
-            context,
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  const EntretenimientoScreen(),
-              transitionDuration: const Duration(milliseconds: 500),
-              transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                return ScaleTransition(
-                  scale: animation,
-                  child: child,
-                );
-              },
-            ),
-          );
-        }
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: Colors.green[100],
-        ),
-        padding: const EdgeInsets.all(3),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10), // Aplica el borde redondeado a la imagen
-              child: Image.asset(
-                imagePath,
-                height: 170,
-                width: 200,
-                fit: BoxFit.cover, // Opcional: ajusta la imagen al contenedor
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              text,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-          ],
-        ),
+Widget _buildButton(String imagePath, String text, BuildContext context) {
+  return InkWell(
+    onTap: () {
+      if (text == 'Hogar') {
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const HogarScreen(),
+            transitionDuration: const Duration(milliseconds: 500),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              return ScaleTransition(
+                scale: animation,
+                child: child,
+              );
+            },
+          ),
+        );
+      } else if (text == 'Personal') {
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const PersonalScreen(),
+            transitionDuration: const Duration(milliseconds: 500),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              return ScaleTransition(
+                scale: animation,
+                child: child,
+              );
+            },
+          ),
+        );
+      } else if (text == 'Profesional') {
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const ProfesionalScreen(),
+            transitionDuration: const Duration(milliseconds: 500),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              return ScaleTransition(
+                scale: animation,
+                child: child,
+              );
+            },
+          ),
+        );
+      } else if (text == 'Entretenimiento') {
+        Navigator.push(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (context, animation, secondaryAnimation) =>
+                const EntretenimientoScreen(),
+            transitionDuration: const Duration(milliseconds: 500),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              return ScaleTransition(
+                scale: animation,
+                child: child,
+              );
+            },
+          ),
+        );
+      }
+    },
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: Colors.green[100],
       ),
-    );
-  }
+      padding: const EdgeInsets.all(3),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(
+                10), // Aplica el borde redondeado a la imagen
+            child: Image.asset(
+              imagePath,
+              height: 170,
+              width: 200,
+              fit: BoxFit.cover, // Opcional: ajusta la imagen al contenedor
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -393,8 +396,10 @@ class _SearchScreenState extends State {
 
   void _onSearchChanged(String query) {
     setState(() {
-      _filteredServices = _services.where((service) =>
-          service['serviceName'].toLowerCase().contains(query.toLowerCase()))
+      _filteredServices = _services
+          .where((service) => service['serviceName']
+              .toLowerCase()
+              .contains(query.toLowerCase()))
           .toList();
     });
   }
@@ -449,19 +454,20 @@ class _SearchScreenState extends State {
             const SizedBox(height: 25.0),
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(
+                      child: CircularProgressIndicator(color: Colors.green))
                   : _filteredServices.isEmpty
                       ? const Center(
                           child: Text('No se encontraron servicios'),
-                                                  )
+                        )
                       : GridView.count(
                           crossAxisCount: 2,
                           crossAxisSpacing: 10,
                           mainAxisSpacing: 10,
                           childAspectRatio: 9 / 7,
-children: _filteredServices.map((service) {
-                            return _buildServiceButton(
-                                service['imageUrl'], service['serviceName'], service['id']);
+                          children: _filteredServices.map((service) {
+                            return _buildServiceButton(service['imageUrl'],
+                                service['serviceName'], service['id']);
                           }).toList(),
                         ),
             ),
@@ -477,7 +483,10 @@ children: _filteredServices.map((service) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(serviceName: text, id: serviceId,),
+            builder: (context) => LocationDetailsScreen(
+              serviceName: text,
+              id: serviceId,
+            ),
           ),
         );
       },
@@ -491,7 +500,7 @@ children: _filteredServices.map((service) {
         ),
         padding: const EdgeInsets.all(2),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.start ,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
@@ -638,10 +647,14 @@ class _HogarScreenState extends State<HogarScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Colors.green,))
+            ? const Center(
+                child: CircularProgressIndicator(
+                color: Colors.green,
+              ))
             : _services.isEmpty
                 ? const Center(
-                    child: Text('No hay servicios disponibles, inténtelo de nuevo más tarde'),
+                    child: Text(
+                        'No hay servicios disponibles, inténtelo de nuevo más tarde'),
                   )
                 : GridView.count(
                     crossAxisCount: 2,
@@ -649,8 +662,8 @@ class _HogarScreenState extends State<HogarScreen> {
                     mainAxisSpacing: 10,
                     childAspectRatio: 9 / 7,
                     children: _services.map((service) {
-                      return _buildServiceButton(
-                          service['imageUrl'], service['serviceName'], service['id']);
+                      return _buildServiceButton(service['imageUrl'],
+                          service['serviceName'], service['id']);
                     }).toList(),
                   ),
       ),
@@ -663,7 +676,10 @@ class _HogarScreenState extends State<HogarScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(serviceName: text, id: serviceId,),
+            builder: (context) => LocationDetailsScreen(
+              serviceName: text,
+              id: serviceId,
+            ),
           ),
         );
       },
@@ -763,7 +779,8 @@ class _PersonalScreenState extends State<PersonalScreen> {
         padding: const EdgeInsets.all(16.0),
         child: _services.isEmpty
             ? const Center(
-                child: Text('No hay servicios disponibles, inténtelo de nuevo más tarde'),
+                child: Text(
+                    'No hay servicios disponibles, inténtelo de nuevo más tarde'),
               )
             : GridView.count(
                 crossAxisCount: 2,
@@ -771,8 +788,8 @@ class _PersonalScreenState extends State<PersonalScreen> {
                 mainAxisSpacing: 10,
                 childAspectRatio: 9 / 7,
                 children: _services.map((service) {
-                  return _buildServiceButton(
-                      service['imageUrl'], service['serviceName'], service['id']);
+                  return _buildServiceButton(service['imageUrl'],
+                      service['serviceName'], service['id']);
                 }).toList(),
               ),
       ),
@@ -785,7 +802,10 @@ class _PersonalScreenState extends State<PersonalScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(serviceName: text, id: serviceId,),
+            builder: (context) => LocationDetailsScreen(
+              serviceName: text,
+              id: serviceId,
+            ),
           ),
         );
       },
@@ -885,7 +905,8 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
         padding: const EdgeInsets.all(16.0),
         child: _services.isEmpty
             ? const Center(
-                child: Text('No hay servicios disponibles, inténtelo de nuevo más tarde'),
+                child: Text(
+                    'No hay servicios disponibles, inténtelo de nuevo más tarde'),
               )
             : GridView.count(
                 crossAxisCount: 2,
@@ -893,8 +914,8 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
                 mainAxisSpacing: 10,
                 childAspectRatio: 9 / 7,
                 children: _services.map((service) {
-                  return _buildServiceButton(
-                      service['imageUrl'], service['serviceName'], service['id']);
+                  return _buildServiceButton(service['imageUrl'],
+                      service['serviceName'], service['id']);
                 }).toList(),
               ),
       ),
@@ -907,7 +928,10 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(serviceName: text, id: serviceId,),
+            builder: (context) => LocationDetailsScreen(
+              serviceName: text,
+              id: serviceId,
+            ),
           ),
         );
       },
@@ -1007,7 +1031,8 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
         padding: const EdgeInsets.all(16.0),
         child: _services.isEmpty
             ? const Center(
-                child: Text('No hay servicios disponibles, inténtelo de nuevo más tarde'),
+                child: Text(
+                    'No hay servicios disponibles, inténtelo de nuevo más tarde'),
               )
             : GridView.count(
                 crossAxisCount: 2,
@@ -1015,8 +1040,8 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
                 mainAxisSpacing: 10,
                 childAspectRatio: 9 / 7,
                 children: _services.map((service) {
-                  return _buildServiceButton(
-                      service['imageUrl'], service['serviceName'], service['id']);
+                  return _buildServiceButton(service['imageUrl'],
+                      service['serviceName'], service['id']);
                 }).toList(),
               ),
       ),
@@ -1029,7 +1054,10 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(serviceName: text, id: serviceId,),
+            builder: (context) => LocationDetailsScreen(
+              serviceName: text,
+              id: serviceId,
+            ),
           ),
         );
       },
@@ -1091,7 +1119,8 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
   // ignore: unused_field
   Position? _currentPosition;
   bool _locationPermissionGranted = false;
-  LatLng? _selectedLatLng; // Coordenadas de la ubicación seleccionada por el usuario
+  LatLng?
+      _selectedLatLng; // Coordenadas de la ubicación seleccionada por el usuario
   LatLng? _markerLatLng; // Coordenadas del marcador en el mapa
   MapController mapController = MapController();
 
@@ -1118,9 +1147,8 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
   Future _checkLocationPermission() async {
     LocationPermission permission = await Geolocator.requestPermission();
     setState(() {
-      _locationPermissionGranted =
-          permission == LocationPermission.always ||
-              permission == LocationPermission.whileInUse;
+      _locationPermissionGranted = permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse;
     });
     if (_locationPermissionGranted) {
       _getCurrentLocation();
@@ -1134,7 +1162,8 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
       setState(() {
         _currentPosition = position;
         _selectedLatLng = LatLng(position.latitude, position.longitude);
-        _markerLatLng = _selectedLatLng; // Inicializar _markerLatLng con la ubicación actual
+        _markerLatLng =
+            _selectedLatLng; // Inicializar _markerLatLng con la ubicación actual
         mapController.move(_selectedLatLng!, 15); // Zoom inicial
       });
     } catch (e) {
@@ -1166,7 +1195,6 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
   }
 
   Future _saveLocationDetails() async {
-
     // Mostrar la latitud y longitud en consola
     // ignore: avoid_print
     print('Latitud: ${_markerLatLng?.latitude}'); // Usar _markerLatLng aquí
@@ -1266,7 +1294,9 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
             ),
             if (_isLoadingSuggestions)
               const Center(
-                child: CircularProgressIndicator(color: Colors.green,),
+                child: CircularProgressIndicator(
+                  color: Colors.green,
+                ),
               )
             else if (_suggestions.isNotEmpty)
               SizedBox(
@@ -1284,7 +1314,8 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                         _selectedLatLng = LatLng(
                             suggestion['geometry']['coordinates'][1],
                             suggestion['geometry']['coordinates'][0]);
-                        _markerLatLng = _selectedLatLng; // Actualizar _markerLatLng al seleccionar una sugerencia
+                        _markerLatLng =
+                            _selectedLatLng; // Actualizar _markerLatLng al seleccionar una sugerencia
                         mapController.move(_selectedLatLng!, 15);
                         setState(() {
                           _suggestions = [];
@@ -1307,7 +1338,8 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                     onTap: (tapPosition, latLng) {
                       setState(() {
                         _selectedLatLng = latLng;
-                        _markerLatLng = latLng; // Actualizar _markerLatLng al tocar el mapa
+                        _markerLatLng =
+                            latLng; // Actualizar _markerLatLng al tocar el mapa
                         if (kDebugMode) {
                           print('Latitud: ${_markerLatLng?.latitude}');
                         } // Imprimir las coordenadas
@@ -1399,13 +1431,11 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
             const SizedBox(height: 20),
             Center(
               child: ElevatedButton(
-                onPressed: _markerLatLng != null
-                    ? _saveLocationDetails
-                    : null,
+                onPressed: _markerLatLng != null ? _saveLocationDetails : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 40, vertical: 15),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                   textStyle: const TextStyle(fontSize: 16),
                 ),
                 child: const Text(
@@ -1449,10 +1479,10 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
   List<DocumentSnapshot<Map<String, dynamic>>> _suppliers = [];
   List<DocumentSnapshot<Map<String, dynamic>>> _filteredSuppliers = [];
   bool _isLoading = true;
-  bool _showFilterDialog = false; 
+  bool _showFilterDialog = false;
 
   // Variables para controlar la selección de filtros
-  String _selectedFilter = 'Recomendados'; 
+  String _selectedFilter = 'Recomendados';
   bool _preciosBajosSelected = false;
   bool _preciosAltosSelected = false;
   bool _mayorCantidadTareasSelected = false;
@@ -1470,10 +1500,8 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
 
   Future _fetchSuppliers() async {
     try {
-      QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
-          .instance
-          .collection('suppliers')
-          .get();
+      QuerySnapshot<Map<String, dynamic>> querySnapshot =
+          await FirebaseFirestore.instance.collection('suppliers').get();
       _suppliers = querySnapshot.docs;
 
       _filteredSuppliers = _suppliers.where((supplier) {
@@ -1490,7 +1518,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
             supplier.data()?['location'].longitude,
           );
 
-          bool withinRange = distance <= 10;
+          bool withinRange = distance <= 25;
 
           return offersService && withinRange;
         }
@@ -1506,8 +1534,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
             supplier.reference.update({
               'profileImageUrl': userDoc.data()?['profileImageUrl'],
               'assessment': userDoc.data()?['assessment']
-            }).then((_) {
-            });
+            }).then((_) {});
           }
         });
       }
@@ -1523,7 +1550,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
   }
 
   double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    const earthRadius = 6371.0; 
+    const earthRadius = 6371.0;
     double dLat = (lat2 - lat1) * (pi / 180);
     double dLon = (lon2 - lon1) * (pi / 180);
     double a = sin(dLat / 2) * sin(dLat / 2) +
@@ -1536,12 +1563,22 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
     return distance;
   }
 
- void _sortSuppliersByPriceAscending() {
+  void _sortSuppliersByPriceAscending() {
     _filteredSuppliers.sort((a, b) {
-      double hourlyRateA = double.tryParse(a.data()?['services']
-              .firstWhere((service) => service['service'] == widget.id)['hourlyRate'].toString() ?? '0') ?? 0.0;
-      double hourlyRateB = double.tryParse(b.data()?['services']
-              .firstWhere((service) => service['service'] == widget.id)['hourlyRate'].toString() ?? '0') ?? 0.0;
+      double hourlyRateA = double.tryParse(a
+                  .data()?['services']
+                  .firstWhere((service) => service['service'] == widget.id)[
+                      'hourlyRate']
+                  .toString() ??
+              '0') ??
+          0.0;
+      double hourlyRateB = double.tryParse(b
+                  .data()?['services']
+                  .firstWhere((service) => service['service'] == widget.id)[
+                      'hourlyRate']
+                  .toString() ??
+              '0') ??
+          0.0;
 
       return hourlyRateA.compareTo(hourlyRateB);
     });
@@ -1549,10 +1586,20 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
 
   void _sortSuppliersByPriceDescending() {
     _filteredSuppliers.sort((a, b) {
-      double hourlyRateA = double.tryParse(a.data()?['services']
-              .firstWhere((service) => service['service'] == widget.id)['hourlyRate'].toString() ?? '0') ?? 0.0;
-      double hourlyRateB = double.tryParse(b.data()?['services']
-              .firstWhere((service) => service['service'] == widget.id)['hourlyRate'].toString() ?? '0') ?? 0.0;
+      double hourlyRateA = double.tryParse(a
+                  .data()?['services']
+                  .firstWhere((service) => service['service'] == widget.id)[
+                      'hourlyRate']
+                  .toString() ??
+              '0') ??
+          0.0;
+      double hourlyRateB = double.tryParse(b
+                  .data()?['services']
+                  .firstWhere((service) => service['service'] == widget.id)[
+                      'hourlyRate']
+                  .toString() ??
+              '0') ??
+          0.0;
 
       return hourlyRateB.compareTo(hourlyRateA);
     });
@@ -1579,8 +1626,8 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
 
   void _applyFilter(String filter) {
     setState(() {
-      _selectedFilter = filter; 
-      _showFilterDialog = false; 
+      _selectedFilter = filter;
+      _showFilterDialog = false;
     });
 
     switch (filter) {
@@ -1608,7 +1655,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
               supplier.data()?['location'].longitude,
             );
 
-            bool withinRange = distance <= 10;
+            bool withinRange = distance <= 25;
 
             return offersService && withinRange;
           }
@@ -1638,7 +1685,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
           IconButton(
             onPressed: () {
               setState(() {
-                _showFilterDialog = true; 
+                _showFilterDialog = true;
               });
             },
             icon: const Icon(Icons.filter_list, color: Colors.black),
@@ -1655,7 +1702,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                 Text(
                   _selectedFilter == 'Recomendados'
                       ? 'Recomendados'
-                      : 'Resultados por $_selectedFilter', 
+                      : 'Resultados por $_selectedFilter',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -1665,7 +1712,8 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                 const SizedBox(height: 16.0),
                 Expanded(
                   child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const Center(
+                          child: CircularProgressIndicator(color: Colors.green))
                       : _filteredSuppliers.isEmpty
                           ? const Center(
                               child: Text('No se encontraron agentes'),
@@ -1676,8 +1724,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                               padding: const EdgeInsets.only(top: 10.0),
                               itemBuilder: (context, index) {
                                 return Padding(
-                                  padding: const EdgeInsets.only(
-                                      bottom: 10.0), 
+                                  padding: const EdgeInsets.only(bottom: 10.0),
                                   child: _buildSupplierButton(
                                       _filteredSuppliers[index]),
                                 );
@@ -1687,25 +1734,24 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
               ],
             ),
           ),
-
           if (_showFilterDialog)
             Positioned.fill(
               child: GestureDetector(
                 onTap: () {
                   setState(() {
-                    _showFilterDialog = false; 
+                    _showFilterDialog = false;
                   });
                 },
                 child: IgnorePointer(
                   child: AnimatedOpacity(
                     opacity: _showFilterDialog ? 0.5 : 0.0,
-                    duration: const Duration(milliseconds: 300), 
+                    duration: const Duration(milliseconds: 300),
                     child: Container(
                       color: Colors.black.withOpacity(0.3),
                       child: BackdropFilter(
                         filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                         child: Container(
-                          color: Colors.transparent, 
+                          color: Colors.transparent,
                         ),
                       ),
                     ),
@@ -1729,9 +1775,9 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                     _masCercanosSelected = false;
 
                     if (value) {
-                      _applyFilter('Precios bajos'); 
+                      _applyFilter('Precios bajos');
                     } else {
-                      _applyFilter('Recomendados'); 
+                      _applyFilter('Recomendados');
                     }
                   });
                 },
@@ -1743,9 +1789,9 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                     _masCercanosSelected = false;
 
                     if (value) {
-                      _applyFilter('Precios altos'); 
+                      _applyFilter('Precios altos');
                     } else {
-                      _applyFilter('Recomendados'); 
+                      _applyFilter('Recomendados');
                     }
                   });
                 },
@@ -1759,7 +1805,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                     if (value) {
                       _applyFilter('Mayor cantidad de tareas completadas');
                     } else {
-                      _applyFilter('Recomendados'); 
+                      _applyFilter('Recomendados');
                     }
                   });
                 },
@@ -1771,9 +1817,9 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                     _mayorCantidadTareasSelected = false;
 
                     if (value) {
-                      _applyFilter('Más cercanos'); 
+                      _applyFilter('Más cercanos');
                     } else {
-                      _applyFilter('Recomendados'); 
+                      _applyFilter('Recomendados');
                     }
                   });
                 },
@@ -1784,15 +1830,14 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
     );
   }
 
-  Widget _buildSupplierButton(
-      DocumentSnapshot<Map<String, dynamic>> supplier) {
-    double hourlyRate = 0.0; 
+  Widget _buildSupplierButton(DocumentSnapshot<Map<String, dynamic>> supplier) {
+    double hourlyRate = 0.0;
     if (supplier.data()?['services'] != null) {
       for (var service in supplier.data()?['services']) {
         if (service['service'] == widget.id) {
           hourlyRate = service['hourlyRate'] != null
-              ? double.tryParse(service['hourlyRate'].toString()) ?? 0.0 
-              : 0.0; 
+              ? double.tryParse(service['hourlyRate'].toString()) ?? 0.0
+              : 0.0;
           break;
         }
       }
@@ -1863,7 +1908,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                   Text(
                     widget.serviceName,
                     style: const TextStyle(
-                        fontSize: 14.0, fontStyle: FontStyle.italic), 
+                        fontSize: 14.0, fontStyle: FontStyle.italic),
                   ),
                   Row(
                     children: [
@@ -1899,7 +1944,9 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
             Padding(
               padding: const EdgeInsets.only(left: 16.0),
               child: Text(
-                hourlyRate == 0.0 ? 'Gratis' : '\$${hourlyRate.toStringAsFixed(2)}/hr',
+                hourlyRate == 0.0
+                    ? 'Gratis'
+                    : '\$${hourlyRate.toStringAsFixed(2)}/hr',
                 style: const TextStyle(
                     fontSize: 16.0,
                     fontWeight: FontWeight.bold,
@@ -1940,13 +1987,13 @@ class FilterDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      insetPadding: const EdgeInsets.all(16.0), 
+      insetPadding: const EdgeInsets.all(16.0),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
       ),
       child: Container(
         padding: const EdgeInsets.all(16.0),
-        color: Colors.white, 
+        color: Colors.white,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1962,9 +2009,9 @@ class FilterDialog extends StatelessWidget {
             const SizedBox(height: 16.0),
             _buildFilterItem(
               label: 'Recomendados',
-              isSelected: false, 
+              isSelected: false,
               onPressed: () {
-                onFilterApplied('Recomendados'); 
+                onFilterApplied('Recomendados');
               },
             ),
             _buildFilterItem(
@@ -1980,8 +2027,8 @@ class FilterDialog extends StatelessWidget {
             _buildFilterItem(
               label: 'Mayor cantidad de tareas completadas',
               isSelected: mayorCantidadTareasSelected,
-              onPressed: () => onMayorCantidadTareasSelected(
-                  !mayorCantidadTareasSelected),
+              onPressed: () =>
+                  onMayorCantidadTareasSelected(!mayorCantidadTareasSelected),
             ),
             _buildFilterItem(
               label: 'Más cercanos',
@@ -2013,16 +2060,15 @@ class FilterDialog extends StatelessWidget {
           ),
           backgroundColor: isSelected
               ? const Color(0xFF08143C).withOpacity(0.1)
-              : Colors.transparent, 
+              : Colors.transparent,
         ),
         child: Text(
           label,
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 14,
-            color: isSelected
-                ? const Color(0xFF08143C)
-                : const Color(0xFF08143C), 
+            color:
+                isSelected ? const Color(0xFF08143C) : const Color(0xFF08143C),
           ),
         ),
       ),
@@ -2030,14 +2076,13 @@ class FilterDialog extends StatelessWidget {
   }
 }
 
-
 class SelectedSuppliersScreen extends StatefulWidget {
   final DocumentSnapshot<Map<String, dynamic>> selectedSupplier;
   final String serviceName;
   final String id;
   final double latitude;
   final double longitude;
-  final String reference; // Referencia del proveedor
+  final String reference;
 
   const SelectedSuppliersScreen({
     super.key,
@@ -2046,7 +2091,7 @@ class SelectedSuppliersScreen extends StatefulWidget {
     required this.id,
     required this.latitude,
     required this.longitude,
-    required this.reference, // Referencia del proveedor
+    required this.reference,
   });
 
   @override
@@ -2056,28 +2101,100 @@ class SelectedSuppliersScreen extends StatefulWidget {
 
 class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
     with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  // ignore: unused_field
+  late Animation<Offset> _slideAnimation;
+  final TextEditingController _reservationTextController =
+      TextEditingController();
+
   bool _showProfileImage = false;
   bool _showReservationModal = false;
-  final _reservationTextController = TextEditingController();
-  late AnimationController _animationController;
-  late Animation<Offset> _slideAnimation;
+  String clientIDString = "";
+  String clientName = "";
+  double _walletBalance = 0.0;
+
+  bool _showCards = false;
+  final Set<String> _selectedCards = {};
+  bool _pagoMovilSelected = false;
+  bool _efectivoSelected = false;
+  bool _paypalSelected = false;
+  bool _zinliSelected = false;
+  bool _binanceSelected = false;
+
+  late Future<void> _initFuture;
+  late Future<QuerySnapshot> _cardsFuture;
+  bool _hasCards = false;
 
   @override
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      vsync: this, // 'this' se refiere al widget State
+      vsync: this,
       duration: const Duration(milliseconds: 300),
     );
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 1), // Comienza fuera de la pantalla
-      end: Offset.zero, // Termina visible
-    ).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: Curves.easeInOut, // Curva de animación suave
-      ),
-    );
+      begin: const Offset(0, 1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+
+    _initFuture = _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    await _getUserInfo();
+    await _getWalletBalance();
+    _cardsFuture = _getCardsData();
+    _hasCards = await _checkIfUserHasCards();
+  }
+
+  Future<void> _getUserInfo() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('uid', isEqualTo: user.uid)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        final doc = snapshot.docs.first;
+        setState(() {
+          clientName = '${doc['name']} ${doc['lastName']}';
+          clientIDString = doc['id'];
+        });
+      }
+    }
+  }
+
+  Future<void> _getWalletBalance() async {
+    if (clientIDString.isNotEmpty) {
+      final walletDoc = await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(clientIDString)
+          .get();
+
+      if (walletDoc.exists) {
+        final walletData = walletDoc.data() as Map<String, dynamic>;
+        setState(() {
+          _walletBalance = walletData['walletBalance'] ?? 0.0;
+        });
+      }
+    }
+  }
+
+  Future<QuerySnapshot> _getCardsData() {
+    return FirebaseFirestore.instance
+        .collection('wallets')
+        .doc(clientIDString)
+        .collection('cards')
+        .get();
+  }
+
+  Future<bool> _checkIfUserHasCards() async {
+    final cardsSnapshot = await _cardsFuture;
+    return cardsSnapshot.docs.isNotEmpty;
   }
 
   @override
@@ -2093,354 +2210,799 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        // No se necesita leading
         title: const Text(
           'Agente seleccionado',
           style: TextStyle(color: Colors.black),
         ),
       ),
-      body: Stack(
-        children: [
-          // Contenido principal
-          Padding(
-            padding: const EdgeInsets.all(23.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // CircleAvatar con la foto de perfil y marco
-                Center(
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _showProfileImage = true;
-                      });
-                    },
-                    child: Hero(
-                      tag: 'profileImage',
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFF08143C),
-                            width: 3.0,
+      body: FutureBuilder<void>(
+        future: _initFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+                child: CircularProgressIndicator(color: Colors.green));
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          return Stack(
+            children: [
+              // Contenido principal
+              Padding(
+                padding: const EdgeInsets.all(23.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Imagen de perfil
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _showProfileImage = true;
+                          });
+                        },
+                        child: Hero(
+                          tag: 'profileImage',
+                          child: Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFF08143C),
+                                width: 3.0,
+                              ),
+                            ),
+                            child: CircleAvatar(
+                              radius: 60,
+                              backgroundImage: widget.selectedSupplier
+                                          .data()?['profileImageUrl'] !=
+                                      null
+                                  ? NetworkImage(widget.selectedSupplier
+                                      .data()?['profileImageUrl'])
+                                  : const AssetImage(
+                                          'assets/images/ProfilePhoto_predetermined.png')
+                                      as ImageProvider,
+                            ),
                           ),
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Nombre del agente y calificación
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${widget.selectedSupplier.data()?['name']}',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 5.0,
+                            horizontal: 10.0,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10.0),
+                            border: Border.all(
+                              color: const Color(0xFF08143C),
+                              width: 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                size: 18.0,
+                                color: Color(0xFF1ca424),
+                              ),
+                              const SizedBox(width: 4.0),
+                              Text(
+                                '${widget.selectedSupplier.data()?['assessment'] ?? 'Sin calificación'}',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    // ID del agente
+                    Text(
+                      'ID: ${widget.selectedSupplier.id}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.normal,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Servicio seleccionado
+                    Text(
+                      'Servicio: ${widget.serviceName}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 10),
+                    // Tarifa por hora
+                    Text(
+                      'Tarifa por hora: ${_getHourlyRate(widget.selectedSupplier, widget.id)}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+
+              // Modal de ampliación de imagen
+              if (_showProfileImage)
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _showProfileImage = false;
+                    });
+                  },
+                  child: Container(
+                    color: Colors.black.withOpacity(0.5),
+                    child: Center(
+                      child: Hero(
+                        tag: 'profileImage',
                         child: CircleAvatar(
-                          radius: 60,
-                          backgroundImage: widget.selectedSupplier.data()?['profileImageUrl'] !=
+                          radius: 175,
+                          backgroundImage: widget.selectedSupplier
+                                      .data()?['profileImageUrl'] !=
                                   null
-                              ? NetworkImage(
-                                  widget.selectedSupplier.data()?['profileImageUrl'])
+                              ? NetworkImage(widget.selectedSupplier
+                                  .data()?['profileImageUrl'])
                               : const AssetImage(
-                                  'assets/images/ProfilePhoto_predetermined.png'),
+                                      'assets/images/ProfilePhoto_predetermined.png')
+                                  as ImageProvider,
                         ),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                // Nombre del agente
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${widget.selectedSupplier.data()?['name']}',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    // Calificación del agente
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 5.0,
-                        horizontal: 10.0,
-                      ),
-                      decoration: BoxDecoration(
+
+              // Fondo desenfocado cuando se muestra el modal de reserva
+              if (_showReservationModal)
+                GestureDetector(
+                  onTap: () {
+                    // Cerrar el modal al tocar fuera de él
+                    setState(() {
+                      _showReservationModal = false;
+                      _animationController.reverse();
+                    });
+                  },
+                  child: Container(
+                    color: Colors.black.withOpacity(0.5),
+                  ),
+                ),
+
+              // Modal de reserva
+              if (_showReservationModal)
+                DraggableScrollableSheet(
+                  initialChildSize: 0.8,
+                  minChildSize: 0.2,
+                  maxChildSize: 0.95,
+                  builder: (context, scrollController) {
+                    return Container(
+                      decoration: const BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(10.0),
-                        border: Border.all(
-                          color: const Color(0xFF08143C),
-                          width: 1.0,
-                        ),
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(25.0)),
                       ),
-                      child: Row(
+                      child: Stack(
                         children: [
-                          const Icon(
-                            Icons.star,
-                            size: 18.0,
-                            color: Color(0xFF1ca424),
-                          ),
-                          const SizedBox(width: 4.0),
-                          Text(
-                            '${widget.selectedSupplier.data()?['assessment'] ?? 'Sin calificación'}',
-                            style: const TextStyle(fontSize: 16),
+                          SingleChildScrollView(
+                            controller: scrollController,
+                            child: Padding(
+                              padding: const EdgeInsets.all(20.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text(
+                                    'CONFIRMAR RESERVA',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF08143C),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Container(
+                                    padding: const EdgeInsets.all(15),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF08143C),
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        const Text(
+                                          'Métodos de pago disponibles',
+                                          style: TextStyle(
+                                            fontSize: 19,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const Text(
+                                          'Los pagos se realizan al finalizar el servicio',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 15),
+                                        // Mostrar saldo del monedero
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue[200],
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'Saldo disponible del monedero',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.black,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 5),
+                                              Container(
+                                                width: 400,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 15,
+                                                        vertical: 8),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFF08143C),
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  children: [
+                                                    Container(
+                                                      width: 60,
+                                                      height: 30,
+                                                      decoration: BoxDecoration(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                        color: const Color(
+                                                            0xFF1ca424),
+                                                      ),
+                                                      child: const Center(
+                                                        child: Text(
+                                                          'USD',
+                                                          style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 16),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 10),
+                                                    Text(
+                                                      _walletBalance
+                                                          .toStringAsFixed(2),
+                                                      style: const TextStyle(
+                                                          fontSize: 24,
+                                                          color: Colors.white),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 15),
+                                        // Botón para mostrar tarjetas
+                                        if (_hasCards)
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: ElevatedButton(
+                                              onPressed: () {
+                                                setState(() {
+                                                  _showCards = !_showCards;
+                                                });
+                                              },
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: _showCards
+                                                    ? Colors.green[100]
+                                                    : Colors.white,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 12,
+                                                        horizontal: 15),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  const Text('Tarjetas'),
+                                                  Row(
+                                                    children: [
+                                                      Image.asset(
+                                                          'assets/images/VISA_Logo.png',
+                                                          height: 20),
+                                                      const SizedBox(width: 10),
+                                                      Image.asset(
+                                                          'assets/images/MasterCard_Logo.png',
+                                                          height: 20),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        if (_showCards)
+                                          Container(
+                                            margin:
+                                                const EdgeInsets.only(top: 10),
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: FutureBuilder<QuerySnapshot>(
+                                              future: _cardsFuture,
+                                              builder:
+                                                  (context, cardsSnapshot) {
+                                                if (cardsSnapshot
+                                                        .connectionState ==
+                                                    ConnectionState.waiting) {
+                                                  return const CircularProgressIndicator(
+                                                      color: Colors.green);
+                                                }
+                                                if (cardsSnapshot.hasError) {
+                                                  return Text(
+                                                      'Error: ${cardsSnapshot.error}');
+                                                }
+                                                if (!cardsSnapshot.hasData ||
+                                                    cardsSnapshot
+                                                        .data!.docs.isEmpty) {
+                                                  return const Text(
+                                                      'No hay tarjetas disponibles');
+                                                }
+
+                                                return Column(
+                                                  children: cardsSnapshot
+                                                      .data!.docs
+                                                      .map((card) {
+                                                    final cardData = card.data()
+                                                        as Map<String, dynamic>;
+                                                    final cardNumber = cardData[
+                                                            'cardNumber'] ??
+                                                        '';
+                                                    final cardType =
+                                                        cardData['cardType'] ??
+                                                            '';
+                                                    final imagePath = cardType ==
+                                                            'Visa'
+                                                        ? 'assets/images/VISA_Logo.png'
+                                                        : 'assets/images/MasterCard_Logo.png';
+
+                                                    return CheckboxListTile(
+                                                      title: Row(
+                                                        children: [
+                                                          Text(cardNumber),
+                                                          const SizedBox(
+                                                              width: 10),
+                                                          Image.asset(imagePath,
+                                                              height: 20),
+                                                        ],
+                                                      ),
+                                                      value: _selectedCards
+                                                          .contains(card.id),
+                                                      onChanged: (bool? value) {
+                                                        setState(() {
+                                                          if (value == true) {
+                                                            _selectedCards
+                                                                .add(card.id);
+                                                          } else {
+                                                            _selectedCards
+                                                                .remove(
+                                                                    card.id);
+                                                          }
+                                                        });
+                                                      },
+                                                    );
+                                                  }).toList(),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        const SizedBox(height: 15),
+
+                                        // Pago Móvil y Efectivo
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: ElevatedButton.icon(
+                                                icon: const Icon(
+                                                    Icons.phone_android,
+                                                    color: Colors.black),
+                                                label: const Text('Pago Móvil',
+                                                    style: TextStyle(
+                                                        color: Colors.black)),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _pagoMovilSelected =
+                                                        !_pagoMovilSelected;
+                                                  });
+                                                },
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      _pagoMovilSelected
+                                                          ? Colors.green[100]
+                                                          : Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: ElevatedButton.icon(
+                                                icon: const Icon(
+                                                    Icons.attach_money_rounded,
+                                                    color: Colors.green),
+                                                label: const Text('Efectivo',
+                                                    style: TextStyle(
+                                                        color: Colors.green)),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _efectivoSelected =
+                                                        !_efectivoSelected;
+                                                  });
+                                                },
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      _efectivoSelected
+                                                          ? Colors.green[100]
+                                                          : Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        if (_efectivoSelected)
+                                          const Padding(
+                                            padding: EdgeInsets.all(8.0),
+                                            child: Text(
+                                              'Advertencia: Si el agente no tiene cambio, el monto restante será añadido a su monedero instantáneamente.',
+                                              style: TextStyle(
+                                                  color: Color.fromARGB(
+                                                      255, 250, 96, 85),
+                                                  fontSize: 12),
+                                            ),
+                                          ),
+                                        const SizedBox(height: 15),
+
+                                      // Paypal, Zinli y Binance
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: ElevatedButton(
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _paypalSelected =
+                                                        !_paypalSelected;
+                                                  });
+                                                },
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      _paypalSelected
+                                                          ? Colors.green[100]
+                                                          : Colors.white,
+                                                ),
+                                                child: FittedBox(
+                                                  child: Image.asset(
+                                                      'assets/images/Paypal_Logo.png',
+                                                      height: 50),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: ElevatedButton(
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _zinliSelected =
+                                                        !_zinliSelected;
+                                                  });
+                                                },
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      _zinliSelected
+                                                          ? Colors.green[100]
+                                                          : Colors.white,
+                                                ),
+                                                child: FittedBox(
+                                                  child: Image.asset(
+                                                      'assets/images/Zinli_Logo.png',
+                                                      height: 40),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: ElevatedButton(
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _binanceSelected =
+                                                        !_binanceSelected;
+                                                  });
+                                                },
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      _binanceSelected
+                                                          ? Colors.green[100]
+                                                          : Colors.white,
+                                                ),
+                                                child: FittedBox(
+                                                  child: Image.asset(
+                                                      'assets/images/Binance_Logo.png',
+                                                      height: 50),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  const Text(
+                                    '¿Por qué requiere del servicio?',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF08143C),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    child: TextField(
+                                      controller: _reservationTextController,
+                                      maxLines: 4,
+                                      style: const TextStyle(
+                                          color: Color(0xFF08143C)),
+                                      decoration: const InputDecoration(
+                                        hintText:
+                                            'Indica brevemente qué problema o situación le lleva a solicitar del servicio. Esta información ayudará al agente a entender tus necesidades y ofrecerle una solución óptima.',
+                                        hintStyle: TextStyle(
+                                            color:
+                                                Color.fromARGB(129, 0, 0, 0)),
+                                        border: InputBorder.none,
+                                        contentPadding: EdgeInsets.all(15),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  ElevatedButton(
+                                    onPressed: () async {
+                                      // Verificar si se ha seleccionado al menos un método de pago adicional al monedero
+                                      bool hasAdditionalPaymentMethod =
+                                          _selectedCards.isNotEmpty ||
+                                              _pagoMovilSelected ||
+                                              _efectivoSelected ||
+                                              _paypalSelected ||
+                                              _zinliSelected ||
+                                              _binanceSelected;
+
+                                      if (!hasAdditionalPaymentMethod) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Seleccione un método de pago adicional al monedero.'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      // Verificar la longitud del texto de la descripción del servicio
+                                      if (_reservationTextController
+                                              .text.length <
+                                          10) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Por favor, escribe al menos 10 caracteres describiendo por qué requiere del servicio.'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      // Obtener la tarifa por hora del agente
+                                      final hourlyRate = _getHourlyRate(
+                                              widget.selectedSupplier,
+                                              widget.id)
+                                          .replaceAll('\$', '')
+                                          .trim();
+
+                                      // Obtener los métodos de pago seleccionados
+                                      List<String> selectedPaymentMethods = [
+                                        'Monedero'
+                                      ];
+                                      if (_selectedCards.isNotEmpty) {
+                                        selectedPaymentMethods.add('Tarjetas');
+                                      }
+                                      if (_pagoMovilSelected) {
+                                        selectedPaymentMethods
+                                            .add('Pago Móvil');
+                                      }
+                                      if (_efectivoSelected) {
+                                        selectedPaymentMethods.add('Efectivo');
+                                      }
+                                      if (_paypalSelected) {
+                                        selectedPaymentMethods.add('Paypal');
+                                      }
+                                      if (_zinliSelected) {
+                                        selectedPaymentMethods.add('Zinli');
+                                      }
+                                      if (_binanceSelected) {
+                                        selectedPaymentMethods.add('Binance');
+                                      }
+
+                                      // Guardar la reserva en la colección "tasks"
+                                      final taskData = {
+                                        'clientID': clientIDString,
+                                        'clientLocation': GeoPoint(
+                                            widget.latitude, widget.longitude),
+                                        'clientName': clientName,
+                                        'hourlyRate':
+                                            double.tryParse(hourlyRate) ?? 0.0,
+                                        'referencePoint':
+                                            widget.reference.isEmpty
+                                                ? null
+                                                : widget.reference,
+                                        'reservation': Timestamp.now(),
+                                        'service': widget.serviceName,
+                                        'serviceDetails':
+                                            _reservationTextController.text,
+                                        'serviceID': widget.id,
+                                        'state': 'Pendiente',
+                                        'supplierID':
+                                            widget.selectedSupplier.id,
+                                        'supplierName': widget.selectedSupplier
+                                            .data()?['name'],
+                                        'paymentMethods':
+                                            selectedPaymentMethods,
+                                        'selectedCards':
+                                            _selectedCards.toList(),
+                                      };
+
+                                      await FirebaseFirestore.instance
+                                          .collection('tasks')
+                                          .add(taskData)
+                                          .then((_) {
+                                        Navigator.pushAndRemoveUntil(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const HomePage(
+                                                    selectedIndex: 2),
+                                          ),
+                                          (route) => false,
+                                        );
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                '¡Servicio reservado con éxito!'),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      }).catchError((error) {
+                                        if (kDebugMode) {
+                                          print(
+                                              'Error al guardar la tarea: $error');
+                                        }
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Error al reservar el servicio.'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      });
+
+                                      setState(() {
+                                        _showReservationModal = false;
+                                        _animationController.reverse();
+                                      });
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF1ca424),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 40,
+                                        vertical: 15,
+                                      ),
+                                      textStyle: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: const Text('Confirmar reserva'),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
-                // ID del agente
-                Text(
-                  'ID: ${widget.selectedSupplier.id}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.normal,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                // Servicio seleccionado
-                Text(
-                  'Servicio: ${widget.serviceName}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 10),
-                // Tarifa por hora del agente
-                Text(
-                  'Tarifa por hora: ${_getHourlyRate(widget.selectedSupplier, widget.id)}', // Llama a _getHourlyRate con el id
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-
-          // Ampliación de la imagen de perfil
-          if (_showProfileImage)
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  _showProfileImage = false;
-                });
-              },
-              child: Container(
-                color: Colors.black.withOpacity(0.5),
-                child: Center(
-                  child: Hero(
-                    tag: 'profileImage',
-                    child: CircleAvatar(
-                      radius: 175,
-                      backgroundImage: widget.selectedSupplier.data()?['profileImageUrl'] !=
-                              null
-                          ? NetworkImage(
-                              widget.selectedSupplier.data()?['profileImageUrl'])
-                          : const AssetImage(
-                              'assets/images/ProfilePhoto_predetermined.png'),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          // Ventana de reserva
-          if (_showReservationModal)
-            SlideTransition(
-              position: _slideAnimation,
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _showReservationModal = false;
-                    _animationController.reverse(); // Invierte la animación
-                  });
-                },
-                child: Stack(
-                  children: [
-                    // Fondo opaco oscuro
-                    Container(
-                      color: Colors.black.withOpacity(0.5),
-                    ),
-                    // Ventana de reserva
-                    Positioned(
-                      bottom: 0, // Posiciona la ventana en la parte inferior
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(20.0),
-                        decoration: const BoxDecoration(
-                          color: Colors.white, // Color de fondo del diálogo
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(25.0),
-                            topRight: Radius.circular(25.0),
-                          ), // Redondear las esquinas superiores
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'DETALLES DE LA RESERVA',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF08143C), // Color del texto
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            // Campo de texto para el motivo de la reserva
-                            TextField(
-                              controller: _reservationTextController,
-                              maxLines: 6,
-                              style: const TextStyle(color: Color(0xFF08143C)), // Color del texto
-                              decoration:  InputDecoration(
-                                hintText:
-                                'Indica brevemente qué problema o situación te lleva a solicitar del servicio. Esta información ayudará al agente a entender tus necesidades y ofrecerte una solución óptima.',
-                                hintStyle: const TextStyle(color: Color.fromARGB(129, 0, 0, 0)), // Color del texto de la sugerencia
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(20),),
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            // Botón para confirmar la reserva
-                            ElevatedButton(
-                              onPressed: () async {
-                                // Obtener el ID del usuario actual
-                                final user = FirebaseAuth.instance.currentUser;
-                                final clientID = user?.uid;
-                                String clientName = "";
-                                String clientIDString = "";
-                                
-                                // Obtener el nombre completo del usuario de "users"
-                                await FirebaseFirestore.instance
-                                    .collection('users')
-                                    .where('uid', isEqualTo: clientID)
-                                    .get()
-                                    .then((QuerySnapshot snapshot) {
-                                      if (snapshot.docs.isNotEmpty) {
-                                        final doc = snapshot.docs.first;
-                                        clientName = '${doc['name']} ${doc['lastName']}';
-                                        clientIDString = doc['id'];
-                                      }
-                                    });
-
-                                // Obtener la tarifa por hora del agente
-                                final hourlyRate = _getHourlyRate(widget.selectedSupplier, widget.id)
-                                    .replaceAll('\$', '')
-                                    .trim();
-
-                                // Guardar la reserva en la colección "tasks"
-                                final taskData = {
-                                  'clientID': clientIDString,
-                                  'clientLocation': GeoPoint(widget.latitude, widget.longitude),
-                                  'clientName': clientName,
-                                  'hourlyRate': double.tryParse(hourlyRate) ?? 0.0, // Convierte a double
-                                  'referencePoint': widget.reference.isEmpty ? null : widget.reference, // Campo opcional
-                                  'reservation': Timestamp.now(),
-                                  'service': widget.serviceName,
-                                  'serviceDetails': _reservationTextController.text,
-                                  'serviceID': widget.id,
-                                  'state': 'Pendiente',
-                                  'supplierID': widget.selectedSupplier.id,
-                                  'supplierName': widget.selectedSupplier.data()?['name'],
-                                };
-
-                                await FirebaseFirestore.instance
-                                    .collection('tasks')
-                                    .add(taskData)
-                                    .then((_) {
-                                      // Redirigir a TasksScreen y mostrar Snackbar
-                                      Navigator.pushAndRemoveUntil(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => const HomePage(selectedIndex: 2), // Reemplaza con la ruta correcta
-                                        ),
-                                        (route) => false, // Eliminar todas las rutas anteriores
-                                      );
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            '¡Servicio reservado con éxito!',
-                                          ),
-                                          backgroundColor: Colors.green, // Color del Snackbar
-                                        ),
-                                      );
-                                    })
-                                    .catchError((error) {
-                                      if (kDebugMode) {
-                                        print('Error al guardar la tarea: $error');
-                                      }
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Error al reservar el servicio.',
-                                          ),
-                                          backgroundColor: Colors.red, // Color del Snackbar
-                                        ),
-                                      );
-                                    });
-
-                                setState(() {
-                                  _showReservationModal = false;
-                                  _animationController.reverse();
-                                });
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1ca424),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 40,
-                                  vertical: 15,
-                                ),
-                                textStyle: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: const Text(
-                                'Confirmar reserva',
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
+            ],
+          );
+        },
       ),
-      // FloatingActionButton
       floatingActionButton: _showReservationModal
-          ? null // Ocultar el botón
+          ? null
           : SizedBox(
-        width: double.infinity, // Ocupar todo el ancho de la pantalla
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: ElevatedButton(
-            onPressed: () async { // Uso de async
-              setState(() {
-                _showReservationModal = true;
-              });
-              // Esperar a que _animationController esté inicializado
-              await Future.delayed(Duration.zero);
-              _animationController.forward(); 
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1ca424),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 40,
-                vertical: 15,
-              ),
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+              width: double.infinity,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _showReservationModal = true;
+                    });
+                    _animationController.forward();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1ca424),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 15,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Reservar servicio'),
+                ),
               ),
             ),
-            child: const Text(
-              'Reservar servicio',
-            ),
-          ),
-        ),
-      ),
-      // Quitar el espacio alrededor del botón
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }

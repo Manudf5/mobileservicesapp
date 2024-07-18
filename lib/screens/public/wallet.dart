@@ -71,11 +71,11 @@ class _WalletScreenState extends State<WalletScreen> {
       if (user != null) {
         _userId = user.uid;
 
-        final QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
-            .instance
-            .collection('users')
-            .where('uid', isEqualTo: _userId)
-            .get();
+        final QuerySnapshot<Map<String, dynamic>> querySnapshot =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .where('uid', isEqualTo: _userId)
+                .get();
 
         if (querySnapshot.docs.isNotEmpty) {
           final userDoc = querySnapshot.docs.first;
@@ -133,12 +133,14 @@ class _WalletScreenState extends State<WalletScreen> {
       builder: (BuildContext context) {
         String newPin = '';
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Crear PIN'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Por favor, cree un PIN de 4 dígitos para acceder a sus tarjetas.'),
+              const Text(
+                  'Por favor, cree un PIN de 4 dígitos para acceder a sus tarjetas.'),
               TextField(
                 keyboardType: TextInputType.number,
                 maxLength: 4,
@@ -174,7 +176,8 @@ class _WalletScreenState extends State<WalletScreen> {
                   _navigateToMyCards();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('El PIN debe tener 4 dígitos')),
+                    const SnackBar(
+                        content: Text('El PIN debe tener 4 dígitos')),
                   );
                 }
               },
@@ -191,12 +194,14 @@ class _WalletScreenState extends State<WalletScreen> {
       builder: (BuildContext context) {
         String enteredPin = '';
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Ingresar PIN'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Por favor, ingrese su PIN de 4 dígitos para acceder a sus tarjetas.'),
+              const Text(
+                  'Por favor, ingrese su PIN de 4 dígitos para acceder a sus tarjetas.'),
               TextField(
                 keyboardType: TextInputType.number,
                 maxLength: 4,
@@ -214,25 +219,34 @@ class _WalletScreenState extends State<WalletScreen> {
                   enteredPin = value;
                 },
               ),
-              const Text('Si olvidó su pin, contacte a soporte.', style: TextStyle(color: Colors.black, fontSize: 12)),
+              const Text('Si olvidó su pin, contacte a soporte.',
+                  style: TextStyle(color: Colors.black, fontSize: 12)),
             ],
           ),
           actions: [
             TextButton(
-              child: const Text('Cancelar', style: TextStyle(color: Colors.red)),
+              child:
+                  const Text('Cancelar', style: TextStyle(color: Colors.red)),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: const Text('Confirmar', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 18)),
+              child: const Text('Confirmar',
+                  style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18)),
               onPressed: () {
                 if (enteredPin == _pin) {
                   Navigator.of(context).pop();
                   _navigateToMyCards();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('PIN incorrecto'), backgroundColor: Colors.red,),
+                    const SnackBar(
+                      content: Text('PIN incorrecto'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               },
@@ -262,17 +276,18 @@ class _WalletScreenState extends State<WalletScreen> {
   void _navigateToMyCards() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => MyCardsScreen(userId: _userDocId)),
+      MaterialPageRoute(
+          builder: (context) => MyCardsScreen(userId: _userDocId)),
     );
   }
 
   void _navigateToTransferFundsScreen() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => TransferFundsScreen(userId: _userDocId)),
+      MaterialPageRoute(
+          builder: (context) => TransferFundsScreen(userId: _userDocId)),
     );
   }
-  
 
   @override
   Widget build(BuildContext context) {
@@ -295,7 +310,8 @@ class _WalletScreenState extends State<WalletScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 30),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 5, horizontal: 30),
                 child: Text(
                   '${DateFormat('EEEE', 'es_ES').format(_currentTime)[0].toUpperCase()}${DateFormat('EEEE', 'es_ES').format(_currentTime).substring(1)}, ${DateFormat('dd/MM/yyyy HH:mm:ss', 'es_ES').format(_currentTime)}',
                   textAlign: TextAlign.center,
@@ -347,19 +363,29 @@ class _WalletScreenState extends State<WalletScreen> {
                           child: const Center(
                             child: Text(
                               'USD',
-                              style: TextStyle(color: Colors.white, fontSize: 20),
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 20),
                             ),
                           ),
                         ),
                         const SizedBox(width: 10),
                         _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : Text(
-                              _isBalanceHidden ? '****' : (_walletBalance?.toStringAsFixed(2) ?? '0.00'),
-                              style: const TextStyle(fontSize: 36, color: Colors.white),
-                            ),
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
+                            : Text(
+                                _isBalanceHidden
+                                    ? '****'
+                                    : (_walletBalance?.toStringAsFixed(2) ??
+                                        '0.00'),
+                                style: const TextStyle(
+                                    fontSize: 36, color: Colors.white),
+                              ),
                         IconButton(
-                          icon: Icon(_isBalanceHidden ? Icons.visibility : Icons.visibility_off, size: 25),
+                          icon: Icon(
+                              _isBalanceHidden
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              size: 25),
                           color: Colors.blueGrey[200],
                           onPressed: _toggleBalanceVisibility,
                         ),
@@ -385,18 +411,20 @@ class _WalletScreenState extends State<WalletScreen> {
                     child: const Padding(
                       padding: EdgeInsets.all(16),
                       child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.offline_share, size: 50, color: Color(0xFF08143c)),
-                        SizedBox(width: 8),
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('Transferir', style: TextStyle(fontSize: 18)),
-                            Text('fondos', style: TextStyle(fontSize: 18)),
-                          ],
-                        ),
-                      ],
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.offline_share,
+                              size: 50, color: Color(0xFF08143c)),
+                          SizedBox(width: 8),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text('Transferir',
+                                  style: TextStyle(fontSize: 18)),
+                              Text('fondos', style: TextStyle(fontSize: 18)),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -415,14 +443,17 @@ class _WalletScreenState extends State<WalletScreen> {
                       padding: const EdgeInsets.all(10),
                       child: Column(
                         children: [
-                          const Text('Mis tarjetas', style: TextStyle(fontSize: 20)),
+                          const Text('Mis tarjetas',
+                              style: TextStyle(fontSize: 20)),
                           const SizedBox(height: 5),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Image.asset('assets/images/VISA_Logo.png', height: 30),
+                              Image.asset('assets/images/VISA_Logo.png',
+                                  height: 30),
                               const SizedBox(width: 5),
-                              Image.asset('assets/images/MasterCard_Logo.png', height: 30),
+                              Image.asset('assets/images/MasterCard_Logo.png',
+                                  height: 30),
                             ],
                           ),
                         ],
@@ -437,7 +468,8 @@ class _WalletScreenState extends State<WalletScreen> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const TransactionHistoryScreen()),
+                  MaterialPageRoute(
+                      builder: (context) => const TransactionHistoryScreen()),
                 );
               },
               child: Container(
@@ -496,7 +528,8 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Mis tarjetas', style: TextStyle(color: Colors.black)),
+        title:
+            const Text('Mis tarjetas', style: TextStyle(color: Colors.black)),
         actions: [
           if (_selectedCardNumber != null)
             IconButton(
@@ -509,11 +542,13 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => AddCardScreen(userId: widget.userId)),
+            MaterialPageRoute(
+                builder: (context) => AddCardScreen(userId: widget.userId)),
           );
         },
         backgroundColor: const Color(0xFF1ca424),
-        label: const Text('Agregar tarjeta', style: TextStyle(color: Colors.white)),
+        label: const Text('Agregar tarjeta',
+            style: TextStyle(color: Colors.white)),
         icon: const Icon(Icons.add, color: Colors.white),
       ),
       body: GestureDetector(
@@ -544,7 +579,9 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
   Widget _buildCardWidget(DocumentSnapshot card) {
     final isSelected = card['cardNumber'] == _selectedCardNumber;
     final cardType = card['cardType'];
-    final cardColor = cardType.toLowerCase() == 'visa' ? const Color.fromARGB(255, 6, 9, 69) : const Color(0xFF3F3F3F);
+    final cardColor = cardType.toLowerCase() == 'visa'
+        ? const Color.fromARGB(255, 6, 9, 69)
+        : const Color(0xFF3F3F3F);
     const textColor = Colors.white;
 
     return GestureDetector(
@@ -567,15 +604,20 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(card['cardCategory'], style: const TextStyle(color: textColor, fontSize: 18)),
+                Text(card['cardCategory'],
+                    style: const TextStyle(color: textColor, fontSize: 18)),
                 Image.asset(
-                  cardType.toLowerCase() == 'visa' ? 'assets/images/VISA_Logo.png' : 'assets/images/MasterCard_Logo.png',
+                  cardType.toLowerCase() == 'visa'
+                      ? 'assets/images/VISA_Logo.png'
+                      : 'assets/images/MasterCard_Logo.png',
                   height: 40,
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            Text(card['cardNumber'], style: const TextStyle(color: textColor, fontSize: 22, letterSpacing: 4)),
+            Text(card['cardNumber'],
+                style: const TextStyle(
+                    color: textColor, fontSize: 22, letterSpacing: 4)),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -583,15 +625,21 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('TITULAR', style: TextStyle(color: textColor.withOpacity(0.7), fontSize: 12)),
-                    Text(card['cardholderName'], style: const TextStyle(color: textColor, fontSize: 16)),
+                    Text('TITULAR',
+                        style: TextStyle(
+                            color: textColor.withOpacity(0.7), fontSize: 12)),
+                    Text(card['cardholderName'],
+                        style: const TextStyle(color: textColor, fontSize: 16)),
                   ],
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('EXPIRA', style: TextStyle(color: textColor.withOpacity(0.7), fontSize: 12)),
-                    Text(card['expiryDate'], style: const TextStyle(color: textColor, fontSize: 16)),
+                    Text('EXPIRA',
+                        style: TextStyle(
+                            color: textColor.withOpacity(0.7), fontSize: 12)),
+                    Text(card['expiryDate'],
+                        style: const TextStyle(color: textColor, fontSize: 16)),
                   ],
                 ),
               ],
@@ -662,58 +710,59 @@ class _AddCardScreenState extends State<AddCardScreen> {
   int _expiryYear = DateTime.now().year;
 
   Future<bool> _verifyCardWithStripe() async {
-  final url = Uri.parse('https://api.stripe.com/v1/tokens');
-  final response = await http.post(
-    url,
-    headers: {
-      'Authorization': 'Bearer pk_test_51PcBPoRux8TIV2iEQqWSnT1vhisAHXLowhuoKiaKzcx50NBY7m7zZOQzBXAP1gICskZwRSoWJa8JtU2WOtQcIkjH00AkNyfTOi',
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: {
-      'card[number]': _cardNumber,
-      'card[exp_month]': _expiryMonth.toString(),
-      'card[exp_year]': _expiryYear.toString(),
-      'card[cvc]': _cvv,
-    },
-  );
+    final url = Uri.parse('https://api.stripe.com/v1/tokens');
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization':
+            'Bearer pk_test_51PcBPoRux8TIV2iEQqWSnT1vhisAHXLowhuoKiaKzcx50NBY7m7zZOQzBXAP1gICskZwRSoWJa8JtU2WOtQcIkjH00AkNyfTOi',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: {
+        'card[number]': _cardNumber,
+        'card[exp_month]': _expiryMonth.toString(),
+        'card[exp_year]': _expiryYear.toString(),
+        'card[cvc]': _cvv,
+      },
+    );
 
-  if (response.statusCode == 200) {
-    final responseData = json.decode(response.body);
-    return responseData['id'] != null;
-  } else {
-    return false;
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      return responseData['id'] != null;
+    } else {
+      return false;
+    }
   }
-}
 
   bool _validateCardNumber(String cardNumber) {
-  // Eliminar espacios y guiones
-  cardNumber = cardNumber.replaceAll(RegExp(r'[\s-]'), '');
-  
-  if (cardNumber.length < 13 || cardNumber.length > 19) return false;
+    // Eliminar espacios y guiones
+    cardNumber = cardNumber.replaceAll(RegExp(r'[\s-]'), '');
 
-  int sum = 0;
-  bool alternate = false;
-  for (int i = cardNumber.length - 1; i >= 0; i--) {
-    int n = int.parse(cardNumber[i]);
-    if (alternate) {
-      n *= 2;
-      if (n > 9) {
-        n = (n % 10) + 1;
+    if (cardNumber.length < 13 || cardNumber.length > 19) return false;
+
+    int sum = 0;
+    bool alternate = false;
+    for (int i = cardNumber.length - 1; i >= 0; i--) {
+      int n = int.parse(cardNumber[i]);
+      if (alternate) {
+        n *= 2;
+        if (n > 9) {
+          n = (n % 10) + 1;
+        }
       }
+      sum += n;
+      alternate = !alternate;
     }
-    sum += n;
-    alternate = !alternate;
+    return (sum % 10 == 0);
   }
-  return (sum % 10 == 0);
-}
 
-bool _validateExpiryDate(int month, int year) {
-  final now = DateTime.now();
-  if (year < now.year || (year == now.year && month < now.month)) {
-    return false;
+  bool _validateExpiryDate(int month, int year) {
+    final now = DateTime.now();
+    if (year < now.year || (year == now.year && month < now.month)) {
+      return false;
+    }
+    return true;
   }
-  return true;
-}
 
   String? _getCardType(String number) {
     if (number.startsWith('4')) {
@@ -725,117 +774,120 @@ bool _validateExpiryDate(int month, int year) {
   }
 
   Widget _buildCardTypeIcon() {
-  if (_cardType == 'Visa') {
-    return Padding(
-      padding: const EdgeInsets.only(right: 12.0),
-      child: Image.asset('assets/images/VISA_Logo.png', height: 24, width: 24),
-    );
-  } else if (_cardType == 'Mastercard') {
-    return Padding(
-      padding: const EdgeInsets.only(right: 12.0),
-      child: Image.asset('assets/images/MasterCard_Logo.png', height: 24, width: 24),
-    );
+    if (_cardType == 'Visa') {
+      return Padding(
+        padding: const EdgeInsets.only(right: 12.0),
+        child:
+            Image.asset('assets/images/VISA_Logo.png', height: 24, width: 24),
+      );
+    } else if (_cardType == 'Mastercard') {
+      return Padding(
+        padding: const EdgeInsets.only(right: 12.0),
+        child: Image.asset('assets/images/MasterCard_Logo.png',
+            height: 24, width: 24),
+      );
+    }
+    return const SizedBox.shrink();
   }
-  return const SizedBox.shrink();
-}
 
   void _saveCard() async {
-  if (_formKey.currentState!.validate()) {
-    _formKey.currentState!.save();
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
 
-    // Validar número de tarjeta
-    if (!_validateCardNumber(_cardNumber)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Número de tarjeta inválido'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    // Validar fecha de expiración
-    if (!_validateExpiryDate(_expiryMonth, _expiryYear)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Fecha de expiración inválida'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    // Verificar la tarjeta con Stripe
-    bool isCardValid = await _verifyCardWithStripe();
-    if (!isCardValid) {
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La tarjeta no es válida o no pudo ser verificada'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    // Mostrar diálogo de confirmación
-    bool? confirmed = await showDialog<bool>(
-      // ignore: use_build_context_synchronously
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirmar tarjeta'),
-          content: const Text('¿Está seguro de que desea guardar esta tarjeta?'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () => Navigator.of(context).pop(false),
-            ),
-            TextButton(
-              child: const Text('Guardar'),
-              onPressed: () => Navigator.of(context).pop(true),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed == true) {
-      try {
-        await FirebaseFirestore.instance
-            .collection('wallets')
-            .doc(widget.userId)
-            .collection('cards')
-            .doc(_cardNumber)
-            .set({
-          'cardNumber': _cardNumber,
-          'cardholderName': _cardholderName,
-          'expiryDate': _expiryDate,
-          'cvv': _cvv,
-          'cardType': _cardType,
-          'cardCategory': _cardCategory,
-        });
-        // ignore: use_build_context_synchronously
+      // Validar número de tarjeta
+      if (!_validateCardNumber(_cardNumber)) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Tarjeta guardada con éxito'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        // ignore: use_build_context_synchronously
-        Navigator.pop(context);
-      } catch (e) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al guardar la tarjeta'),
+            content: Text('Número de tarjeta inválido'),
             backgroundColor: Colors.red,
           ),
         );
+        return;
+      }
+
+      // Validar fecha de expiración
+      if (!_validateExpiryDate(_expiryMonth, _expiryYear)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Fecha de expiración inválida'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Verificar la tarjeta con Stripe
+      bool isCardValid = await _verifyCardWithStripe();
+      if (!isCardValid) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('La tarjeta no es válida o no pudo ser verificada'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Mostrar diálogo de confirmación
+      bool? confirmed = await showDialog<bool>(
+        // ignore: use_build_context_synchronously
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Confirmar tarjeta'),
+            content:
+                const Text('¿Está seguro de que desea guardar esta tarjeta?'),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Cancelar'),
+                onPressed: () => Navigator.of(context).pop(false),
+              ),
+              TextButton(
+                child: const Text('Guardar'),
+                onPressed: () => Navigator.of(context).pop(true),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirmed == true) {
+        try {
+          await FirebaseFirestore.instance
+              .collection('wallets')
+              .doc(widget.userId)
+              .collection('cards')
+              .doc(_cardNumber)
+              .set({
+            'cardNumber': _cardNumber,
+            'cardholderName': _cardholderName,
+            'expiryDate': _expiryDate,
+            'cvv': _cvv,
+            'cardType': _cardType,
+            'cardCategory': _cardCategory,
+          });
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tarjeta guardada con éxito'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // ignore: use_build_context_synchronously
+          Navigator.pop(context);
+        } catch (e) {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error al guardar la tarjeta'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -852,22 +904,21 @@ bool _validateExpiryDate(int month, int year) {
           children: [
             TextFormField(
               decoration: InputDecoration(
-                labelText: 'Número de Tarjeta',
-                labelStyle: const TextStyle(color: Colors.black),
-                hintText: 'Ingrese el número de tarjeta',
-                hintStyle: const TextStyle(color: Colors.grey),
-                filled: true,
-                fillColor: Colors.transparent,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16.0),
-                  borderSide: const BorderSide(color: Colors.blue),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 16.0,
-                ),
-                suffixIcon: _buildCardTypeIcon()
-              ),
+                  labelText: 'Número de Tarjeta',
+                  labelStyle: const TextStyle(color: Colors.black),
+                  hintText: 'Ingrese el número de tarjeta',
+                  hintStyle: const TextStyle(color: Colors.grey),
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16.0),
+                    borderSide: const BorderSide(color: Colors.blue),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 16.0,
+                  ),
+                  suffixIcon: _buildCardTypeIcon()),
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               validator: (value) {
@@ -929,7 +980,8 @@ bool _validateExpiryDate(int month, int year) {
                         vertical: 16.0,
                       ),
                     ),
-                    items: List.generate(12, (index) => index + 1).map((int value) {
+                    items: List.generate(12, (index) => index + 1)
+                        .map((int value) {
                       return DropdownMenuItem<int>(
                         value: value,
                         child: Text(value.toString().padLeft(2, '0')),
@@ -962,7 +1014,9 @@ bool _validateExpiryDate(int month, int year) {
                         vertical: 16.0,
                       ),
                     ),
-                    items: List.generate(10, (index) => DateTime.now().year + index).map((int value) {
+                    items: List.generate(
+                            10, (index) => DateTime.now().year + index)
+                        .map((int value) {
                       return DropdownMenuItem<int>(
                         value: value,
                         child: Text(value.toString()),
@@ -1055,7 +1109,8 @@ bool _validateExpiryDate(int month, int year) {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                _expiryDate = '${_expiryMonth.toString().padLeft(2, '0')}/${_expiryYear.toString().substring(2)}';
+                _expiryDate =
+                    '${_expiryMonth.toString().padLeft(2, '0')}/${_expiryYear.toString().substring(2)}';
                 _saveCard();
               },
               style: ElevatedButton.styleFrom(
@@ -1109,7 +1164,7 @@ class _TransferFundsScreenState extends State<TransferFundsScreen> {
 
   void continueTransfer() async {
     double enteredAmount = double.parse(amount);
-    
+
     if (enteredAmount < 1) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1120,7 +1175,8 @@ class _TransferFundsScreenState extends State<TransferFundsScreen> {
       return;
     }
 
-    DocumentSnapshot walletDoc = await _firestore.collection('wallets').doc(widget.userId).get();
+    DocumentSnapshot walletDoc =
+        await _firestore.collection('wallets').doc(widget.userId).get();
     double walletBalance = walletDoc['walletBalance'];
 
     if (enteredAmount > walletBalance) {
@@ -1136,7 +1192,8 @@ class _TransferFundsScreenState extends State<TransferFundsScreen> {
         // ignore: use_build_context_synchronously
         context,
         MaterialPageRoute(
-          builder: (context) => UserSearch_TransferFundsScreen(amount: amount, userId: widget.userId),
+          builder: (context) => UserSearch_TransferFundsScreen(
+              amount: amount, userId: widget.userId),
         ),
       );
     }
@@ -1152,7 +1209,8 @@ class _TransferFundsScreenState extends State<TransferFundsScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Transferir fondos', style: TextStyle(color: Colors.black)),
+        title: const Text('Transferir fondos',
+            style: TextStyle(color: Colors.black)),
       ),
       body: Column(
         children: [
@@ -1257,15 +1315,18 @@ class UserSearch_TransferFundsScreen extends StatefulWidget {
   final String amount;
   final String userId;
 
-  const UserSearch_TransferFundsScreen({super.key, required this.amount, required this.userId});
+  const UserSearch_TransferFundsScreen(
+      {super.key, required this.amount, required this.userId});
 
   @override
   // ignore: library_private_types_in_public_api
-  _UserSearch_TransferFundsScreenState createState() => _UserSearch_TransferFundsScreenState();
+  _UserSearch_TransferFundsScreenState createState() =>
+      _UserSearch_TransferFundsScreenState();
 }
 
 // ignore: camel_case_types
-class _UserSearch_TransferFundsScreenState extends State<UserSearch_TransferFundsScreen> {
+class _UserSearch_TransferFundsScreenState
+    extends State<UserSearch_TransferFundsScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<Map<String, dynamic>> _users = [];
@@ -1280,7 +1341,9 @@ class _UserSearch_TransferFundsScreenState extends State<UserSearch_TransferFund
   void _loadUsers() async {
     QuerySnapshot querySnapshot = await _firestore.collection('users').get();
     setState(() {
-      _users = querySnapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+      _users = querySnapshot.docs
+          .map((doc) => doc.data() as Map<String, dynamic>)
+          .toList();
       _filteredUsers = [];
     });
   }
@@ -1309,7 +1372,8 @@ class _UserSearch_TransferFundsScreenState extends State<UserSearch_TransferFund
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Seleccionar usuario', style: TextStyle(color: Colors.black)),
+        title: const Text('Seleccionar usuario',
+            style: TextStyle(color: Colors.black)),
       ),
       body: Column(
         children: [
@@ -1418,16 +1482,18 @@ class ConfirmTransferFundsScreen extends StatefulWidget {
   const ConfirmTransferFundsScreen({
     super.key,
     required this.amount,
-    required this.recipient, 
+    required this.recipient,
     required this.userId,
   });
 
   @override
   // ignore: library_private_types_in_public_api
-  _ConfirmTransferFundsScreenState createState() => _ConfirmTransferFundsScreenState();
+  _ConfirmTransferFundsScreenState createState() =>
+      _ConfirmTransferFundsScreenState();
 }
 
-class _ConfirmTransferFundsScreenState extends State<ConfirmTransferFundsScreen> {
+class _ConfirmTransferFundsScreenState
+    extends State<ConfirmTransferFundsScreen> {
   final TextEditingController _commentController = TextEditingController();
   String? _pin;
   String _userDocId = '';
@@ -1440,8 +1506,14 @@ class _ConfirmTransferFundsScreenState extends State<ConfirmTransferFundsScreen>
   }
 
   Future<void> _fetchUserInfo() async {
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('wallets').doc(widget.userId).get();
-    DocumentSnapshot userInfoDoc = await FirebaseFirestore.instance.collection('users').doc(widget.userId).get();
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance
+        .collection('wallets')
+        .doc(widget.userId)
+        .get();
+    DocumentSnapshot userInfoDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .get();
     setState(() {
       _userDocId = userDoc.id;
       _pin = userDoc.get('pin');
@@ -1452,7 +1524,10 @@ class _ConfirmTransferFundsScreenState extends State<ConfirmTransferFundsScreen>
   void _showPinDialog() {
     if (_commentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, ingrese un concepto para la transferencia.'), backgroundColor: Colors.red),
+        const SnackBar(
+            content:
+                Text('Por favor, ingrese un concepto para la transferencia.'),
+            backgroundColor: Colors.red),
       );
       return;
     }
@@ -1470,12 +1545,14 @@ class _ConfirmTransferFundsScreenState extends State<ConfirmTransferFundsScreen>
       builder: (BuildContext context) {
         String newPin = '';
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Crear PIN'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Por favor, cree un PIN de 4 dígitos para procesar el pago.'),
+              const Text(
+                  'Por favor, cree un PIN de 4 dígitos para procesar el pago.'),
               TextField(
                 keyboardType: TextInputType.number,
                 maxLength: 4,
@@ -1518,7 +1595,8 @@ class _ConfirmTransferFundsScreenState extends State<ConfirmTransferFundsScreen>
                   _processPayment();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('El PIN debe tener 4 dígitos')),
+                    const SnackBar(
+                        content: Text('El PIN debe tener 4 dígitos')),
                   );
                 }
               },
@@ -1535,13 +1613,17 @@ class _ConfirmTransferFundsScreenState extends State<ConfirmTransferFundsScreen>
       builder: (BuildContext context) {
         String enteredPin = '';
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Ingresar PIN'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Por favor, ingrese su PIN único de 4 dígitos para procesar la transferencia.'),
-              const SizedBox(height: 16,),
+              const Text(
+                  'Por favor, ingrese su PIN único de 4 dígitos para procesar la transferencia.'),
+              const SizedBox(
+                height: 16,
+              ),
               TextField(
                 keyboardType: TextInputType.number,
                 maxLength: 4,
@@ -1570,20 +1652,28 @@ class _ConfirmTransferFundsScreenState extends State<ConfirmTransferFundsScreen>
           ),
           actions: [
             TextButton(
-              child: const Text('Cancelar', style: TextStyle(color: Colors.red)),
+              child:
+                  const Text('Cancelar', style: TextStyle(color: Colors.red)),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: const Text('Confirmar', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 18)),
+              child: const Text('Confirmar',
+                  style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18)),
               onPressed: () {
                 if (enteredPin == _pin) {
                   Navigator.of(context).pop();
                   _processPayment();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('PIN incorrecto'), backgroundColor: Colors.red,),
+                    const SnackBar(
+                      content: Text('PIN incorrecto'),
+                      backgroundColor: Colors.red,
+                    ),
                   );
                 }
               },
@@ -1611,68 +1701,81 @@ class _ConfirmTransferFundsScreenState extends State<ConfirmTransferFundsScreen>
   }
 
   void _processPayment() async {
-  try {
-    // Obtener el monto como número
-    double amount = double.parse(widget.amount);
+    try {
+      // Obtener el monto como número
+      double amount = double.parse(widget.amount);
 
-    // Actualizar el balance del emisor
-    DocumentReference senderWalletRef = FirebaseFirestore.instance.collection('wallets').doc(widget.userId);
-    await FirebaseFirestore.instance.runTransaction((transaction) async {
-      DocumentSnapshot senderSnapshot = await transaction.get(senderWalletRef);
-      double currentBalance = (senderSnapshot.get('walletBalance') as num).toDouble();
-      if (currentBalance < amount) {
-        throw Exception('Saldo insuficiente');
-      }
-      transaction.update(senderWalletRef, {'walletBalance': currentBalance - amount});
-    });
+      // Actualizar el balance del emisor
+      DocumentReference senderWalletRef =
+          FirebaseFirestore.instance.collection('wallets').doc(widget.userId);
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        DocumentSnapshot senderSnapshot =
+            await transaction.get(senderWalletRef);
+        double currentBalance =
+            (senderSnapshot.get('walletBalance') as num).toDouble();
+        if (currentBalance < amount) {
+          throw Exception('Saldo insuficiente');
+        }
+        transaction.update(
+            senderWalletRef, {'walletBalance': currentBalance - amount});
+      });
 
-    // Actualizar el balance del destinatario
-    DocumentReference recipientWalletRef = FirebaseFirestore.instance.collection('wallets').doc(widget.recipient['id']);
-    await FirebaseFirestore.instance.runTransaction((transaction) async {
-      DocumentSnapshot recipientSnapshot = await transaction.get(recipientWalletRef);
-      double currentBalance = (recipientSnapshot.get('walletBalance') as num).toDouble();
-      transaction.update(recipientWalletRef, {'walletBalance': currentBalance + amount});
-    });
+      // Actualizar el balance del destinatario
+      DocumentReference recipientWalletRef = FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(widget.recipient['id']);
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        DocumentSnapshot recipientSnapshot =
+            await transaction.get(recipientWalletRef);
+        double currentBalance =
+            (recipientSnapshot.get('walletBalance') as num).toDouble();
+        transaction.update(
+            recipientWalletRef, {'walletBalance': currentBalance + amount});
+      });
 
-    // Registrar la transacción
-    DocumentReference transactionRef = await FirebaseFirestore.instance.collection('transactions').add({
-      'date': Timestamp.now(),
-      'amount': amount,
-      'concept': _commentController.text,
-      'senderId': widget.userId,
-      'senderName': _userName,
-      'recipientId': widget.recipient['id'],
-      'recipientName': '${widget.recipient['name']} ${widget.recipient['lastName']}',
-      'paymentType': 'Transferencia de fondos',
-    });
+      // Registrar la transacción
+      DocumentReference transactionRef =
+          await FirebaseFirestore.instance.collection('transactions').add({
+        'date': Timestamp.now(),
+        'amount': amount,
+        'concept': _commentController.text,
+        'senderId': widget.userId,
+        'senderName': _userName,
+        'recipientId': widget.recipient['id'],
+        'recipientName':
+            '${widget.recipient['name']} ${widget.recipient['lastName']}',
+        'paymentType': 'Transferencia de fondos',
+      });
 
-    // Navegar a la pantalla de recibo
-    // ignore: use_build_context_synchronously
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (context) => TransactionReceiptScreen(
-          paymentType: 'Transferencia de fondos',
-          date: DateTime.now(),
-          transactionId: transactionRef.id,
-          concept: _commentController.text,
-          recipientId: widget.recipient['id'],
-          recipientName: '${widget.recipient['name']} ${widget.recipient['lastName']}',
-          amount: amount,
+      // Navegar a la pantalla de recibo
+      // ignore: use_build_context_synchronously
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (context) => TransactionReceiptScreen(
+            paymentType: 'Transferencia de fondos',
+            date: DateTime.now(),
+            transactionId: transactionRef.id,
+            concept: _commentController.text,
+            recipientId: widget.recipient['id'],
+            recipientName:
+                '${widget.recipient['name']} ${widget.recipient['lastName']}',
+            amount: amount,
+          ),
         ),
-      ),
-      (Route<dynamic> route) => false,
-    );
-
-  } catch (e) {
-    if (kDebugMode) {
-      print('Error procesando el pago: $e');
+        (Route<dynamic> route) => false,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error procesando el pago: $e');
+      }
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red),
+      );
     }
-    // ignore: use_build_context_synchronously
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
-    );
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -1697,7 +1800,8 @@ class _ConfirmTransferFundsScreenState extends State<ConfirmTransferFundsScreen>
                 ),
                 const SizedBox(height: 24),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   decoration: BoxDecoration(
                     color: const Color(0xFF08143c),
                     borderRadius: BorderRadius.circular(10),
@@ -1722,7 +1826,8 @@ class _ConfirmTransferFundsScreenState extends State<ConfirmTransferFundsScreen>
                       const SizedBox(width: 10),
                       Text(
                         widget.amount,
-                        style: const TextStyle(fontSize: 36, color: Colors.white),
+                        style:
+                            const TextStyle(fontSize: 36, color: Colors.white),
                       ),
                     ],
                   ),
@@ -1792,7 +1897,8 @@ class _ConfirmTransferFundsScreenState extends State<ConfirmTransferFundsScreen>
                       children: [
                         Icon(Icons.check_circle, size: 24),
                         SizedBox(width: 8),
-                        Text('Transferir fondos', style: TextStyle(fontSize: 18)),
+                        Text('Transferir fondos',
+                            style: TextStyle(fontSize: 18)),
                       ],
                     ),
                   ),
@@ -1835,7 +1941,8 @@ class TransactionReceiptScreen extends StatelessWidget {
       onPopInvoked: (didPop) {
         if (didPop) return;
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const HomePage(selectedIndex: 3)),
+          MaterialPageRoute(
+              builder: (context) => const HomePage(selectedIndex: 3)),
           (Route<dynamic> route) => false,
         );
       },
@@ -1848,7 +1955,8 @@ class TransactionReceiptScreen extends StatelessWidget {
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const HomePage(selectedIndex: 3)),
+                MaterialPageRoute(
+                    builder: (context) => const HomePage(selectedIndex: 3)),
                 (Route<dynamic> route) => false,
               );
             },
@@ -1867,7 +1975,8 @@ class TransactionReceiptScreen extends StatelessWidget {
                         padding: EdgeInsets.all(16.0),
                         child: Text(
                           'Mobile Services App',
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold),
                         ),
                       ),
                       Padding(
@@ -1886,7 +1995,8 @@ class TransactionReceiptScreen extends StatelessWidget {
                             const Center(
                               child: Text(
                                 '¡Transacción aprobada!',
-                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                style: TextStyle(
+                                    fontSize: 20, fontWeight: FontWeight.bold),
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -1904,19 +2014,27 @@ class TransactionReceiptScreen extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     ElevatedButton.icon(
-                      icon: const Icon(Icons.share, color: Color(0xFF1CA424)), // Color del icono
-                      label: const Text('Compartir', style: TextStyle(color: Colors.white)), // Color del texto
+                      icon: const Icon(Icons.share,
+                          color: Color(0xFF1CA424)), // Color del icono
+                      label: const Text('Compartir',
+                          style: TextStyle(
+                              color: Colors.white)), // Color del texto
                       onPressed: () => _shareScreenshot(context),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF08143C), // Fondo del botón
+                        backgroundColor:
+                            const Color(0xFF08143C), // Fondo del botón
                       ),
                     ),
                     ElevatedButton.icon(
-                      icon: const Icon(Icons.download, color: Color(0xFF1CA424)), // Color del icono
-                      label: const Text('Descargar', style: TextStyle(color: Colors.white)), // Color del texto
+                      icon: const Icon(Icons.download,
+                          color: Color(0xFF1CA424)), // Color del icono
+                      label: const Text('Descargar',
+                          style: TextStyle(
+                              color: Colors.white)), // Color del texto
                       onPressed: () => _saveScreenshot(context),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF08143C), // Fondo del botón
+                        backgroundColor:
+                            const Color(0xFF08143C), // Fondo del botón
                       ),
                     ),
                   ],
@@ -1930,42 +2048,51 @@ class TransactionReceiptScreen extends StatelessWidget {
   }
 
   Widget _buildInfoCard(BuildContext context) {
-  return Card(
-    elevation: 4,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16), // Establece el radio de los bordes aquí
-    ),
-    child: Container(
-      decoration: BoxDecoration(
-        color: Colors.blueGrey[50], // Establece el color de fondo aquí
-        borderRadius: BorderRadius.circular(16), // Asegúrate de que coincida con el radio de la tarjeta
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.circular(16), // Establece el radio de los bordes aquí
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Text(
-                paymentType,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.indigo),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.blueGrey[50], // Establece el color de fondo aquí
+          borderRadius: BorderRadius.circular(
+              16), // Asegúrate de que coincida con el radio de la tarjeta
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Text(
+                  paymentType,
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            _buildInfoRow(context, 'Fecha', DateFormat('dd/MM/yyyy HH:mm').format(date)),
-            _buildInfoRow(context, 'Referencia', transactionId, isCopiable: true),
-            _buildInfoRow(context, 'Concepto', concept),
-            _buildInfoRow(context, 'Destinatario ID ', recipientId),
-            _buildInfoRow(context, 'Destinatario', recipientName),
-            _buildInfoRow(context, 'Monto', '\$ ${amount.toStringAsFixed(2)}'),
-          ],
+              const SizedBox(height: 16),
+              _buildInfoRow(context, 'Fecha',
+                  DateFormat('dd/MM/yyyy HH:mm').format(date)),
+              _buildInfoRow(context, 'Referencia', transactionId,
+                  isCopiable: true),
+              _buildInfoRow(context, 'Concepto', concept),
+              _buildInfoRow(context, 'Destinatario ID ', recipientId),
+              _buildInfoRow(context, 'Destinatario', recipientName),
+              _buildInfoRow(
+                  context, 'Monto', '\$ ${amount.toStringAsFixed(2)}'),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
-  Widget _buildInfoRow(BuildContext context, String label, String value, {bool isCopiable = false}) {
+  Widget _buildInfoRow(BuildContext context, String label, String value,
+      {bool isCopiable = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -1981,7 +2108,8 @@ class TransactionReceiptScreen extends StatelessWidget {
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: value));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Referencia copiada al portapapeles')),
+                      const SnackBar(
+                          content: Text('Referencia copiada al portapapeles')),
                     );
                   },
                 ),
@@ -1993,23 +2121,26 @@ class TransactionReceiptScreen extends StatelessWidget {
   }
 
   Future<void> _shareScreenshot(BuildContext context) async {
-  final Uint8List? image = await screenshotController.capture();
-  if (image != null) {
-    final directory = await getTemporaryDirectory();
-    final imagePath = await File('${directory.path}/transaction_receipt.png').create();
-    await imagePath.writeAsBytes(image);
-    
-    final xFile = XFile(imagePath.path);
-    await Share.shareXFiles([xFile], text: 'Comprobante de transacción');
+    final Uint8List? image = await screenshotController.capture();
+    if (image != null) {
+      final directory = await getTemporaryDirectory();
+      final imagePath =
+          await File('${directory.path}/comprobante_transaccion.png').create();
+      await imagePath.writeAsBytes(image);
+
+      final xFile = XFile(imagePath.path);
+      await Share.shareXFiles([xFile], text: 'Comprobante de transacción');
+    }
   }
-}
 
   Future<void> _saveScreenshot(BuildContext context) async {
     try {
       final Uint8List? image = await screenshotController.capture();
       if (image != null) {
         final directory = await getExternalStorageDirectory();
-        final imagePath = await File('${directory!.path}/transaction_receipt_${DateTime.now().millisecondsSinceEpoch}.png').create();
+        final imagePath = await File(
+                '${directory!.path}/comprobante_transaccion_${DateTime.now().millisecondsSinceEpoch}.png')
+            .create();
         await imagePath.writeAsBytes(image);
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2038,7 +2169,8 @@ class TransactionHistoryScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Historial de transacciones', style: TextStyle(color: Colors.black)),
+        title: const Text('Historial de transacciones',
+            style: TextStyle(color: Colors.black)),
       ),
       body: const Center(
         child: Text('Contenido del Historial de transacciones'),
