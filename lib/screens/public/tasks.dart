@@ -373,7 +373,7 @@ class _TasksScreenState extends State {
                           .where('state', whereIn: [
                         'En proceso',
                         'Cotizando',
-                        'Pagando'
+                        'Por pagar'
                       ]).snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
@@ -1216,113 +1216,154 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
         child: Stack(
           children: [
             StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                stream: _taskStream,
-                builder: (context, snapshot) {
-                  if (snapshot.hasData) {
-                    final taskData = snapshot.data!.data();
-                    // Actualizar el tiempo de inicio si cambia el estado de la tarea
-                    if (taskData?['state'] == 'En proceso' &&
-                        _startTime == null) {
-                      _startTime = (taskData?['start'] as Timestamp).toDate();
-                      _startTimer();
-                    } else if (taskData?['state'] != 'En proceso') {
-                      _startTime = null;
-                      _timer?.cancel();
-                    }
+              stream: _taskStream,
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  final taskData = snapshot.data!.data();
+                  // Actualizar el tiempo de inicio si cambia el estado de la tarea
+                  if (taskData?['state'] == 'En proceso' &&
+                      _startTime == null) {
+                    _startTime = (taskData?['start'] as Timestamp).toDate();
+                    _startTimer();
+                  } else if (taskData?['state'] != 'En proceso') {
+                    _startTime = null;
+                    _timer?.cancel();
+                  }
 
-                    // Contenido principal
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20.0, vertical: 23.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // CircleAvatar con la foto de perfil y marco
-                          Center(
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _showProfileImage = true;
-                                });
-                              },
-                              child: Hero(
-                                tag: 'profileImage',
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.green,
-                                      width: 3.0,
-                                    ),
+                  // Contenido principal
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20.0, vertical: 23.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // CircleAvatar con la foto de perfil y marco
+                        Center(
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _showProfileImage = true;
+                              });
+                            },
+                            child: Hero(
+                              tag: 'profileImage',
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.green,
+                                    width: 3.0,
                                   ),
-                                  child: CircleAvatar(
-                                    radius: 60,
-                                    backgroundImage: widget.supplier
-                                                ?.data()?['profileImageUrl'] !=
-                                            null
-                                        ? NetworkImage(widget.supplier
-                                            ?.data()?['profileImageUrl'])
-                                        : const AssetImage(
-                                            'assets/images/ProfilePhoto_predetermined.png'),
-                                  ),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 60,
+                                  backgroundImage: widget.supplier
+                                              ?.data()?['profileImageUrl'] !=
+                                          null
+                                      ? NetworkImage(widget.supplier
+                                          ?.data()?['profileImageUrl'])
+                                      : const AssetImage(
+                                          'assets/images/ProfilePhoto_predetermined.png'),
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 20),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Flexible(
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Flexible(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${taskData?['supplierName']}',
+                                    style: const TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'ID: ${widget.supplier?.id}',
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.normal,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 2.0,
+                                          horizontal: 5.0,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue[900],
+                                          borderRadius:
+                                              BorderRadius.circular(8.0),
+                                          border: Border.all(
+                                            color: const Color(0xFF08143C),
+                                            width: 1.0,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.star,
+                                              size: 14.0,
+                                              color: Colors.yellow,
+                                            ),
+                                            const SizedBox(width: 4.0),
+                                            Text(
+                                              '${widget.supplierInfo?.data()?['assessment'] ?? 'Sin calificación'}',
+                                              style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.white),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (taskData?['state'] == 'En proceso')
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50],
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: const Color(0xFF08143C),
+                                    width: 1,
+                                  ),
+                                ),
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text(
-                                      '${taskData?['supplierName']}',
-                                      style: const TextStyle(
-                                        fontSize: 24,
+                                    const Text(
+                                      'Tiempo transcurrido',
+                                      style: TextStyle(
+                                        fontSize: 12,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                     Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
                                       children: [
+                                        const Icon(Icons.access_time,
+                                            size: 16,
+                                            color: Color.fromARGB(
+                                                255, 30, 145, 38)),
+                                        const SizedBox(width: 4),
                                         Text(
-                                          'ID: ${widget.supplier?.id}',
+                                          _formatElapsedTime(),
                                           style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.normal,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 2.0,
-                                            horizontal: 5.0,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue[900],
-                                            borderRadius:
-                                                BorderRadius.circular(8.0),
-                                            border: Border.all(
-                                              color: const Color(0xFF08143C),
-                                              width: 1.0,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.star,
-                                                size: 14.0,
-                                                color: Colors.yellow,
-                                              ),
-                                              const SizedBox(width: 4.0),
-                                              Text(
-                                                '${widget.supplierInfo?.data()?['assessment'] ?? 'Sin calificación'}',
-                                                style: const TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.white),
-                                              ),
-                                            ],
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                       ],
@@ -1330,121 +1371,107 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                   ],
                                 ),
                               ),
-                              if (taskData?['state'] == 'En proceso')
-                                Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue[50],
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: const Color(0xFF08143C),
-                                      width: 1,
+                            if (widget.task.data()['state'] == 'Finalizada')
+                              Align(
+                                alignment: Alignment.bottomRight,
+                                child: SizedBox(
+                                  height: 35, // Define la altura del botón
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF08143C),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical:
+                                            4, // Reduce el padding vertical
+                                      ),
+                                      textStyle: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize:
+                                            12, // Reduce el tamaño de la fuente
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(10.0),
+                                      ),
                                     ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      const Text(
-                                        'Tiempo transcurrido',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          const Icon(Icons.access_time,
-                                              size: 16,
-                                              color: Color.fromARGB(
-                                                  255, 30, 145, 38)),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            _formatElapsedTime(),
-                                            style: const TextStyle(
-                                              fontSize: 16,
+                                    onPressed: () {
+                                      // Implementar acción del botón "Seguir"
+                                    },
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          "+",
+                                          style: TextStyle(
+                                              fontSize: 20.0,
                                               fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                              color: Color(0xFF00C853)),
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          'Seguir',
+                                          style: TextStyle(
+                                              fontSize: 14.0,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF00C853)),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              if (widget.task.data()['state'] == 'Finalizada')
-                                Align(
-                                  alignment: Alignment.bottomRight,
-                                  child: SizedBox(
-                                    height: 35, // Define la altura del botón
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFF08143C),
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical:
-                                              4, // Reduce el padding vertical
-                                        ),
-                                        textStyle: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize:
-                                              12, // Reduce el tamaño de la fuente
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(10.0),
-                                        ),
+                              )
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        // Sección de detalles de la tarea
+                        Card(
+                          color: Colors.white,
+                          elevation: 3,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15)),
+                          shadowColor: const Color(0xFF08143C),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16.0, vertical: 10.0),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10.0),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Servicio seleccionado
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(4.0),
+                                      decoration: BoxDecoration(
+                                        borderRadius:
+                                            BorderRadius.circular(5.0),
+                                        color: Colors.blueGrey[600],
                                       ),
-                                      onPressed: () {
-                                        // Implementar acción del botón "Seguir"
-                                      },
-                                      child: const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            "+",
-                                            style: TextStyle(
-                                                fontSize: 20.0,
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF00C853)),
-                                          ),
-                                          SizedBox(width: 8),
-                                          Text(
-                                            'Seguir',
-                                            style: TextStyle(
-                                                fontSize: 14.0,
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF00C853)),
-                                          ),
-                                        ],
+                                      child: const Icon(Icons.shopping_cart,
+                                          size: 18.0,
+                                          color:
+                                              Color.fromRGBO(255, 204, 128, 1)),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'Servicio: ${widget.task.data()['service']}',
+                                        style: const TextStyle(fontSize: 16),
                                       ),
                                     ),
-                                  ),
-                                )
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          // Sección de detalles de la tarea
-                          Card(
-                            color: Colors.white,
-                            elevation: 3,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15)),
-                            shadowColor: const Color(0xFF08143C),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16.0, vertical: 10.0),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10.0),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Servicio seleccionado
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                // Detalles del servicio
+                                if (taskData?['state'] == 'Pendiente' ||
+                                    taskData?['state'] == 'En proceso' ||
+                                    taskData?['state'] == 'Cotizando' ||
+                                    taskData?['state'] == 'Finalizada')
                                   Row(
                                     children: [
                                       Container(
@@ -1454,206 +1481,254 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                               BorderRadius.circular(5.0),
                                           color: Colors.blueGrey[600],
                                         ),
-                                        child: const Icon(Icons.shopping_cart,
-                                            size: 18.0,
-                                            color: Color.fromRGBO(
-                                                255, 204, 128, 1)),
+                                        child: const Icon(
+                                          Icons.description,
+                                          size: 18.0,
+                                          color: Colors.white,
+                                        ),
                                       ),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Text(
-                                          'Servicio: ${widget.task.data()['service']}',
+                                          '${taskData?['serviceDetails']}',
                                           style: const TextStyle(fontSize: 16),
+                                          softWrap: true,
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 10),
-                                  // Detalles del servicio
-                                  if (taskData?['state'] == 'Pendiente' ||
-                                      taskData?['state'] == 'En proceso' ||
-                                      taskData?['state'] == 'Cotizando' ||
-                                      taskData?['state'] == 'Finalizada')
-                                    Row(
+                                const SizedBox(height: 10),
+                                // Tarifa por hora del agente
+                                Card(
+                                  color: Colors.white,
+                                  elevation: 2,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(15)),
+                                  shadowColor: Colors.green,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(10.0),
+                                      color: Colors.green[100],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(4.0),
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(5.0),
-                                            color: Colors.blueGrey[600],
-                                          ),
-                                          child: const Icon(
-                                            Icons.description,
-                                            size: 18.0,
-                                            color: Colors.white,
+                                        const Text(
+                                          'Tarifa por hora',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            '${taskData?['serviceDetails']}',
-                                            style:
-                                                const TextStyle(fontSize: 16),
-                                            softWrap: true,
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.all(4.0),
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(5.0),
+                                                color: Colors.blueGrey[600],
+                                              ),
+                                              child: const Icon(
+                                                Icons.attach_money,
+                                                size: 18.0,
+                                                color: Colors.greenAccent,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Text(
+                                                '${widget.task.data()['hourlyRate'].toStringAsFixed(2)}/hr',
+                                                style: const TextStyle(
+                                                    fontSize: 16),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.all(4.0),
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(5.0),
+                                                color: Colors.blueGrey[600],
+                                              ),
+                                              child: const Icon(
+                                                Icons.payment,
+                                                size: 18.0,
+                                                color: Colors.tealAccent,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: Text(
+                                                'Métodos de pago: ${widget.task.data()['paymentMethods']?.join(', ') ?? 'No disponible'}',
+                                                style: const TextStyle(
+                                                    fontSize: 16),
+                                              ),
+                                            ),
+                                            if (widget.task
+                                                    .data()['paymentMethods']
+                                                    ?.contains('Tarjetas') ==
+                                                true)
+                                              // Número de tarjeta
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            4.0),
+                                                    decoration: BoxDecoration(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              5.0),
+                                                      color:
+                                                          Colors.blueGrey[600],
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.credit_card,
+                                                      size: 18.0,
+                                                      color: Colors.tealAccent,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 10),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Tarjeta: ${widget.task.data()['selectedCards']?.join(', ') ?? 'No disponible'}',
+                                                      style: const TextStyle(
+                                                          fontSize: 16),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 10),
+                                        const Text(
+                                          'Nota: El monto final a pagar puede variar durante la ejecución del servicio.',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey,
                                           ),
                                         ),
                                       ],
                                     ),
-                                  const SizedBox(height: 10),
-                                  // Tarifa por hora del agente
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+
+                                if (taskData?['state'] == 'Por pagar')
+                                  // Cotización
                                   Card(
-                                    color: Colors.white,
-                                    elevation: 2,
+                                    color: Colors.blue[50],
+                                    elevation: 3,
                                     shape: RoundedRectangleBorder(
                                         borderRadius:
                                             BorderRadius.circular(15)),
-                                    shadowColor: Colors.green,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(16),
-                                      decoration: BoxDecoration(
-                                        borderRadius:
-                                            BorderRadius.circular(10.0),
-                                        color: Colors.green[100],
-                                      ),
+                                    shadowColor: const Color(0xFF08143C),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16.0),
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
                                           const Text(
-                                            'Tarifa por hora',
+                                            'Cotización',
                                             style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold),
                                           ),
-                                          const SizedBox(height: 10),
-                                          Row(
-                                            children: [
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.all(4.0),
-                                                decoration: BoxDecoration(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          5.0),
-                                                  color: Colors.blueGrey[600],
+                                          const SizedBox(height: 16),
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                bottom: 12.0),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        const Color(0xFF08143C),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                  ),
+                                                  child: Icon(Icons.access_time,
+                                                      size: 20,
+                                                      color: Colors.blue[100]),
                                                 ),
-                                                child: const Icon(
-                                                  Icons.attach_money,
-                                                  size: 18.0,
-                                                  color: Colors.greenAccent,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 10),
-                                              Expanded(
-                                                child: Text(
-                                                  '${widget.task.data()['hourlyRate'].toStringAsFixed(2)}/hr',
-                                                  style: const TextStyle(
-                                                      fontSize: 16),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 10),
-                                          Row(
-                                            children: [
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.all(4.0),
-                                                decoration: BoxDecoration(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          5.0),
-                                                  color: Colors.blueGrey[600],
-                                                ),
-                                                child: const Icon(
-                                                  Icons.payment,
-                                                  size: 18.0,
-                                                  color: Colors.tealAccent,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 10),
-                                              Expanded(
-                                                child: Text(
-                                                  'Métodos de pago: ${widget.task.data()['paymentMethods']?.join(', ') ?? 'No disponible'}',
-                                                  style: const TextStyle(
-                                                      fontSize: 16),
-                                                ),
-                                              ),
-                                              if (widget.task
-                                                      .data()['paymentMethods']
-                                                      ?.contains('Tarjetas') ==
-                                                  true)
-                                                // Número de tarjeta
-                                                Row(
-                                                  children: [
-                                                    Container(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              4.0),
-                                                      decoration: BoxDecoration(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(5.0),
-                                                        color: Colors
-                                                            .blueGrey[600],
-                                                      ),
-                                                      child: const Icon(
-                                                        Icons.credit_card,
-                                                        size: 18.0,
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Text(
+                                                    'Tiempo transcurrido',
+                                                    style: TextStyle(
+                                                        fontSize: 16,
                                                         color:
-                                                            Colors.tealAccent,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 10),
-                                                    Expanded(
-                                                      child: Text(
-                                                        'Tarjeta: ${widget.task.data()['selectedCards']?.join(', ') ?? 'No disponible'}',
-                                                        style: const TextStyle(
-                                                            fontSize: 16),
-                                                      ),
-                                                    ),
-                                                  ],
+                                                            Colors.grey[600]),
+                                                  ),
                                                 ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 10),
-                                          const Text(
-                                            'Nota: El monto final a pagar puede variar durante la ejecución del servicio.',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: Colors.grey,
+                                                Text(
+                                                  '${taskData?['quotation']['hoursWorked']}h ${taskData?['quotation']['minutesWorked']}m',
+                                                  style: const TextStyle(
+                                                      fontSize: 16,
+                                                      color: Colors.black),
+                                                ),
+                                              ],
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 5),
-
-                                  if (taskData?['state'] == 'Pagando')
-                                    // Cotización
-                                    Card(
-                                      color: Colors.blue[50],
-                                      elevation: 3,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(15)),
-                                      shadowColor: const Color(0xFF08143C),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(16.0),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Text(
-                                              'Cotización',
-                                              style: TextStyle(
-                                                  fontSize: 20,
-                                                  fontWeight: FontWeight.bold),
+                                          if (taskData?['quotation']
+                                                  ['damageAmount'] !=
+                                              null)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  bottom: 12.0),
+                                              child: Row(
+                                                children: [
+                                                  Container(
+                                                    padding:
+                                                        const EdgeInsets.all(8),
+                                                    decoration: BoxDecoration(
+                                                      color: const Color(
+                                                          0xFF08143C),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              8),
+                                                    ),
+                                                    child: Icon(Icons.warning,
+                                                        size: 20,
+                                                        color:
+                                                            Colors.blue[100]),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Daños materiales',
+                                                      style: TextStyle(
+                                                          fontSize: 16,
+                                                          color:
+                                                              Colors.grey[600]),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '- \$${taskData?['quotation']['damageAmount'].toStringAsFixed(2)}',
+                                                    style: const TextStyle(
+                                                        fontSize: 16,
+                                                        color: Colors.black),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
-                                            const SizedBox(height: 16),
+                                          if (taskData?['quotation']
+                                                  ['materialsAmount'] !=
+                                              null)
                                             Padding(
                                               padding: const EdgeInsets.only(
                                                   bottom: 12.0),
@@ -1670,7 +1745,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                               8),
                                                     ),
                                                     child: Icon(
-                                                        Icons.access_time,
+                                                        Icons.shopping_cart,
                                                         size: 20,
                                                         color:
                                                             Colors.blue[100]),
@@ -1678,7 +1753,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                   const SizedBox(width: 12),
                                                   Expanded(
                                                     child: Text(
-                                                      'Tiempo transcurrido',
+                                                      'Otros gastos',
                                                       style: TextStyle(
                                                           fontSize: 16,
                                                           color:
@@ -1686,7 +1761,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                     ),
                                                   ),
                                                   Text(
-                                                    '${taskData?['quotation']['hoursWorked']}h ${taskData?['quotation']['minutesWorked']}m',
+                                                    '\$${taskData?['quotation']['materialsAmount'].toStringAsFixed(2)}',
                                                     style: const TextStyle(
                                                         fontSize: 16,
                                                         color: Colors.black),
@@ -1694,137 +1769,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                 ],
                                               ),
                                             ),
-                                            if (taskData?['quotation']
-                                                    ['damageAmount'] !=
-                                                null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    bottom: 12.0),
-                                                child: Row(
-                                                  children: [
-                                                    Container(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              8),
-                                                      decoration: BoxDecoration(
-                                                        color: const Color(
-                                                            0xFF08143C),
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(8),
-                                                      ),
-                                                      child: Icon(Icons.warning,
-                                                          size: 20,
-                                                          color:
-                                                              Colors.blue[100]),
-                                                    ),
-                                                    const SizedBox(width: 12),
-                                                    Expanded(
-                                                      child: Text(
-                                                        'Daños materiales',
-                                                        style: TextStyle(
-                                                            fontSize: 16,
-                                                            color: Colors
-                                                                .grey[600]),
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      '- \$${taskData?['quotation']['damageAmount'].toStringAsFixed(2)}',
-                                                      style: const TextStyle(
-                                                          fontSize: 16,
-                                                          color: Colors.black),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            if (taskData?['quotation']
-                                                    ['materialsAmount'] !=
-                                                null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    bottom: 12.0),
-                                                child: Row(
-                                                  children: [
-                                                    Container(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              8),
-                                                      decoration: BoxDecoration(
-                                                        color: const Color(
-                                                            0xFF08143C),
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(8),
-                                                      ),
-                                                      child: Icon(
-                                                          Icons.shopping_cart,
-                                                          size: 20,
-                                                          color:
-                                                              Colors.blue[100]),
-                                                    ),
-                                                    const SizedBox(width: 12),
-                                                    Expanded(
-                                                      child: Text(
-                                                        'Otros gastos',
-                                                        style: TextStyle(
-                                                            fontSize: 16,
-                                                            color: Colors
-                                                                .grey[600]),
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      '\$${taskData?['quotation']['materialsAmount'].toStringAsFixed(2)}',
-                                                      style: const TextStyle(
-                                                          fontSize: 16,
-                                                          color: Colors.black),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            if (taskData?['quotation']
-                                                    ['additionalObservation'] !=
-                                                null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    bottom: 12.0),
-                                                child: Row(
-                                                  children: [
-                                                    Container(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              8),
-                                                      decoration: BoxDecoration(
-                                                        color: const Color(
-                                                            0xFF08143C),
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(8),
-                                                      ),
-                                                      child: Icon(Icons.note,
-                                                          size: 20,
-                                                          color:
-                                                              Colors.blue[100]),
-                                                    ),
-                                                    const SizedBox(width: 12),
-                                                    Expanded(
-                                                      child: Text(
-                                                        'Observación',
-                                                        style: TextStyle(
-                                                            fontSize: 16,
-                                                            color: Colors
-                                                                .grey[600]),
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      '${taskData?['quotation']['additionalObservation']}',
-                                                      style: const TextStyle(
-                                                          fontSize: 16,
-                                                          color: Colors.black),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            const Divider(height: 32),
+                                          if (taskData?['quotation']
+                                                  ['additionalObservation'] !=
+                                              null)
                                             Padding(
                                               padding: const EdgeInsets.only(
                                                   bottom: 12.0),
@@ -1835,24 +1782,20 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                         const EdgeInsets.all(8),
                                                     decoration: BoxDecoration(
                                                       color: const Color(
-                                                          0xFF1ca424),
+                                                          0xFF08143C),
                                                       borderRadius:
                                                           BorderRadius.circular(
                                                               8),
                                                     ),
-                                                    child: const Text(
-                                                      'USD',
-                                                      style: TextStyle(
-                                                          fontSize: 16,
-                                                          color: Colors.white,
-                                                          fontWeight:
-                                                              FontWeight.bold),
-                                                    ),
+                                                    child: Icon(Icons.note,
+                                                        size: 20,
+                                                        color:
+                                                            Colors.blue[100]),
                                                   ),
                                                   const SizedBox(width: 12),
                                                   Expanded(
                                                     child: Text(
-                                                      'Total en dólares',
+                                                      'Observación',
                                                       style: TextStyle(
                                                           fontSize: 16,
                                                           color:
@@ -1860,92 +1803,165 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                     ),
                                                   ),
                                                   Text(
-                                                    '\$${taskData?['quotation']['totalAmountUSD'].toStringAsFixed(2)}',
+                                                    '${taskData?['quotation']['additionalObservation']}',
                                                     style: const TextStyle(
-                                                        fontSize: 18,
+                                                        fontSize: 16,
+                                                        color: Colors.black),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          const Divider(height: 32),
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                bottom: 12.0),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        const Color(0xFF1ca424),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                  ),
+                                                  child: const Text(
+                                                    'USD',
+                                                    style: TextStyle(
+                                                        fontSize: 16,
+                                                        color: Colors.white,
                                                         fontWeight:
-                                                            FontWeight.bold,
-                                                        color: Color.fromRGBO(
-                                                            13, 71, 161, 1)),
+                                                            FontWeight.bold),
                                                   ),
-                                                ],
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                  bottom: 12.0),
-                                              child: Row(
-                                                children: [
-                                                  Container(
-                                                    padding:
-                                                        const EdgeInsets.all(8),
-                                                    decoration: BoxDecoration(
-                                                      color: const Color(
-                                                          0xFF1ca424),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8),
-                                                    ),
-                                                    child: const Text(
-                                                      'Bs',
-                                                      style: TextStyle(
-                                                          fontSize: 16,
-                                                          color: Colors.white,
-                                                          fontWeight:
-                                                              FontWeight.bold),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 12),
-                                                  Expanded(
-                                                    child: Text(
-                                                      'Total en bolívares',
-                                                      style: TextStyle(
-                                                          fontSize: 16,
-                                                          color:
-                                                              Colors.grey[600]),
-                                                    ),
-                                                  ),
-                                                  Text(
-                                                    '${taskData?['quotation']['totalAmountBs'].toStringAsFixed(2)}',
-                                                    style: const TextStyle(
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Text(
+                                                    'Total en dólares',
+                                                    style: TextStyle(
                                                         fontSize: 16,
-                                                        color: Colors.black),
+                                                        color:
+                                                            Colors.grey[600]),
                                                   ),
-                                                ],
-                                              ),
+                                                ),
+                                                Text(
+                                                  '\$${taskData?['quotation']['totalAmountUSD'].toStringAsFixed(2)}',
+                                                  style: const TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Color.fromRGBO(
+                                                          13, 71, 161, 1)),
+                                                ),
+                                              ],
                                             ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  if (taskData?['state'] == 'Cotizando')
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 12, horizontal: 16),
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(colors: [
-                                          Colors.blue[300]!,
-                                          Colors.blue[800]!
-                                        ]),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: const Row(
-                                        children: [
-                                          Icon(Icons.pending_actions,
-                                              color: Colors.white),
-                                          SizedBox(width: 12),
-                                          Text(
-                                            'Esperando la cotización del agente',
-                                            style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold),
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                bottom: 12.0),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        const Color(0xFF1ca424),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            8),
+                                                  ),
+                                                  child: const Text(
+                                                    'Bs',
+                                                    style: TextStyle(
+                                                        fontSize: 16,
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.bold),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Text(
+                                                    'Total en bolívares',
+                                                    style: TextStyle(
+                                                        fontSize: 16,
+                                                        color:
+                                                            Colors.grey[600]),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '${taskData?['quotation']['totalAmountBs'].toStringAsFixed(2)}',
+                                                  style: const TextStyle(
+                                                      fontSize: 16,
+                                                      color: Colors.black),
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ],
                                       ),
                                     ),
+                                  ),
+                                if (taskData?['state'] == 'Cotizando')
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12, horizontal: 16),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(colors: [
+                                        Colors.blue[300]!,
+                                        Colors.blue[800]!
+                                      ]),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Icon(Icons.pending_actions,
+                                            color: Colors.white),
+                                        SizedBox(width: 12),
+                                        Text(
+                                          'Esperando la cotización del agente',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
 
-                                  const SizedBox(height: 20),
-                                  // Reservado
+                                const SizedBox(height: 10),
+
+                                // Reservado
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(4.0),
+                                      decoration: BoxDecoration(
+                                        borderRadius:
+                                            BorderRadius.circular(5.0),
+                                        color: Colors.blueGrey[600],
+                                      ),
+                                      child: const Icon(
+                                        Icons.calendar_today,
+                                        size: 18.0,
+                                        color: Color.fromRGBO(209, 196, 233, 1),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Reservado: ${formatDateTime(widget.task.data()['reservation'] as Timestamp?)}',
+                                      style: const TextStyle(fontSize: 15),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                // Inicio
+                                if (taskData?['state'] == 'En proceso' ||
+                                    taskData?['state'] == 'Cotizando' ||
+                                    taskData?['state'] == 'Por pagar' ||
+                                    taskData?['state'] == 'Finalizada')
                                   Row(
                                     children: [
                                       Container(
@@ -1956,261 +1972,274 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                           color: Colors.blueGrey[600],
                                         ),
                                         child: const Icon(
-                                          Icons.calendar_today,
+                                          Icons.play_circle_outline_rounded,
                                           size: 18.0,
                                           color:
-                                              Color.fromRGBO(209, 196, 233, 1),
+                                              Color.fromRGBO(128, 216, 255, 1),
                                         ),
                                       ),
                                       const SizedBox(width: 10),
                                       Text(
-                                        'Reservado: ${formatDateTime(widget.task.data()['reservation'] as Timestamp?)}',
+                                        'Inicio: ${formatDateTime(widget.task.data()['start'] as Timestamp?)}',
                                         style: const TextStyle(fontSize: 15),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 10),
-                                  // Inicio
-                                  if (taskData?['state'] == 'En proceso' ||
-                                      taskData?['state'] == 'Cotizando' ||
-                                      taskData?['state'] == 'Pagando' ||
-                                      taskData?['state'] == 'Finalizada')
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(4.0),
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(5.0),
-                                            color: Colors.blueGrey[600],
-                                          ),
-                                          child: const Icon(
-                                            Icons.play_circle_outline_rounded,
-                                            size: 18.0,
-                                            color: Color.fromRGBO(
-                                                128, 216, 255, 1),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Text(
-                                          'Inicio: ${formatDateTime(widget.task.data()['start'] as Timestamp?)}',
-                                          style: const TextStyle(fontSize: 15),
-                                        ),
-                                      ],
-                                    ),
-                                  const SizedBox(height: 10),
-                                  // Finalización
-                                  if (taskData?['state'] == 'Cotizando' ||
-                                      taskData?['state'] == 'Pagando' ||
-                                      taskData?['state'] == 'Finalizada')
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(4.0),
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(5.0),
-                                            color: Colors.blueGrey[600],
-                                          ),
-                                          child: const Icon(
-                                            Icons.stop_circle,
-                                            size: 18.0,
-                                            color: Color.fromRGBO(
-                                                248, 187, 208, 1),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Text(
-                                          'Finalización: ${formatDateTime(widget.task.data()['end'] as Timestamp?)}',
-                                          style: const TextStyle(fontSize: 15),
-                                        ),
-                                      ],
-                                    ),
-                                  const SizedBox(height: 10),
-
-                                  // Punto de referencia
-                                  if (taskData?['state'] == 'Pendiente' ||
-                                      taskData?['state'] == 'En proceso' ||
-                                      taskData?['state'] == 'Finalizada')
-                                    Row(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(4.0),
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(5.0),
-                                            color: Colors.blueGrey[600],
-                                          ),
-                                          child: const Icon(
-                                            Icons.location_pin,
-                                            size: 18.0,
-                                            color: Color.fromRGBO(
-                                                255, 138, 128, 1),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            'Punto de referencia: ${widget.task.data()['referencePoint'] ?? 'No disponible'}',
-                                            style:
-                                                const TextStyle(fontSize: 16),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  const SizedBox(height: 10),
-                                  // Comentario del cliente (solo para tareas completadas)
-                                  if (taskData?['state'] == 'Finalizada')
-                                    Card(
-                                      color: Colors.white,
-                                      elevation: 2,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(15)),
-                                      shadowColor: const Color(0xFF08143C),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(16),
+                                const SizedBox(height: 10),
+                                // Finalización
+                                if (taskData?['state'] == 'Cotizando' ||
+                                    taskData?['state'] == 'Por pagar' ||
+                                    taskData?['state'] == 'Finalizada')
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(4.0),
                                         decoration: BoxDecoration(
-                                          color: Colors.blue[50],
                                           borderRadius:
-                                              BorderRadius.circular(10.0),
-                                          border: Border.all(
-                                            color: const Color(0xFF08143C),
-                                            width: 1.0,
-                                          ),
+                                              BorderRadius.circular(5.0),
+                                          color: Colors.blueGrey[600],
                                         ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            const Row(
-                                              children: [
-                                                Text(
-                                                  'Calificación obtenida',
-                                                  style: TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 10),
-                                            Container(
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(10.0),
-                                                border: Border.all(
-                                                  color:
-                                                      const Color(0xFF08143C),
-                                                  width: 1.0,
-                                                ),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  const Icon(
-                                                    Icons.comment,
-                                                    size: 18.0,
-                                                    color: Color(0xFF08143C),
-                                                  ),
-                                                  const SizedBox(width: 10),
-                                                  Expanded(
-                                                    child: Text(
-                                                      '${taskData?['clientComment'] ?? 'No disponible'}',
-                                                      style: const TextStyle(
-                                                          fontSize: 16),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(height: 10),
-                                            Row(
-                                              children: [
-                                                const Icon(
-                                                  Icons.star,
-                                                  size: 18.0,
-                                                  color: Color(0xFF1ca424),
-                                                ),
-                                                const SizedBox(width: 4.0),
-                                                Text(
-                                                  '${taskData?['clientEvaluation'] ?? 'No disponible'}',
-                                                  style: const TextStyle(
-                                                      fontSize: 16),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
+                                        child: const Icon(
+                                          Icons.stop_circle,
+                                          size: 18.0,
+                                          color:
+                                              Color.fromRGBO(248, 187, 208, 1),
                                         ),
                                       ),
-                                    ),
-                                  const SizedBox(height: 20),
-                                  // Ubicación del servicio
-                                  if (taskData?['clientLocation'] != null)
-                                    if (taskData?['state'] == 'Pendiente' ||
-                                        taskData?['state'] == 'En proceso' ||
-                                        taskData?['state'] == 'Finalizada')
-                                      Column(
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        'Finalización: ${formatDateTime(widget.task.data()['end'] as Timestamp?)}',
+                                        style: const TextStyle(fontSize: 15),
+                                      ),
+                                    ],
+                                  ),
+                                const SizedBox(height: 10),
+
+                                // Punto de referencia
+                                if (taskData?['state'] == 'Pendiente' ||
+                                    taskData?['state'] == 'En proceso' ||
+                                    taskData?['state'] == 'Finalizada')
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(4.0),
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(5.0),
+                                          color: Colors.blueGrey[600],
+                                        ),
+                                        child: const Icon(
+                                          Icons.location_pin,
+                                          size: 18.0,
+                                          color:
+                                              Color.fromRGBO(255, 138, 128, 1),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'Punto de referencia: ${widget.task.data()['referencePoint'] ?? 'No disponible'}',
+                                          style: const TextStyle(fontSize: 16),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                const SizedBox(height: 10),
+                                // Comentario del cliente (solo para tareas completadas)
+                                if (taskData?['state'] == 'Finalizada')
+                                  Card(
+                                    color: Colors.white,
+                                    elevation: 2,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(15)),
+                                    shadowColor: const Color(0xFF08143C),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue[50],
+                                        borderRadius:
+                                            BorderRadius.circular(10.0),
+                                        border: Border.all(
+                                          color: const Color(0xFF08143C),
+                                          width: 1.0,
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          const Text(
-                                            'Ubicación del servicio:',
-                                            style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold),
+                                          const Row(
+                                            children: [
+                                              Text(
+                                                'Calificación obtenida',
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                           const SizedBox(height: 10),
-                                          Card(
-                                            color: Colors.white,
-                                            elevation: 2,
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(15)),
-                                            shadowColor:
-                                                const Color(0xFF08143C),
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                    BorderRadius.circular(10.0),
-                                                border: Border.all(
-                                                  color:
-                                                      const Color(0xFF08143C),
-                                                  width: 1.0,
-                                                ),
-                                              ),
-                                              child: SizedBox(
-                                                height:
-                                                    200, // Ajusta la altura del mapa
-                                                child: ClientLocationMap(
-                                                  clientLatLng: LatLng(
-                                                    widget.task
-                                                        .data()[
-                                                            'clientLocation']
-                                                        .latitude,
-                                                    widget.task
-                                                        .data()[
-                                                            'clientLocation']
-                                                        .longitude,
-                                                  ),
-                                                ),
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(10.0),
+                                              border: Border.all(
+                                                color: const Color(0xFF08143C),
+                                                width: 1.0,
                                               ),
                                             ),
+                                            child: Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.comment,
+                                                  size: 18.0,
+                                                  color: Color(0xFF08143C),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Expanded(
+                                                  child: Text(
+                                                    '${taskData?['clientComment'] ?? 'No disponible'}',
+                                                    style: const TextStyle(
+                                                        fontSize: 16),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.star,
+                                                size: 18.0,
+                                                color: Color(0xFF1ca424),
+                                              ),
+                                              const SizedBox(width: 4.0),
+                                              Text(
+                                                '${taskData?['clientEvaluation'] ?? 'No disponible'}',
+                                                style: const TextStyle(
+                                                    fontSize: 16),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
-                                ],
+                                    ),
+                                  ),
+                                const SizedBox(height: 20),
+                                // Ubicación del servicio
+                                if (taskData?['clientLocation'] != null)
+                                  if (taskData?['state'] == 'Pendiente' ||
+                                      taskData?['state'] == 'En proceso' ||
+                                      taskData?['state'] == 'Finalizada')
+                                    Column(
+                                      children: [
+                                        const Text(
+                                          'Ubicación del servicio:',
+                                          style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Card(
+                                          color: Colors.white,
+                                          elevation: 2,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(15)),
+                                          shadowColor: const Color(0xFF08143C),
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(10.0),
+                                              border: Border.all(
+                                                color: const Color(0xFF08143C),
+                                                width: 1.0,
+                                              ),
+                                            ),
+                                            child: SizedBox(
+                                              height:
+                                                  200, // Ajusta la altura del mapa
+                                              child: ClientLocationMap(
+                                                clientLatLng: LatLng(
+                                                  widget.task
+                                                      .data()['clientLocation']
+                                                      .latitude,
+                                                  widget.task
+                                                      .data()['clientLocation']
+                                                      .longitude,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Botón "Cancelar reservación" (solo si el estado es "Pendiente")
+                        if (taskData?['state'] == 'Pendiente')
+                          Padding(
+                            padding: const EdgeInsets.only(top: 20.0),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  textStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.0),
+                                    side: const BorderSide(
+                                        color: Colors.red, width: 1.0),
+                                  ),
+                                ),
+                                onPressed: _showCancelConfirmationDialog,
+                                child: const Text(
+                                  'Cancelar reservación',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.redAccent,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                          // Botón "Cancelar reservación" (solo si el estado es "Pendiente")
-                          if (widget.task.data()['state'] == 'Pendiente')
-                            Padding(
-                              padding: const EdgeInsets.only(top: 20.0),
-                              child: SizedBox(
-                                width: double.infinity,
+
+                        if (taskData?['state'] == 'Por pagar')
+                          Padding(
+                            padding: const EdgeInsets.only(top: 20.0),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Colors.green,
+                                      Color.fromRGBO(27, 94, 32, 1)
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10.0),
+                                ),
                                 child: ElevatedButton(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: Colors.white,
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 16,
                                       vertical: 12,
@@ -2222,82 +2251,86 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                     ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(10.0),
-                                      side: const BorderSide(
-                                          color: Colors.red, width: 1.0),
                                     ),
                                   ),
-                                  onPressed: _showCancelConfirmationDialog,
+                                  onPressed: () async {
+                                    await FirebaseFirestore.instance
+                                        .collection('tasks')
+                                        .doc(widget.task.id)
+                                        .update({'state': 'Pagando'});
+                                  },
                                   child: const Text(
-                                    'Cancelar reservación',
+                                    'Pagar servicio',
                                     style: TextStyle(
                                       fontSize: 16,
-                                      color: Colors.redAccent,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                          // Botón "Pagar servicio" (solo si el estado es "Pagando")
-                          if (widget.task.data()['state'] == 'Pagando')
-                            Padding(
-                              padding: const EdgeInsets.only(top: 20.0),
-                              child: SizedBox(
-                                width: double.infinity,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [
-                                        Colors.green,
-                                        Color.fromRGBO(27, 94, 32, 1)
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(10.0),
+                          ),
+
+                        if (taskData?['state'] == 'Pagando')
+                          Padding(
+                            padding: const EdgeInsets.only(top: 20.0),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Colors.green,
+                                      Color.fromRGBO(27, 94, 32, 1)
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
                                   ),
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      shadowColor: Colors.transparent,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 12,
-                                      ),
-                                      textStyle: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(10.0),
-                                      ),
+                                  borderRadius: BorderRadius.circular(10.0),
+                                ),
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 12,
                                     ),
-                                    onPressed: () {
-                                      // Implementar acción del botón "Pagar servicio"
-                                    },
-                                    child: const Text(
-                                      'Pagar servicio',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.white,
-                                      ),
+                                    textStyle: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10.0),
+                                    ),
+                                  ),
+                                  onPressed: () {
+                                    // Implementar acción del botón "Pagar servicio"
+                                  },
+                                  child: const Text(
+                                    'Confirmar pago',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                        ],
-                      ),
-                    );
-                  } else {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: Colors.green,
-                      ),
-                    );
-                  }
-                }),
+                          ),
+                      ],
+                    ),
+                  );
+                } else {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.green,
+                    ),
+                  );
+                }
+              },
+            ),
             // Ampliación de la imagen de perfil
             if (_showProfileImage)
               GestureDetector(
