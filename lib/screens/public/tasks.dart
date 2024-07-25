@@ -373,7 +373,8 @@ class _TasksScreenState extends State {
                           .where('state', whereIn: [
                         'En proceso',
                         'Cotizando',
-                        'Por pagar'
+                        'Por pagar',
+                        'Pagando'
                       ]).snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
@@ -913,6 +914,20 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   AnimationController? _animationController;
   Timer? _timer;
   DateTime? _startTime;
+  bool _showCards = false;
+  final Set<String> _selectedCards = {};
+  bool _pagoMovilSelected = false;
+  bool _efectivoSelected = false;
+  bool _paypalSelected = false;
+  bool _zinliSelected = false;
+  bool _binanceSelected = false;
+
+  // ignore: unused_field
+  late Future<void> _initFuture;
+  late Future<QuerySnapshot> _cardsFuture;
+  bool _hasCards = false;
+  double _walletBalance = 0.0;
+  String clientIDString = "";
 
   // Formatea la fecha y hora en el formato deseado (12h)
   String formatDateTime(Timestamp? dateTime) {
@@ -1098,6 +1113,59 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     }
   }
 
+  Future<void> _initializeData() async {
+    await _getUserInfo();
+    await _getWalletBalance();
+    _cardsFuture = _getCardsData();
+    _hasCards = await _checkIfUserHasCards();
+  }
+
+  Future<void> _getUserInfo() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('uid', isEqualTo: user.uid)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        final doc = snapshot.docs.first;
+        setState(() {
+          clientIDString = doc['id'];
+        });
+      }
+    }
+  }
+
+  Future<void> _getWalletBalance() async {
+    if (clientIDString.isNotEmpty) {
+      final walletDoc = await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(clientIDString)
+          .get();
+
+      if (walletDoc.exists) {
+        final walletData = walletDoc.data() as Map<String, dynamic>;
+        setState(() {
+          _walletBalance = walletData['walletBalance'] ?? 0.0;
+        });
+      }
+    }
+  }
+
+  Future<QuerySnapshot> _getCardsData() {
+    return FirebaseFirestore.instance
+        .collection('wallets')
+        .doc(clientIDString)
+        .collection('cards')
+        .get();
+  }
+
+  Future<bool> _checkIfUserHasCards() async {
+    final cardsSnapshot = await _cardsFuture;
+    return cardsSnapshot.docs.isNotEmpty;
+  }
+
   void _initializeStartTime() {
     final taskData = widget.task.data();
     if (taskData['state'] == 'En proceso') {
@@ -1127,6 +1195,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   @override
   void initState() {
     super.initState();
+    _initFuture = _initializeData();
     // Iniciar el timer para actualizar el tiempo transcurrido
     _startTimer();
     _initializeStartTime();
@@ -1624,7 +1693,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                 ),
                                 const SizedBox(height: 5),
 
-                                if (taskData?['state'] == 'Por pagar')
+                                if (taskData?['state'] == 'Por pagar' ||
+                                    taskData?['state'] == 'Pagando')
                                   // Cotización
                                   Card(
                                     color: Colors.blue[50],
@@ -1933,6 +2003,440 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
                                 const SizedBox(height: 10),
 
+                                if (taskData?['state'] == 'Pagando')
+                                  Card(
+                                    color: Colors.white,
+                                    elevation: 3,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(15),
+                                      side: const BorderSide(
+                                        color: Color(
+                                            0xFF08143C), // Bordes de color 08143C por defecto
+                                      ),
+                                    ),
+                                    shadowColor: const Color(0xFF08143C),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16.0),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'Métodos de pago disponibles',
+                                            style: TextStyle(
+                                              fontSize: 19,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const Text(
+                                            'Los pagos se realizan al finalizar el servicio',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 15),
+
+                                          // Mostrar saldo del monedero
+                                          Container(
+                                            padding: const EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF0F4FF),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                const Text(
+                                                  'Saldo disponible',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Color(0xFF08143C),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  '\$${_walletBalance.toStringAsFixed(2)}',
+                                                  style: const TextStyle(
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFF1ca424),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 15),
+
+                                          // Botón para mostrar tarjetas
+                                          if (_hasCards)
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: ElevatedButton(
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _showCards = !_showCards;
+                                                  });
+                                                },
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: _showCards
+                                                      ? Colors.green[100]
+                                                      : Colors.white,
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      vertical: 12,
+                                                      horizontal: 15),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10),
+                                                    side: BorderSide(
+                                                      color: _showCards
+                                                          ? const Color(
+                                                              0xFF1ca424) // Verde si está seleccionado
+                                                          : const Color(
+                                                              0xFF08143C), // Gris por defecto
+                                                    ),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  children: [
+                                                    const Text('Tarjetas'),
+                                                    Row(
+                                                      children: [
+                                                        Image.asset(
+                                                          'assets/images/VISA_Logo.png',
+                                                          height: 20,
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 10),
+                                                        Image.asset(
+                                                          'assets/images/MasterCard_Logo.png',
+                                                          height: 20,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          if (_showCards)
+                                            Container(
+                                              margin: const EdgeInsets.only(
+                                                  top: 10),
+                                              padding: const EdgeInsets.all(10),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: FutureBuilder(
+                                                future: _cardsFuture,
+                                                builder:
+                                                    (context, cardsSnapshot) {
+                                                  if (cardsSnapshot
+                                                          .connectionState ==
+                                                      ConnectionState.waiting) {
+                                                    return const CircularProgressIndicator(
+                                                        color: Colors.green);
+                                                  }
+                                                  if (cardsSnapshot.hasError) {
+                                                    return Text(
+                                                        'Error: ${cardsSnapshot.error}');
+                                                  }
+                                                  if (!cardsSnapshot.hasData ||
+                                                      cardsSnapshot
+                                                          .data!.docs.isEmpty) {
+                                                    return const Text(
+                                                        'No hay tarjetas disponibles');
+                                                  }
+
+                                                  return Column(
+                                                    children: cardsSnapshot
+                                                        .data!.docs
+                                                        .map((card) {
+                                                      final cardData =
+                                                          card.data() as Map<
+                                                              String, dynamic>;
+                                                      final cardNumber = cardData[
+                                                              'cardNumber'] ??
+                                                          '';
+                                                      final cardType = cardData[
+                                                              'cardType'] ??
+                                                          '';
+                                                      final imagePath = cardType ==
+                                                              'Visa'
+                                                          ? 'assets/images/VISA_Logo.png'
+                                                          : 'assets/images/MasterCard_Logo.png';
+
+                                                      return CheckboxListTile(
+                                                        title: Row(
+                                                          children: [
+                                                            Text(
+                                                              cardNumber,
+                                                              style: const TextStyle(
+                                                                  fontSize:
+                                                                      13), // Tamaño de fuente más pequeño
+                                                            ),
+                                                            const SizedBox(
+                                                                width: 10),
+                                                            Image.asset(
+                                                              imagePath,
+                                                              height: 20,
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        value: _selectedCards
+                                                            .contains(card.id),
+                                                        onChanged:
+                                                            (bool? value) {
+                                                          setState(() {
+                                                            if (value == true) {
+                                                              _selectedCards
+                                                                  .add(card.id);
+                                                            } else {
+                                                              _selectedCards
+                                                                  .remove(
+                                                                      card.id);
+                                                            }
+                                                          });
+                                                        },
+                                                      );
+                                                    }).toList(),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                          const SizedBox(height: 15),
+
+                                          // Pago Móvil y Efectivo
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: ElevatedButton.icon(
+                                                  icon: const Icon(
+                                                      Icons.phone_android,
+                                                      color: Colors.black),
+                                                  label: const Text(
+                                                    'Pago Móvil',
+                                                    style: TextStyle(
+                                                        color: Colors.black,
+                                                        fontSize: 13),
+                                                  ),
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _pagoMovilSelected =
+                                                          !_pagoMovilSelected;
+                                                    });
+                                                  },
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        _pagoMovilSelected
+                                                            ? Colors.green[100]
+                                                            : Colors.white,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              10),
+                                                      side: BorderSide(
+                                                        color:
+                                                            _pagoMovilSelected
+                                                                ? const Color(
+                                                                    0xFF1ca424) // Verde si está seleccionado
+                                                                : const Color(
+                                                                    0xFF08143C), // Gris por defecto
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: ElevatedButton.icon(
+                                                  icon: const Icon(
+                                                      Icons
+                                                          .attach_money_rounded,
+                                                      color: Colors.green),
+                                                  label: const Text(
+                                                    'Efectivo',
+                                                    style: TextStyle(
+                                                        color: Colors.green),
+                                                  ),
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _efectivoSelected =
+                                                          !_efectivoSelected;
+                                                    });
+                                                  },
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        _efectivoSelected
+                                                            ? Colors.green[100]
+                                                            : Colors.white,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              10),
+                                                      side: BorderSide(
+                                                        color: _efectivoSelected
+                                                            ? const Color(
+                                                                0xFF1ca424) // Verde si está seleccionado
+                                                            : const Color(
+                                                                0xFF08143C), // Gris por defecto
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if (_efectivoSelected)
+                                            const Padding(
+                                              padding: EdgeInsets.all(8.0),
+                                              child: Text(
+                                                'Advertencia: Si el agente no tiene cambio, el monto restante será añadido a su monedero instantáneamente.',
+                                                style: TextStyle(
+                                                  color: Color.fromARGB(
+                                                      255, 250, 96, 85),
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                          const SizedBox(height: 15),
+
+                                          // Paypal, Zinli y Binance
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: ElevatedButton(
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _paypalSelected =
+                                                          !_paypalSelected;
+                                                    });
+                                                  },
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        _paypalSelected
+                                                            ? Colors.green[100]
+                                                            : Colors.white,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              10),
+                                                      side: BorderSide(
+                                                        color: _paypalSelected
+                                                            ? const Color(
+                                                                0xFF1ca424) // Verde si está seleccionado
+                                                            : const Color(
+                                                                0xFF08143C), // Gris por defecto
+                                                      ),
+                                                    ),
+                                                    padding: const EdgeInsets.all(12.0),
+                                                  ),
+                                                  child: FittedBox(
+                                                    child: Image.asset(
+                                                      'assets/images/Paypal_Logo.png',
+                                                      height: 50,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: ElevatedButton(
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _zinliSelected =
+                                                          !_zinliSelected;
+                                                    });
+                                                  },
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        _zinliSelected
+                                                            ? Colors.green[100]
+                                                            : Colors.white,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              10),
+                                                      side: BorderSide(
+                                                        color: _zinliSelected
+                                                            ? const Color(
+                                                                0xFF1ca424) // Verde si está seleccionado
+                                                            : const Color(
+                                                                0xFF08143C), // Gris por defecto
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  child: FittedBox(
+                                                    child: Image.asset(
+                                                      'assets/images/Zinli_Logo.png',
+                                                      height: 40,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Expanded(
+                                                child: ElevatedButton(
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      _binanceSelected =
+                                                          !_binanceSelected;
+                                                    });
+                                                  },
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        _binanceSelected
+                                                            ? Colors.green[100]
+                                                            : Colors.white,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              10),
+                                                      side: BorderSide(
+                                                        color: _binanceSelected
+                                                            ? const Color(
+                                                                0xFF1ca424) // Verde si está seleccionado
+                                                            : const Color(
+                                                                0xFF08143C), // Gris por defecto
+                                                      ),
+                                                    ),
+                                                    padding: const EdgeInsets.all(11.0),
+                                                  ),
+                                                  child: FittedBox(
+                                                    child: Image.asset(
+                                                      'assets/images/Binance_Logo.png',
+                                                      height: 50,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+
+                                const SizedBox(height: 10),
+
                                 // Reservado
                                 Row(
                                   children: [
@@ -1961,6 +2465,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                 if (taskData?['state'] == 'En proceso' ||
                                     taskData?['state'] == 'Cotizando' ||
                                     taskData?['state'] == 'Por pagar' ||
+                                    taskData?['state'] == 'Pagando' ||
                                     taskData?['state'] == 'Finalizada')
                                   Row(
                                     children: [
@@ -1989,6 +2494,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                 // Finalización
                                 if (taskData?['state'] == 'Cotizando' ||
                                     taskData?['state'] == 'Por pagar' ||
+                                    taskData?['state'] == 'Pagando' ||
                                     taskData?['state'] == 'Finalizada')
                                   Row(
                                     children: [
@@ -2253,63 +2759,17 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                       borderRadius: BorderRadius.circular(10.0),
                                     ),
                                   ),
-                                  onPressed: () async {
-                                    await FirebaseFirestore.instance
+                                  onPressed: () {
+                                    // Cambiamos el estado a "Pagando"
+                                    FirebaseFirestore.instance
                                         .collection('tasks')
                                         .doc(widget.task.id)
-                                        .update({'state': 'Pagando'});
+                                        .update({
+                                      'state': 'Pagando',
+                                    });
                                   },
                                   child: const Text(
                                     'Pagar servicio',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-
-                        if (taskData?['state'] == 'Pagando')
-                          Padding(
-                            padding: const EdgeInsets.only(top: 20.0),
-                            child: SizedBox(
-                              width: double.infinity,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Colors.green,
-                                      Color.fromRGBO(27, 94, 32, 1)
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(10.0),
-                                ),
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    shadowColor: Colors.transparent,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 12,
-                                    ),
-                                    textStyle: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10.0),
-                                    ),
-                                  ),
-                                  onPressed: () {
-                                    // Implementar acción del botón "Pagar servicio"
-                                  },
-                                  child: const Text(
-                                    'Confirmar pago',
                                     style: TextStyle(
                                       fontSize: 16,
                                       color: Colors.white,
