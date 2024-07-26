@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -8,6 +7,8 @@ import 'package:intl/intl.dart';
 // ignore: unnecessary_import
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_paypal/flutter_paypal.dart';
+import 'package:mobileservicesapp/screens/public/wallet.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -905,17 +906,15 @@ class TaskDetailsScreen extends StatefulWidget {
 class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     with SingleTickerProviderStateMixin {
   bool _showProfileImage = false;
-  String? _selectedReason; // Variable para almacenar la razón seleccionada
-  final TextEditingController _otherReasonController =
-      TextEditingController(); // Controlador del cuadro de texto
-  // Stream para escuchar cambios en el estado de la tarea
+  String? _selectedReason;
+  final TextEditingController _otherReasonController = TextEditingController();
   late Stream<DocumentSnapshot<Map<String, dynamic>>> _taskStream;
   final _messageController = TextEditingController();
   AnimationController? _animationController;
   Timer? _timer;
   DateTime? _startTime;
   bool _showCards = false;
-  final Set<String> _selectedCards = {};
+  final Set _selectedCards = {};
   bool _pagoMovilSelected = false;
   bool _efectivoSelected = false;
   bool _paypalSelected = false;
@@ -923,13 +922,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   bool _binanceSelected = false;
 
   // ignore: unused_field
-  late Future<void> _initFuture;
-  late Future<QuerySnapshot> _cardsFuture;
+  late Future _initFuture;
+  late Future _cardsFuture;
   bool _hasCards = false;
   double _walletBalance = 0.0;
   String clientIDString = "";
 
-  // Formatea la fecha y hora en el formato deseado (12h)
   String formatDateTime(Timestamp? dateTime) {
     if (dateTime == null) {
       return 'No disponible';
@@ -942,23 +940,21 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     return "$formattedDate a las $formattedTime";
   }
 
-  // Función para mostrar el diálogo de confirmación de cancelación
-  Future<void> _showCancelConfirmationDialog() async {
-    return showDialog<void>(
+  Future _showCancelConfirmationDialog() async {
+    return showDialog(
       context: context,
-      barrierDismissible: false, // usuario debe interactuar con el diálogo
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Confirmar cancelación'),
           content: SingleChildScrollView(
-            // Agrega SingleChildScrollView aquí
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('¿Por qué deseas cancelar la reservación?'),
                 const SizedBox(height: 16),
-                RadioListTile<String>(
+                RadioListTile(
                   title: const Text('No deseo el servicio'),
                   value: 'No deseo el servicio',
                   groupValue: _selectedReason,
@@ -968,7 +964,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                     });
                   },
                 ),
-                RadioListTile<String>(
+                RadioListTile(
                   title: const Text('Demora en responder los mensajes'),
                   value: 'Demora en responder los mensajes',
                   groupValue: _selectedReason,
@@ -978,7 +974,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                     });
                   },
                 ),
-                RadioListTile<String>(
+                RadioListTile(
                   title: const Text('Muy costoso'),
                   value: 'Muy costoso',
                   groupValue: _selectedReason,
@@ -988,7 +984,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                     });
                   },
                 ),
-                RadioListTile<String>(
+                RadioListTile(
                   title: const Text('Fecha asignada muy lejana'),
                   value: 'Fecha asignada muy lejana',
                   groupValue: _selectedReason,
@@ -998,7 +994,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                     });
                   },
                 ),
-                RadioListTile<String>(
+                RadioListTile(
                   title:
                       const Text('No he recibido ninguna respuesta del agente'),
                   value: 'No he recibido ninguna respuesta del agente',
@@ -1009,7 +1005,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                     });
                   },
                 ),
-                RadioListTile<String>(
+                RadioListTile(
                   title: const Text('El agente solicitó cancelar la reserva'),
                   value: 'El agente solicitó cancelar la reserva',
                   groupValue: _selectedReason,
@@ -1019,7 +1015,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                     });
                   },
                 ),
-                RadioListTile<String>(
+                RadioListTile(
                   title: const Text('Otro motivo'),
                   value: 'Otro motivo',
                   groupValue: _selectedReason,
@@ -1044,10 +1040,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
               ],
             ),
           ),
-          actions: <Widget>[
+          actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(context).pop(); // cierra el diálogo
+                Navigator.of(context).pop();
               },
               child: const Text('Cancelar'),
             ),
@@ -1056,7 +1052,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                 if (_selectedReason != null) {
                   if (_selectedReason == 'Otro motivo' &&
                       _otherReasonController.text.isEmpty) {
-                    // Mostrar un mensaje de error si "Otro motivo" está seleccionado pero el cuadro de texto está vacío
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
@@ -1065,11 +1060,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                       ),
                     );
                   } else {
-                    _cancelReservation(); // llama a la función de cancelación
-                    Navigator.of(context).pop(); // cierra el diálogo
+                    _cancelReservation();
+                    Navigator.of(context).pop();
                   }
                 } else {
-                  // Mostrar un mensaje de error si ninguna opción está seleccionada
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
@@ -1087,10 +1081,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     );
   }
 
-  // Función para cancelar la reservación
   void _cancelReservation() async {
     try {
-      // Actualiza el estado de la tarea a 'Cancelada'
       await FirebaseFirestore.instance
           .collection('tasks')
           .doc(widget.task.id)
@@ -1102,25 +1094,23 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
             : null,
       });
 
-      // Redirige a la pantalla anterior con una animación de deslizamiento
       // ignore: use_build_context_synchronously
       Navigator.of(context).pop();
     } catch (e) {
-      // Maneja cualquier error que ocurra durante la cancelación
       if (kDebugMode) {
         print('Error al cancelar la reservación: $e');
       }
     }
   }
 
-  Future<void> _initializeData() async {
+  Future _initializeData() async {
     await _getUserInfo();
     await _getWalletBalance();
     _cardsFuture = _getCardsData();
     _hasCards = await _checkIfUserHasCards();
   }
 
-  Future<void> _getUserInfo() async {
+  Future _getUserInfo() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final snapshot = await FirebaseFirestore.instance
@@ -1137,7 +1127,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     }
   }
 
-  Future<void> _getWalletBalance() async {
+  Future _getWalletBalance() async {
     if (clientIDString.isNotEmpty) {
       final walletDoc = await FirebaseFirestore.instance
           .collection('wallets')
@@ -1153,7 +1143,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     }
   }
 
-  Future<QuerySnapshot> _getCardsData() {
+  Future _getCardsData() {
     return FirebaseFirestore.instance
         .collection('wallets')
         .doc(clientIDString)
@@ -1161,7 +1151,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
         .get();
   }
 
-  Future<bool> _checkIfUserHasCards() async {
+  Future _checkIfUserHasCards() async {
     final cardsSnapshot = await _cardsFuture;
     return cardsSnapshot.docs.isNotEmpty;
   }
@@ -1177,9 +1167,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) {
-        setState(() {
-          // Forzar una actualización de la UI
-        });
+        setState(() {});
       }
     });
   }
@@ -1196,7 +1184,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   void initState() {
     super.initState();
     _initFuture = _initializeData();
-    // Iniciar el timer para actualizar el tiempo transcurrido
     _startTimer();
     _initializeStartTime();
     _selectedReason = null;
@@ -1204,7 +1191,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
       duration: const Duration(milliseconds: 500),
       vsync: this,
     );
-    // Inicializa el stream para escuchar cambios en el estado de la tarea
     _taskStream = FirebaseFirestore.instance
         .collection('tasks')
         .doc(widget.task.id)
@@ -1215,9 +1201,131 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   void dispose() {
     _timer?.cancel();
     _animationController?.dispose();
-    _messageController.dispose(); // Cierra el stream
+    _messageController.dispose();
     super.dispose();
   }
+
+  void _handlePayPalPayment() async {
+  final taskData = widget.task.data();
+  final quotation = taskData['quotation'] as Map<String, dynamic>;
+  final totalAmountUSD = quotation['totalAmountUSD'] as double;
+
+  final amountToPayWithPayPal = totalAmountUSD - _walletBalance;
+
+  if (amountToPayWithPayPal <= 0) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('El saldo del monedero es suficiente para cubrir el costo total.')),
+    );
+    return;
+  }
+
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (BuildContext context) => UsePaypal(
+        sandboxMode: true,
+        clientId: "AciP9nizmZQl-UH6A5w7Sr16NunuYnDJcA6VR6PLWWdxWzNWt5626cZi7KnPoRe9qmYfeFGAKkIeBu_X",
+        secretKey: "EBuImUM-OmYSLgmFs125cE4jMou66FvKZU1AuAKn_qafYfbSoruFmKZwOodGchBXNq5s3UzQH-Co_YS_",
+        returnURL: "https://samplesite.com/return",
+        cancelURL: "https://samplesite.com/cancel",
+        transactions: [
+          {
+            "amount": {
+              "total": amountToPayWithPayPal.toStringAsFixed(2),
+              "currency": "USD",
+              "details": {
+                "subtotal": amountToPayWithPayPal.toStringAsFixed(2),
+                "shipping": '0',
+                "shipping_discount": 0
+              }
+            },
+            "description": "Pago por servicio",
+            "item_list": {
+              "items": [
+                {
+                  "name": "Servicio",
+                  "quantity": 1,
+                  "price": amountToPayWithPayPal.toStringAsFixed(2),
+                  "currency": "USD"
+                }
+              ],
+            }
+          }
+        ],
+        note: "Contactanos para cualquier duda sobre tu pedido.",
+        onSuccess: (Map params) async {
+          if (kDebugMode) {
+            print("onSuccess: $params");
+          }
+          
+          // Actualizar el estado de la tarea a "Finalizada"
+          await FirebaseFirestore.instance
+              .collection('tasks')
+              .doc(widget.task.id)
+              .update({'state': 'Finalizada'});
+
+          // Guardar la transacción en Firestore
+          final transactionData = {
+            'senderName': taskData['clientName'],
+            'senderId': taskData['clientID'],
+            'recipientName': taskData['supplierName'],
+            'recipientId': taskData['supplierID'],
+            'paymentType': 'Pago de servicio',
+            'date': FieldValue.serverTimestamp(),
+            'amount': totalAmountUSD,
+            'paymentMethod': _walletBalance > 0
+                ? {
+                    'Monedero': {'amount': _walletBalance},
+                    'Paypal': {
+                      'amount': amountToPayWithPayPal,
+                      'transactionId': params['paymentId']
+                    }
+                  }
+                : {
+                    'Paypal': {
+                      'amount': amountToPayWithPayPal,
+                      'transactionId': params['paymentId']
+                    }
+                  },
+            'taskId': widget.task.id,
+            'service': taskData['service'],
+          };
+
+          final transactionRef = await FirebaseFirestore.instance
+              .collection('transactions')
+              .add(transactionData);
+
+          // Navegar a la pantalla de recibo
+          // ignore: use_build_context_synchronously
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => TransactionReceiptScreen(
+                paymentType: 'Pago de servicio',
+                date: DateTime.now(),
+                transactionId: transactionRef.id,
+                concept: taskData['service'],
+                recipientId: taskData['supplierID'],
+                recipientName: taskData['supplierName'],
+                amount: totalAmountUSD,
+              ),
+            ),
+          );
+        },
+        onError: (error) {
+          if (kDebugMode) {
+            print("onError: $error");
+          }
+          // Manejar el error
+        },
+        onCancel: (params) {
+          if (kDebugMode) {
+            print('cancelled: $params');
+          }
+          // Manejar la cancelación
+        },
+      ),
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -2010,8 +2118,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(15),
                                       side: const BorderSide(
-                                        color: Color(
-                                            0xFF08143C), // Bordes de color 08143C por defecto
+                                        color: Color(0xFF08143C),
                                       ),
                                     ),
                                     shadowColor: const Color(0xFF08143C),
@@ -2035,8 +2142,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                             ),
                                           ),
                                           const SizedBox(height: 15),
-
-                                          // Mostrar saldo del monedero
                                           Container(
                                             padding: const EdgeInsets.all(16),
                                             decoration: BoxDecoration(
@@ -2069,8 +2174,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                             ),
                                           ),
                                           const SizedBox(height: 15),
-
-                                          // Botón para mostrar tarjetas
                                           if (_hasCards)
                                             SizedBox(
                                               width: double.infinity,
@@ -2095,9 +2198,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                     side: BorderSide(
                                                       color: _showCards
                                                           ? const Color(
-                                                              0xFF1ca424) // Verde si está seleccionado
+                                                              0xFF1ca424)
                                                           : const Color(
-                                                              0xFF08143C), // Gris por defecto
+                                                              0xFF08143C),
                                                     ),
                                                   ),
                                                 ),
@@ -2179,9 +2282,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                           children: [
                                                             Text(
                                                               cardNumber,
-                                                              style: const TextStyle(
-                                                                  fontSize:
-                                                                      13), // Tamaño de fuente más pequeño
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          13),
                                                             ),
                                                             const SizedBox(
                                                                 width: 10),
@@ -2213,8 +2317,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                               ),
                                             ),
                                           const SizedBox(height: 15),
-
-                                          // Pago Móvil y Efectivo
                                           Row(
                                             children: [
                                               Expanded(
@@ -2249,9 +2351,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                         color:
                                                             _pagoMovilSelected
                                                                 ? const Color(
-                                                                    0xFF1ca424) // Verde si está seleccionado
+                                                                    0xFF1ca424)
                                                                 : const Color(
-                                                                    0xFF08143C), // Gris por defecto
+                                                                    0xFF08143C),
                                                       ),
                                                     ),
                                                   ),
@@ -2289,9 +2391,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                       side: BorderSide(
                                                         color: _efectivoSelected
                                                             ? const Color(
-                                                                0xFF1ca424) // Verde si está seleccionado
+                                                                0xFF1ca424)
                                                             : const Color(
-                                                                0xFF08143C), // Gris por defecto
+                                                                0xFF08143C),
                                                       ),
                                                     ),
                                                   ),
@@ -2312,8 +2414,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                               ),
                                             ),
                                           const SizedBox(height: 15),
-
-                                          // Paypal, Zinli y Binance
                                           Row(
                                             children: [
                                               Expanded(
@@ -2323,6 +2423,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                       _paypalSelected =
                                                           !_paypalSelected;
                                                     });
+                                                    if (_paypalSelected) {
+                                                      _handlePayPalPayment();
+                                                    }
                                                   },
                                                   style:
                                                       ElevatedButton.styleFrom(
@@ -2338,12 +2441,14 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                       side: BorderSide(
                                                         color: _paypalSelected
                                                             ? const Color(
-                                                                0xFF1ca424) // Verde si está seleccionado
+                                                                0xFF1ca424)
                                                             : const Color(
-                                                                0xFF08143C), // Gris por defecto
+                                                                0xFF08143C),
                                                       ),
                                                     ),
-                                                    padding: const EdgeInsets.all(12.0),
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            12.0),
                                                   ),
                                                   child: FittedBox(
                                                     child: Image.asset(
@@ -2376,9 +2481,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                       side: BorderSide(
                                                         color: _zinliSelected
                                                             ? const Color(
-                                                                0xFF1ca424) // Verde si está seleccionado
+                                                                0xFF1ca424)
                                                             : const Color(
-                                                                0xFF08143C), // Gris por defecto
+                                                                0xFF08143C),
                                                       ),
                                                     ),
                                                   ),
@@ -2413,12 +2518,14 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                       side: BorderSide(
                                                         color: _binanceSelected
                                                             ? const Color(
-                                                                0xFF1ca424) // Verde si está seleccionado
+                                                                0xFF1ca424)
                                                             : const Color(
-                                                                0xFF08143C), // Gris por defecto
+                                                                0xFF08143C),
                                                       ),
                                                     ),
-                                                    padding: const EdgeInsets.all(11.0),
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            11.0),
                                                   ),
                                                   child: FittedBox(
                                                     child: Image.asset(
