@@ -680,14 +680,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
-  paypal_native_checkout:
-    dependency: "direct main"
-    description:
-      name: paypal_native_checkout
-      sha256: "57fcee305be3901633e9bd28aca7ac11dce196067cf53952a620fc02fbf101a3"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.4"
   platform:
     dependency: transitive
     description:
