@@ -1920,6 +1920,7 @@ class TransactionReceiptScreen extends StatelessWidget {
   final String recipientId;
   final String recipientName;
   final double amount;
+  final VoidCallback? onBackPressed;
 
   TransactionReceiptScreen({
     super.key,
@@ -1930,6 +1931,7 @@ class TransactionReceiptScreen extends StatelessWidget {
     required this.recipientId,
     required this.recipientName,
     required this.amount,
+    this.onBackPressed,
   });
 
   final ScreenshotController screenshotController = ScreenshotController();
@@ -1940,11 +1942,15 @@ class TransactionReceiptScreen extends StatelessWidget {
       canPop: false,
       onPopInvoked: (didPop) {
         if (didPop) return;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-              builder: (context) => const HomePage(selectedIndex: 3)),
-          (Route<dynamic> route) => false,
-        );
+        if (onBackPressed != null) {
+          onBackPressed!();
+        } else {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+                builder: (context) => const HomePage(selectedIndex: 3)),
+            (Route<dynamic> route) => false,
+          );
+        }
       },
       child: Scaffold(
         backgroundColor: Colors.white,

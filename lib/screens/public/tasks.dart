@@ -1,14 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 // ignore: unnecessary_import
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_paypal/flutter_paypal.dart';
 import 'package:mobileservicesapp/screens/public/wallet.dart';
+import 'package:http/http.dart' as http;
+import 'package:html/parser.dart' show parse;
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -915,7 +920,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   DateTime? _startTime;
   bool _showCards = false;
   final Set _selectedCards = {};
-  bool _pagoMovilSelected = false;
+  final bool _pagoMovilSelected = false;
   bool _efectivoSelected = false;
   bool _paypalSelected = false;
   bool _zinliSelected = false;
@@ -927,6 +932,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   bool _hasCards = false;
   double _walletBalance = 0.0;
   String clientIDString = "";
+
+  double _bcvExchangeRate = 1.0;
+  bool _showPagoMovilDetails = false;
+  File? _comprobante;
 
   String formatDateTime(Timestamp? dateTime) {
     if (dateTime == null) {
@@ -1108,6 +1117,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     await _getWalletBalance();
     _cardsFuture = _getCardsData();
     _hasCards = await _checkIfUserHasCards();
+    _bcvExchangeRate = await getBCVExchangeRate();
   }
 
   Future _getUserInfo() async {
@@ -1206,126 +1216,273 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   }
 
   void _handlePayPalPayment() async {
-  final taskData = widget.task.data();
-  final quotation = taskData['quotation'] as Map<String, dynamic>;
-  final totalAmountUSD = quotation['totalAmountUSD'] as double;
+    final taskData = widget.task.data();
+    final quotation = taskData['quotation'] as Map<String, dynamic>;
+    final totalAmountUSD = quotation['totalAmountUSD'] as double;
 
-  final amountToPayWithPayPal = totalAmountUSD - _walletBalance;
+    final amountToPayWithPayPal = totalAmountUSD - _walletBalance;
 
-  if (amountToPayWithPayPal <= 0) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('El saldo del monedero es suficiente para cubrir el costo total.')),
+    if (amountToPayWithPayPal <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'El saldo del monedero es suficiente para cubrir el costo total.')),
+      );
+      return;
+    }
+
+    bool paymentSuccess = false;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (BuildContext context) => UsePaypal(
+          sandboxMode: false,
+          clientId:
+              "AdfwCuiRLwAVHmAtVZed11lO8eXlFw4uUyBxrlwIR3OXUwZDm6l_PgPa9Wji20E7hXYFW4JfyaDdcabi",
+          secretKey:
+              "EA-2R8sv5qXqOEHxFxS7znBg30OrOhVL-nolsCR-ZVSH6P25wLARZ_kSw_uCAs2rSK4TkkcN_u6h70xv",
+          returnURL: "https://samplesite.com/return",
+          cancelURL: "https://samplesite.com/cancel",
+          transactions: [
+            {
+              "amount": {
+                "total": amountToPayWithPayPal.toStringAsFixed(2),
+                "currency": "USD",
+                "details": {
+                  "subtotal": amountToPayWithPayPal.toStringAsFixed(2),
+                  "shipping": '0',
+                  "shipping_discount": 0
+                }
+              },
+              "description": "Pago por servicio",
+              "item_list": {
+                "items": [
+                  {
+                    "name": "Servicio",
+                    "quantity": 1,
+                    "price": amountToPayWithPayPal.toStringAsFixed(2),
+                    "currency": "USD"
+                  }
+                ],
+              }
+            }
+          ],
+          note: "Contactanos para cualquier duda sobre tu pedido.",
+          onSuccess: (Map params) async {
+            if (kDebugMode) {
+              print("onSuccess: $params");
+            }
+
+            await FirebaseFirestore.instance
+                .collection('wallets')
+                .doc(taskData['supplierID'])
+                .update(
+                    {'walletBalance': FieldValue.increment(totalAmountUSD)});
+
+            if (_walletBalance > 0) {
+              await FirebaseFirestore.instance
+                  .collection('wallets')
+                  .doc(clientIDString)
+                  .update(
+                      {'walletBalance': FieldValue.increment(-_walletBalance)});
+            }
+
+            final transactionData = {
+              'senderName': taskData['clientName'],
+              'senderId': taskData['clientID'],
+              'recipientName': taskData['supplierName'],
+              'recipientId': taskData['supplierID'],
+              'paymentType': 'Pago de servicio',
+              'date': FieldValue.serverTimestamp(),
+              'amount': totalAmountUSD,
+              'paymentMethod': _walletBalance > 0
+                  ? {
+                      'Monedero': {'amount': _walletBalance},
+                      'Paypal': {
+                        'amount': amountToPayWithPayPal,
+                        'transactionId': params['paymentId']
+                      }
+                    }
+                  : {
+                      'Paypal': {
+                        'amount': amountToPayWithPayPal,
+                        'transactionId': params['paymentId']
+                      }
+                    },
+              'taskId': widget.task.id,
+              'service': taskData['service'],
+            };
+
+            final transactionRef = await FirebaseFirestore.instance
+                .collection('transactions')
+                .add(transactionData);
+
+            await FirebaseFirestore.instance
+                .collection('tasks')
+                .doc(widget.task.id)
+                .update({'transactionID': transactionRef.id});
+
+            paymentSuccess = true;
+            // ignore: use_build_context_synchronously
+            Navigator.of(context).pop();
+
+            await FirebaseFirestore.instance
+                .collection('tasks')
+                .doc(widget.task.id)
+                .update({'state': 'Finalizada'});
+                
+          },
+          onError: (error) {
+            if (kDebugMode) {
+              print("onError: $error");
+            }
+            paymentSuccess = false;
+            Navigator.of(context).pop();
+          },
+          onCancel: (params) {
+            if (kDebugMode) {
+              print('cancelled: $params');
+            }
+            paymentSuccess = false;
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
     );
-    return;
+
+    if (paymentSuccess) {
+      final taskDoc = await FirebaseFirestore.instance
+          .collection('tasks')
+          .doc(widget.task.id)
+          .get();
+      final updatedTaskData = taskDoc.data() as Map<String, dynamic>;
+      // ignore: use_build_context_synchronously
+
+      // ignore: use_build_context_synchronously
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => TransactionReceiptScreen(
+            paymentType: 'Pago de servicio',
+            date: DateTime.now(),
+            transactionId: updatedTaskData['transactionID'],
+            concept: taskData['service'],
+            recipientId: taskData['supplierID'],
+            recipientName: taskData['supplierName'],
+            amount: totalAmountUSD,
+            onBackPressed: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => TaskDetailsScreen(
+                    task: widget.task,
+                    supplier: widget.supplier,
+                    supplierInfo: widget.supplierInfo,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    }
   }
 
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (BuildContext context) => UsePaypal(
-        sandboxMode: true,
-        clientId: "AciP9nizmZQl-UH6A5w7Sr16NunuYnDJcA6VR6PLWWdxWzNWt5626cZi7KnPoRe9qmYfeFGAKkIeBu_X",
-        secretKey: "EBuImUM-OmYSLgmFs125cE4jMou66FvKZU1AuAKn_qafYfbSoruFmKZwOodGchBXNq5s3UzQH-Co_YS_",
-        returnURL: "https://samplesite.com/return",
-        cancelURL: "https://samplesite.com/cancel",
-        transactions: [
-          {
-            "amount": {
-              "total": amountToPayWithPayPal.toStringAsFixed(2),
-              "currency": "USD",
-              "details": {
-                "subtotal": amountToPayWithPayPal.toStringAsFixed(2),
-                "shipping": '0',
-                "shipping_discount": 0
-              }
-            },
-            "description": "Pago por servicio",
-            "item_list": {
-              "items": [
-                {
-                  "name": "Servicio",
-                  "quantity": 1,
-                  "price": amountToPayWithPayPal.toStringAsFixed(2),
-                  "currency": "USD"
-                }
-              ],
-            }
-          }
-        ],
-        note: "Contactanos para cualquier duda sobre tu pedido.",
-        onSuccess: (Map params) async {
-          if (kDebugMode) {
-            print("onSuccess: $params");
-          }
-          
-          // Actualizar el estado de la tarea a "Finalizada"
-          await FirebaseFirestore.instance
-              .collection('tasks')
-              .doc(widget.task.id)
-              .update({'state': 'Finalizada'});
+  Future<double> getBCVExchangeRate() async {
+    try {
+      final response = await http.get(Uri.parse('https://www.bcv.org.ve/'));
+      if (response.statusCode == 200) {
+        final document = parse(response.body);
+        final dollarRate = document.querySelector('#dolar .centrado')?.text;
+        if (dollarRate != null) {
+          return double.parse(dollarRate.replaceAll(',', '.'));
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al obtener el tipo de cambio: $e');
+      }
+    }
+    return 1.0;
+  }
 
-          // Guardar la transacción en Firestore
-          final transactionData = {
-            'senderName': taskData['clientName'],
-            'senderId': taskData['clientID'],
-            'recipientName': taskData['supplierName'],
-            'recipientId': taskData['supplierID'],
-            'paymentType': 'Pago de servicio',
-            'date': FieldValue.serverTimestamp(),
-            'amount': totalAmountUSD,
-            'paymentMethod': _walletBalance > 0
-                ? {
-                    'Monedero': {'amount': _walletBalance},
-                    'Paypal': {
-                      'amount': amountToPayWithPayPal,
-                      'transactionId': params['paymentId']
-                    }
-                  }
-                : {
-                    'Paypal': {
-                      'amount': amountToPayWithPayPal,
-                      'transactionId': params['paymentId']
-                    }
-                  },
-            'taskId': widget.task.id,
-            'service': taskData['service'],
-          };
+  void _togglePagoMovilDetails() {
+    setState(() {
+      _showPagoMovilDetails = !_showPagoMovilDetails;
+    });
+    if (_showPagoMovilDetails) {
+      _animationController?.forward();
+    } else {
+      _animationController?.reverse();
+    }
+  }
 
-          final transactionRef = await FirebaseFirestore.instance
-              .collection('transactions')
-              .add(transactionData);
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
-          // Navegar a la pantalla de recibo
-          // ignore: use_build_context_synchronously
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => TransactionReceiptScreen(
-                paymentType: 'Pago de servicio',
-                date: DateTime.now(),
-                transactionId: transactionRef.id,
-                concept: taskData['service'],
-                recipientId: taskData['supplierID'],
-                recipientName: taskData['supplierName'],
-                amount: totalAmountUSD,
-              ),
-            ),
-          );
-        },
-        onError: (error) {
-          if (kDebugMode) {
-            print("onError: $error");
-          }
-          // Manejar el error
-        },
-        onCancel: (params) {
-          if (kDebugMode) {
-            print('cancelled: $params');
-          }
-          // Manejar la cancelación
-        },
-      ),
-    ),
-  );
-}
+    if (pickedFile != null) {
+      setState(() {
+        _comprobante = File(pickedFile.path);
+      });
+      _uploadComprobante();
+    }
+  }
+
+  Future<void> _uploadComprobante() async {
+    if (_comprobante == null) return;
+
+    try {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('comprobantes')
+          .child('${widget.task.id}.jpg');
+      await ref.putFile(_comprobante!);
+      final url = await ref.getDownloadURL();
+
+      await FirebaseFirestore.instance
+          .collection('tasks')
+          .doc(widget.task.id)
+          .update({'comprobanteURL': url});
+
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Comprobante subido exitosamente')),
+      );
+    } catch (e) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al subir el comprobante')),
+      );
+    }
+  }
+
+  void _deleteComprobante() async {
+    try {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('comprobantes')
+          .child('${widget.task.id}.jpg');
+      await ref.delete();
+
+      await FirebaseFirestore.instance
+          .collection('tasks')
+          .doc(widget.task.id)
+          .update({'comprobanteURL': FieldValue.delete()});
+
+      setState(() {
+        _comprobante = null;
+      });
+
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Comprobante eliminado exitosamente')),
+      );
+    } catch (e) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al eliminar el comprobante')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2330,12 +2487,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                         color: Colors.black,
                                                         fontSize: 13),
                                                   ),
-                                                  onPressed: () {
-                                                    setState(() {
-                                                      _pagoMovilSelected =
-                                                          !_pagoMovilSelected;
-                                                    });
-                                                  },
+                                                  onPressed:
+                                                      _togglePagoMovilDetails,
                                                   style:
                                                       ElevatedButton.styleFrom(
                                                     backgroundColor:
@@ -2536,6 +2689,171 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                 ),
                                               ),
                                             ],
+                                          ),
+                                          AnimatedContainer(
+                                            duration: const Duration(
+                                                milliseconds: 500),
+                                            height: _showPagoMovilDetails
+                                                ? null
+                                                : 0,
+                                            child: AnimatedOpacity(
+                                              duration: const Duration(
+                                                  milliseconds: 500),
+                                              opacity: _showPagoMovilDetails
+                                                  ? 1.0
+                                                  : 0.0,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const SizedBox(height: 20),
+                                                  Text(
+                                                    'Monto a pagar:',
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.blue[800],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    children: [
+                                                      Text(
+                                                        'Bs. ${(((taskData?['quotation']['totalAmountUSD'] as double) - _walletBalance) * _bcvExchangeRate).toStringAsFixed(2)}',
+                                                        style: const TextStyle(
+                                                          fontSize: 24,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Colors.green,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        '\$${((taskData?['quotation']['totalAmountUSD'] as double) - _walletBalance).toStringAsFixed(2)}',
+                                                        style: TextStyle(
+                                                          fontSize: 18,
+                                                          color:
+                                                              Colors.grey[600],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 20),
+                                                  Text(
+                                                    'Datos para Pago Móvil:',
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.blue[800],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Card(
+                                                    elevation: 2,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              10),
+                                                    ),
+                                                    child: Padding(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              16.0),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Row(
+                                                            children: [
+                                                              const Icon(
+                                                                  Icons
+                                                                      .account_balance,
+                                                                  color: Colors
+                                                                      .blue),
+                                                              const SizedBox(
+                                                                  width: 10),
+                                                              Text(
+                                                                'Banco: ${widget.supplierInfo?['mobilePayment'][0]['bank'] ?? 'N/A'}',
+                                                                style:
+                                                                    const TextStyle(
+                                                                        fontSize:
+                                                                            16),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          const SizedBox(
+                                                              height: 10),
+                                                          Row(
+                                                            children: [
+                                                              const Icon(
+                                                                  Icons
+                                                                      .perm_identity,
+                                                                  color: Colors
+                                                                      .blue),
+                                                              const SizedBox(
+                                                                  width: 10),
+                                                              Text(
+                                                                'Cédula: ${widget.supplierInfo?['mobilePayment'][0]['identification'] ?? 'N/A'}',
+                                                                style:
+                                                                    const TextStyle(
+                                                                        fontSize:
+                                                                            16),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          const SizedBox(
+                                                              height: 10),
+                                                          Row(
+                                                            children: [
+                                                              const Icon(
+                                                                  Icons.phone,
+                                                                  color: Colors
+                                                                      .blue),
+                                                              const SizedBox(
+                                                                  width: 10),
+                                                              Text(
+                                                                'Teléfono: ${widget.supplierInfo?['mobilePayment'][0]['phone'] ?? 'N/A'}',
+                                                                style:
+                                                                    const TextStyle(
+                                                                        fontSize:
+                                                                            16),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 20),
+                                                  ElevatedButton(
+                                                    onPressed: _pickImage,
+                                                    child: const Text(
+                                                        'Subir comprobante de pago'),
+                                                  ),
+                                                  if (_comprobante != null)
+                                                    Column(
+                                                      children: [
+                                                        const SizedBox(
+                                                            height: 10),
+                                                        Image.file(
+                                                            _comprobante!),
+                                                        ElevatedButton(
+                                                          onPressed:
+                                                              _deleteComprobante,
+                                                          child: const Text(
+                                                              'Eliminar comprobante'),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                ],
+                                              ),
+                                            ),
                                           ),
                                         ],
                                       ),

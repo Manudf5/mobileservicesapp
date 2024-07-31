@@ -95,7 +95,7 @@ class _HomeScreenState extends State {
       appBar: AppBar(
         title: const Center(
           child: Text(
-            'MSA [Proveedores]',
+            'MSA [Clientes]',
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.green,

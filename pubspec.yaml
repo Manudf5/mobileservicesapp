@@ -56,6 +56,8 @@ dependencies:
   share_plus: ^4.0.4
   path_provider: ^2.0.9
   flutter_paypal: ^0.2.1
+  html: ^0.15.4
+  paypal_native_checkout: ^1.0.4
 
   
 
