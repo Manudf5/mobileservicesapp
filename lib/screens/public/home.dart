@@ -412,7 +412,7 @@ class _SearchScreenState extends State {
         backgroundColor: Colors.white,
         title: const Text('¿Que servicio necesitas hoy?'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -545,7 +545,7 @@ class _NotificacionesScreenState extends State {
         backgroundColor: Colors.white,
         title: const Text('Notificaciones'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -638,7 +638,7 @@ class _HogarScreenState extends State<HogarScreen> {
         backgroundColor: Colors.white,
         title: const Text('Servicios para el hogar'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -769,7 +769,7 @@ class _PersonalScreenState extends State<PersonalScreen> {
         backgroundColor: Colors.white,
         title: const Text('Servicios Personales'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -895,7 +895,7 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
         backgroundColor: Colors.white,
         title: const Text('Servicios Profesionales'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -1021,7 +1021,7 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
         backgroundColor: Colors.white,
         title: const Text('Servicios de entretenimiento'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -1228,7 +1228,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
         backgroundColor: Colors.white,
         title: Text(selectedServiceName),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -1675,7 +1675,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
           onPressed: () {
             Navigator.pop(context);
           },
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
         ),
         title: const Text(
           'Selecciona a tu agente',

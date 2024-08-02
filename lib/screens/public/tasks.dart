@@ -19,7 +19,7 @@ import 'package:one_context/one_context.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
-
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -1401,6 +1401,11 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
           recipientId: taskData['supplierID'],
           recipientName: taskData['supplierName'],
           amount: totalAmountUSD,
+          supplierProfileImageUrl:
+              widget.supplier?.data()?['profileImageUrl'] ?? '',
+          supplierName: taskData['supplierName'],
+          supplierId: taskData['supplierID'],
+          taskId: widget.task.id,
           onBackPressed: () {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
@@ -1515,6 +1520,59 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     }
   }
 
+  void _showPaymentReceipt() async {
+  final taskData = widget.task.data();
+  final transactionID = taskData['transactionID'];
+  
+  if (transactionID == null) {
+    OneContext().showSnackBar(
+      builder: (_) => const SnackBar(content: Text('No se encontró el ID de la transacción')),
+    );
+    return;
+  }
+
+  try {
+    final transactionDoc = await FirebaseFirestore.instance
+        .collection('transactions')
+        .doc(transactionID)
+        .get();
+
+    if (!transactionDoc.exists) {
+      OneContext().showSnackBar(
+        builder: (_) => const SnackBar(content: Text('No se encontró la transacción')),
+      );
+      return;
+    }
+
+    final transactionData = transactionDoc.data()!;
+
+    OneContext().push(
+      MaterialPageRoute(
+        builder: (context) => ServiceTransactionReceiptScreen(
+          paymentType: transactionData['paymentType'] ?? 'Pago de servicio',
+          date: (transactionData['date'] as Timestamp).toDate(),
+          transactionId: transactionID,
+          concept: transactionData['service'] ?? '',
+          recipientId: transactionData['recipientId'] ?? '',
+          recipientName: transactionData['recipientName'] ?? '',
+          amount: (transactionData['amount'] as num).toDouble(),
+          supplierProfileImageUrl: widget.supplier?.data()?['profileImageUrl'] ?? '',
+          supplierName: transactionData['recipientName'] ?? '',
+          supplierId: transactionData['recipientId'] ?? '',
+          taskId: widget.task.id,
+          onBackPressed: () {
+            OneContext().pop();
+          },
+        ),
+      ),
+    );
+  } catch (e) {
+    OneContext().showSnackBar(
+      builder: (_) => SnackBar(content: Text('Error al obtener el comprobante: $e')),
+    );
+  }
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1525,6 +1583,15 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
           'Información',
           style: TextStyle(color: Colors.black, fontSize: 20),
         ),
+        leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded, // Puedes cambiar este icono por otro
+              color: Colors.black,
+            ),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
         actions: [
           Container(
             padding: const EdgeInsets.symmetric(
@@ -3018,7 +3085,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                     child: Container(
                                       padding: const EdgeInsets.all(16),
                                       decoration: BoxDecoration(
-                                        color: Colors.blue[50],
+                                        color: Colors.white,
                                         borderRadius:
                                             BorderRadius.circular(10.0),
                                         border: Border.all(
@@ -3062,7 +3129,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                 const SizedBox(width: 10),
                                                 Expanded(
                                                   child: Text(
-                                                    '${taskData?['clientComment'] ?? 'No disponible'}',
+                                                    '${taskData?['supplierComment'] ?? 'No disponible'}',
                                                     style: const TextStyle(
                                                         fontSize: 16),
                                                   ),
@@ -3080,7 +3147,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                               ),
                                               const SizedBox(width: 4.0),
                                               Text(
-                                                '${taskData?['clientEvaluation'] ?? 'No disponible'}',
+                                                '${taskData?['supplierEvaluation'] ?? 'No disponible'}',
                                                 style: const TextStyle(
                                                     fontSize: 16),
                                               ),
@@ -3234,6 +3301,43 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                               ),
                             ),
                           ),
+
+                          // Botón "Comprobante de pago"
+                        if (taskData?['state'] == 'Finalizada')
+                          Padding(
+                            padding: const EdgeInsets.only(top: 20.0),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF08143C),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  textStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10.0),
+                                    side: const BorderSide(
+                                        color: Colors.green, width: 2.0),
+                                  ),
+                                ),
+                                onPressed: _showPaymentReceipt,
+                                child: const Text(
+                                  'Comprobante de pago',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   );
@@ -3349,7 +3453,7 @@ class ClientLocationMap extends StatelessWidget {
   }
 }
 
-class ServiceTransactionReceiptScreen extends StatelessWidget {
+class ServiceTransactionReceiptScreen extends StatefulWidget {
   final String paymentType;
   final DateTime date;
   final String transactionId;
@@ -3358,8 +3462,12 @@ class ServiceTransactionReceiptScreen extends StatelessWidget {
   final String recipientName;
   final double amount;
   final VoidCallback? onBackPressed;
+  final String supplierProfileImageUrl;
+  final String supplierName;
+  final String supplierId;
+  final String taskId;
 
-  ServiceTransactionReceiptScreen({
+  const ServiceTransactionReceiptScreen({
     super.key,
     required this.paymentType,
     required this.date,
@@ -3369,9 +3477,40 @@ class ServiceTransactionReceiptScreen extends StatelessWidget {
     required this.recipientName,
     required this.amount,
     this.onBackPressed,
+    required this.supplierProfileImageUrl,
+    required this.supplierName,
+    required this.supplierId,
+    required this.taskId,
   });
 
+  @override
+  // ignore: library_private_types_in_public_api
+  _ServiceTransactionReceiptScreenState createState() =>
+      _ServiceTransactionReceiptScreenState();
+}
+
+class _ServiceTransactionReceiptScreenState
+    extends State<ServiceTransactionReceiptScreen> {
   final ScreenshotController screenshotController = ScreenshotController();
+  double _rating = 0;
+  final TextEditingController _commentController = TextEditingController();
+  bool _hasClientEvaluation = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkClientEvaluation();
+  }
+
+  Future<void> _checkClientEvaluation() async {
+    final taskDoc = await FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(widget.taskId)
+        .get();
+    setState(() {
+      _hasClientEvaluation = taskDoc.data()?['clientEvaluation'] != null;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3385,11 +3524,19 @@ class ServiceTransactionReceiptScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         appBar: AppBar(
           backgroundColor: Colors.white,
-          title: const Text('Detalle de Transacción'),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: _handleBackPress,
-          ),
+          title: const Text('Comprobante de pago'),
+          leading: _hasClientEvaluation
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                  onPressed: _handleBackPress,
+                )
+              : null,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.share, color: Colors.black),
+              onPressed: () => _shareScreenshot(),
+            ),
+          ],
         ),
         body: SingleChildScrollView(
           child: Column(
@@ -3401,7 +3548,7 @@ class ServiceTransactionReceiptScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       Padding(
-                        padding: const EdgeInsets.all(18.0),
+                        padding: const EdgeInsets.all(16.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -3421,7 +3568,7 @@ class ServiceTransactionReceiptScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 24),
-                            _buildInfoCard(context),
+                            _buildInfoCard(),
                           ],
                         ),
                       ),
@@ -3429,33 +3576,119 @@ class ServiceTransactionReceiptScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(15.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.share, color: Color(0xFF1CA424)),
-                      label: const Text('Compartir',
-                          style: TextStyle(color: Colors.white)),
-                      onPressed: () => _shareScreenshot(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF08143C),
+              if (!_hasClientEvaluation) ...[
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 35,
+                            backgroundImage:
+                                NetworkImage(widget.supplierProfileImageUrl),
+                          ),
+                          const SizedBox(width: 15),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.supplierName,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                "ID: ${widget.supplierId}",
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ),
-                    ElevatedButton.icon(
-                      icon:
-                          const Icon(Icons.download, color: Color(0xFF1CA424)),
-                      label: const Text('Descargar',
-                          style: TextStyle(color: Colors.white)),
-                      onPressed: () => _saveScreenshot(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF08143C),
+                      const SizedBox(height: 15),
+                      Center(
+                        child: RatingBar.builder(
+                          initialRating: _rating,
+                          minRating: 1,
+                          direction: Axis.horizontal,
+                          allowHalfRating: true,
+                          itemCount: 5,
+                          itemPadding:
+                              const EdgeInsets.symmetric(horizontal: 4.0),
+                          itemBuilder: (context, _) => const Icon(
+                            Icons.star_rounded,
+                            color: Color.fromRGBO(0, 230, 118, 1),
+                            size: 30,
+                          ),
+                          onRatingUpdate: (rating) {
+                            setState(() {
+                              _rating = rating;
+                            });
+                          },
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              )
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: _commentController,
+                        decoration: InputDecoration(
+                          labelText: 'Comentario',
+                          labelStyle: const TextStyle(color: Colors.black),
+                          hintText:
+                              'Ingresa un comentario o una sugerencia (opcional)',
+                          hintStyle: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                          ),
+                          filled: true,
+                          fillColor: Colors.transparent,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16.0),
+                            borderSide: const BorderSide(color: Colors.blue),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 16.0,
+                          ),
+                        ),
+                        style: const TextStyle(fontSize: 15),
+                        maxLines: 1,
+                      ),
+                      const SizedBox(height: 15),
+                      Center(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF08143C), // Color de fondo #08143c
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 5,
+                              horizontal: 30,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: _submitEvaluationAndExit,
+                          child: const Text(
+                            "Enviar y salir",
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white, // Color de las letras blanco
+                              fontWeight: FontWeight.bold, // Letras en negrita
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              ],
             ],
           ),
         ),
@@ -3463,19 +3696,7 @@ class ServiceTransactionReceiptScreen extends StatelessWidget {
     );
   }
 
-  void _handleBackPress() {
-    if (onBackPressed != null) {
-      onBackPressed!();
-    } else {
-      OneContext().pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => const HomePage(selectedIndex: 2),
-        ),
-      );
-    }
-  }
-
-  Widget _buildInfoCard(BuildContext context) {
+  Widget _buildInfoCard() {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
@@ -3493,7 +3714,7 @@ class ServiceTransactionReceiptScreen extends StatelessWidget {
             children: [
               Center(
                 child: Text(
-                  paymentType,
+                  widget.paymentType,
                   style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -3501,15 +3722,15 @@ class ServiceTransactionReceiptScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              _buildInfoRow(context, 'Fecha',
-                  DateFormat('dd/MM/yyyy HH:mm').format(date)),
-              _buildInfoRow(context, 'Referencia', transactionId,
-                  isCopiable: true),
-              _buildInfoRow(context, 'Servicio', concept),
-              _buildInfoRow(context, 'Destinatario ID ', recipientId),
-              _buildInfoRow(context, 'Destinatario', recipientName),
               _buildInfoRow(
-                  context, 'Monto total', '\$ ${amount.toStringAsFixed(2)}'),
+                  'Fecha', DateFormat('dd/MM/yyyy HH:mm').format(widget.date)),
+              _buildInfoRow('Referencia', widget.transactionId,
+                  isCopiable: true),
+              _buildInfoRow('Servicio', widget.concept),
+              _buildInfoRow('Destinatario ID ', widget.recipientId),
+              _buildInfoRow('Destinatario', widget.recipientName),
+              _buildInfoRow(
+                  'Monto total', '\$ ${widget.amount.toStringAsFixed(2)}'),
             ],
           ),
         ),
@@ -3517,10 +3738,9 @@ class ServiceTransactionReceiptScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(BuildContext context, String label, String value,
-      {bool isCopiable = false}) {
+  Widget _buildInfoRow(String label, String value, {bool isCopiable = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.symmetric(vertical: 3.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -3530,7 +3750,7 @@ class ServiceTransactionReceiptScreen extends StatelessWidget {
               Text(value),
               if (isCopiable)
                 IconButton(
-                  icon: const Icon(Icons.copy, size: 20),
+                  icon: const Icon(Icons.copy, size: 15),
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: value));
                     OneContext().showSnackBar(
@@ -3547,7 +3767,33 @@ class ServiceTransactionReceiptScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _shareScreenshot(BuildContext context) async {
+  void _handleBackPress() {
+    if (widget.onBackPressed != null) {
+      widget.onBackPressed!();
+    } else {
+      Navigator.of(context).pushReplacement(_createRoute());
+    }
+  }
+
+  Route _createRoute() {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => const HomePage(selectedIndex: 2),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        const begin = Offset(-1.0, 0.0);
+        const end = Offset.zero;
+        const curve = Curves.easeInOut;
+
+        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+
+        return SlideTransition(
+          position: animation.drive(tween),
+          child: child,
+        );
+      },
+    );
+  }
+
+  Future<void> _shareScreenshot() async {
     final Uint8List? image = await screenshotController.capture();
     if (image != null) {
       final directory = await getTemporaryDirectory();
@@ -3560,27 +3806,31 @@ class ServiceTransactionReceiptScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _saveScreenshot(BuildContext context) async {
-    try {
-      final Uint8List? image = await screenshotController.capture();
-      if (image != null) {
-        final directory = await getExternalStorageDirectory();
-        final imagePath = await File(
-                '${directory!.path}/comprobante_transaccion_${DateTime.now().millisecondsSinceEpoch}.png')
-            .create();
-        await imagePath.writeAsBytes(image);
-        OneContext().showSnackBar(
-          builder: (_) => SnackBar(
-            content: Text('Imagen guardada en ${imagePath.path}'),
-          ),
-        );
-      }
-    } catch (e) {
+  void _submitEvaluationAndExit() async {
+    if (_rating == 0) {
       OneContext().showSnackBar(
-        builder: (_) => SnackBar(
-          content: Text('Error al guardar la imagen: $e'),
-        ),
+        builder: (_) => const SnackBar(
+            content: Text('Por favor, evalúe al proveedor antes de salir')),
       );
+      return;
     }
+
+    await FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(widget.taskId)
+        .update({
+      'clientEvaluation': _rating,
+      'clientComment': _commentController.text,
+    });
+
+    OneContext().showSnackBar(
+      builder: (_) => const SnackBar(
+        content: Text('Muchas gracias por usar nuestros servicios',
+            style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.green,
+      ),
+    );
+
+    _handleBackPress();
   }
 }

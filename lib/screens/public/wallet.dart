@@ -525,7 +525,7 @@ class _MyCardsScreenState extends State<MyCardsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title:
@@ -1206,7 +1206,7 @@ class _TransferFundsScreenState extends State<TransferFundsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('Transferir fondos',
@@ -1369,7 +1369,7 @@ class _UserSearch_TransferFundsScreenState
       appBar: AppBar(
         backgroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('Seleccionar usuario',
@@ -1958,7 +1958,7 @@ class TransactionReceiptScreen extends StatelessWidget {
           backgroundColor: Colors.white,
           title: const Text('Detalle de Transacción'),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
             onPressed: () {
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(
@@ -2172,7 +2172,7 @@ class TransactionHistoryScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('Historial de transacciones',

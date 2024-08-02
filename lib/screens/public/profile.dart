@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,10 +25,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _profileImageUrl = '';
   String _userAssessment = ''; // Variable para la calificación
 
+  late StreamSubscription<DocumentSnapshot<Map<String, dynamic>>> _userStream;
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _listenForUserUpdates();
+  }
+
+  @override
+  void dispose() {
+    _userStream.cancel(); // Cancela la suscripción al salir de la pantalla
+    super.dispose();
   }
 
   Future _loadUserData() async {
@@ -34,8 +45,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user != null) {
       String combinedId = await _getCombinedIdFromFirestore(user.uid);
 
-      DocumentSnapshot<Map<String, dynamic>> userDoc =
-          await FirebaseFirestore.instance.collection('users').doc(combinedId).get();
+      DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+          .instance
+          .collection('users')
+          .doc(combinedId)
+          .get();
 
       if (userDoc.exists) {
         setState(() {
@@ -43,14 +57,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _userLastName = userDoc.data()!['lastName'];
           _userBio = userDoc.data()!['bio'] ?? '';
           _profileImageUrl = userDoc.data()!['profileImageUrl'] ?? '';
-          _userAssessment = userDoc.data()!['assessment'] ?? ''; // Obtén la calificación
+          _userAssessment =
+              userDoc.data()!['assessment'] ?? ''; // Obtén la calificación
         });
       }
     }
   }
 
   Future _getCombinedIdFromFirestore(String uid) async {
-    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore.instance
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+        .instance
         .collection('users')
         .where('uid', isEqualTo: uid)
         .get();
@@ -72,7 +88,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user != null) {
       String combinedId = await _getCombinedIdFromFirestore(user.uid);
 
-      await FirebaseFirestore.instance.collection('users').doc(combinedId).update({
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(combinedId)
+          .update({
         'name': updatedUserName ?? _userName,
         'lastName': updatedUserLastName ?? _userLastName,
         'bio': updatedUserBio ?? _userBio,
@@ -120,7 +139,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => _EditProfileScreen(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            _EditProfileScreen(
           userBio: _userBio,
           profileImageUrl: _profileImageUrl,
           onUpdateProfile: _updateProfileData,
@@ -195,6 +215,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context,
       MaterialPageRoute(builder: (context) => const IntroScreen()),
     );
+  }
+
+  // Escucha las actualizaciones en la colección 'users'
+  void _listenForUserUpdates() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      String combinedId = await _getCombinedIdFromFirestore(user.uid);
+      _userStream = FirebaseFirestore.instance
+          .collection('users')
+          .doc(combinedId)
+          .snapshots()
+          .listen((snapshot) {
+        if (snapshot.exists) {
+          setState(() {
+            _userName = snapshot.data()!['name'];
+            _userLastName = snapshot.data()!['lastName'];
+            _userBio = snapshot.data()!['bio'] ?? '';
+            _profileImageUrl = snapshot.data()!['profileImageUrl'] ?? '';
+            _userAssessment =
+                snapshot.data()!['assessment'] ?? ''; // Obtén la calificación
+          });
+        }
+      });
+    }
   }
 
   @override
@@ -345,14 +389,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center, 
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Image.asset(
                             'assets/images/IconEditProfile.png',
                             height: 14,
                             width: 14,
                           ),
-                          const SizedBox(width: 5.0), 
+                          const SizedBox(width: 5.0),
                           const Text(
                             'Editar Perfil',
                             style: TextStyle(
@@ -379,14 +423,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center, 
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Image.asset(
                             'assets/images/IconConfig.png',
                             height: 14,
                             width: 14,
                           ),
-                          const SizedBox(width: 5.0), 
+                          const SizedBox(width: 5.0),
                           const Text(
                             'Configuración',
                             style: TextStyle(
@@ -417,14 +461,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center, 
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Image.asset(
                         'assets/images/IconAdmin.png',
                         height: 24,
                         width: 24,
                       ),
-                      const SizedBox(width: 10.0), 
+                      const SizedBox(width: 10.0),
                       const Text(
                         'Administrador (Temporal)',
                         style: TextStyle(
@@ -501,17 +545,88 @@ class _EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<_EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _bioController;
+  late StreamSubscription<DocumentSnapshot<Map<String, dynamic>>> _userStream;
+  String _currentProfileImageUrl = '';
 
   @override
   void initState() {
     super.initState();
     _bioController = TextEditingController(text: widget.userBio);
+    _currentProfileImageUrl = widget.profileImageUrl;
+    _listenForUserUpdates();
   }
 
   @override
   void dispose() {
     _bioController.dispose();
+    _userStream.cancel();
     super.dispose();
+  }
+
+  void _listenForUserUpdates() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      String combinedId = await _getCombinedIdFromFirestore(user.uid);
+      _userStream = FirebaseFirestore.instance
+          .collection('users')
+          .doc(combinedId)
+          .snapshots()
+          .listen((snapshot) {
+        if (snapshot.exists) {
+          setState(() {
+            _bioController.text = snapshot.data()!['bio'] ?? '';
+            _currentProfileImageUrl = snapshot.data()!['profileImageUrl'] ?? '';
+          });
+        }
+      });
+    }
+  }
+
+  Future<String> _getCombinedIdFromFirestore(String uid) async {
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+        .instance
+        .collection('users')
+        .where('uid', isEqualTo: uid)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      return querySnapshot.docs.first.id;
+    }
+
+    return '';
+  }
+
+  Future<void> _updateProfileImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+      Reference storageReference =
+          FirebaseStorage.instance.ref().child('profileImages/$fileName');
+
+      try {
+        // Delete the old image if it exists
+        if (_currentProfileImageUrl.isNotEmpty) {
+          await FirebaseStorage.instance
+              .refFromURL(_currentProfileImageUrl)
+              .delete();
+        }
+
+        // Upload the new image
+        UploadTask uploadTask = storageReference.putFile(File(image.path));
+        await uploadTask.whenComplete(() async {
+          String downloadUrl = await storageReference.getDownloadURL();
+          widget.onUpdateProfile(updatedProfileImageUrl: downloadUrl);
+        });
+      } catch (e) {
+        // Handle error (e.g., show a snackbar with the error message)
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar la imagen: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -522,10 +637,8 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () {
-            Navigator.of(context).pop(); // Regresa a la pantalla anterior
-          },
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
           'Editar Perfil',
@@ -542,7 +655,6 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                // Foto de perfil
                 Stack(
                   alignment: Alignment.center,
                   children: [
@@ -558,10 +670,10 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                         ),
                       ),
                     ),
-                    widget.profileImageUrl.isNotEmpty
+                    _currentProfileImageUrl.isNotEmpty
                         ? CircleAvatar(
                             radius: 45.0,
-                            backgroundImage: NetworkImage(widget.profileImageUrl),
+                            backgroundImage: NetworkImage(_currentProfileImageUrl),
                           )
                         : const CircleAvatar(
                             radius: 45.0,
@@ -569,21 +681,19 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                                 'assets/images/ProfilePhoto_predetermined.png'),
                           ),
                     Positioned(
-                      top: 5.0,
-                      right: 5.0,
+                      top: 25.0,
+                      right: 25.0,
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white.withOpacity(0.7),
                         ),
                         child: IconButton(
-                          onPressed: () {
-                            widget.onSelectImage();
-                          },
+                          onPressed: _updateProfileImage,
                           icon: const Icon(
                             Icons.edit,
-                            size: 18.0,
-                            color: Colors.green,
+                            size: 30.0,
+                            color: Colors.black,
                           ),
                         ),
                       ),
@@ -591,16 +701,26 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 20.0),
-                // Biografía
                 TextFormField(
                   controller: _bioController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Biografía',
-                    hintText: 'Describete',
-                    border: OutlineInputBorder(),
+                    labelStyle: const TextStyle(color: Colors.black),
+                    hintText: 'Descríbete',
+                    hintStyle: const TextStyle(color: Colors.grey),
+                    filled: true,
+                    fillColor: Colors.transparent,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: const BorderSide(color: Colors.blue),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16.0,
+                      vertical: 16.0,
+                    ),
                   ),
-                  maxLines: 3, // Permite que el usuario ingrese múltiples líneas
-                  maxLength: 100, // Establece un límite de 100 caracteres
+                  maxLines: 3,
+                  maxLength: 100,
                   validator: (value) {
                     if (value != null && value.length > 100) {
                       return 'La biografía debe tener un máximo de 100 caracteres';
@@ -609,20 +729,13 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                   },
                 ),
                 const SizedBox(height: 32.0),
-                // Botón "Guardar" centrado al final
                 Padding(
                   padding: const EdgeInsets.only(bottom: 20.0),
                   child: Center(
                     child: ElevatedButton(
                       onPressed: () {
                         if (_formKey.currentState!.validate()) {
-                          // Crea variables locales
-                          String updatedUserBio = _bioController.text;
-
-                          // Actualiza los datos del usuario (no se modifican las variables finales)
-                          setState(() {
-                            widget.onUpdateProfile(updatedUserBio: updatedUserBio);
-                          });
+                          widget.onUpdateProfile(updatedUserBio: _bioController.text);
                           Navigator.of(context).pop();
                         }
                       },
@@ -697,7 +810,8 @@ class _SettingsScreenState extends State<_SettingsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.of(context).pop(); // Regresa a la pantalla anterior
           },
@@ -746,7 +860,8 @@ class _SettingsScreenState extends State<_SettingsScreen> {
                 // Espacio entre el texto y el ícono de flecha
                 const SizedBox(width: 16.0),
                 // Icono de flecha
-                const Icon(Icons.arrow_forward_ios_rounded, color: Colors.green),
+                const Icon(Icons.arrow_forward_ios_rounded,
+                    color: Colors.green),
               ],
             ),
           ),
@@ -842,11 +957,11 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
 
   // Función para obtener el ID combinado de Firestore
   Future _getCombinedIdFromFirestore(String uid) async {
-    QuerySnapshot<Map<String, dynamic>> querySnapshot =
-        await FirebaseFirestore.instance
-            .collection('users')
-            .where('uid', isEqualTo: uid)
-            .get();
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+        .instance
+        .collection('users')
+        .where('uid', isEqualTo: uid)
+        .get();
 
     if (querySnapshot.docs.isNotEmpty) {
       return querySnapshot.docs.first.id;
@@ -863,7 +978,8 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.of(context).pop(); // Regresa a la pantalla anterior
           },
@@ -981,7 +1097,8 @@ class _HelpScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.of(context).pop(); // Regresa a la pantalla anterior
           },
@@ -1011,7 +1128,8 @@ class _HelpScreen extends StatelessWidget {
             const SizedBox(height: 20.0),
             Expanded(
               child: ListView.builder(
-                itemCount: 10, // Reemplaza con la cantidad de preguntas frecuentes
+                itemCount:
+                    10, // Reemplaza con la cantidad de preguntas frecuentes
                 itemBuilder: (context, index) {
                   return ListTile(
                     title: Text('Pregunta frecuente ${index + 1}'),
@@ -1074,11 +1192,9 @@ class _HelpScreen extends StatelessWidget {
   }
 }
 
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 class AdminTempScreen extends StatefulWidget {
   // ignore: unused_element
@@ -1089,8 +1205,7 @@ class AdminTempScreen extends StatefulWidget {
 }
 
 class AdminTempScreenState extends State<AdminTempScreen> {
-
-void _showSuppliersScreen() {
+  void _showSuppliersScreen() {
     Navigator.push(
       context,
       PageRouteBuilder(
@@ -1117,7 +1232,8 @@ void _showSuppliersScreen() {
           onPressed: () {
             Navigator.pop(context); // Regresa a la pantalla anterior
           },
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
         ),
         title: const Text(
           'Administrador (Temporal)',
@@ -1125,9 +1241,11 @@ void _showSuppliersScreen() {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0), // Agrega un padding para espacio alrededor del botón
+        padding: const EdgeInsets.all(
+            16.0), // Agrega un padding para espacio alrededor del botón
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch, // Expandir el botón a lo ancho
+          crossAxisAlignment:
+              CrossAxisAlignment.stretch, // Expandir el botón a lo ancho
           children: [
             SizedBox(
               width: double.infinity,
@@ -1150,7 +1268,8 @@ void _showSuppliersScreen() {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Icon(
-                      Icons.store_mall_directory_outlined, color: Colors.purple, // Icono para proveedores
+                      Icons.store_mall_directory_outlined,
+                      color: Colors.purple, // Icono para proveedores
                       size: 28,
                     ),
                     SizedBox(width: 16.0),
@@ -1227,8 +1346,12 @@ class SuppliersScreenState extends State<SuppliersScreen> {
 
   void _onSearchChanged(String query) {
     setState(() {
-      _filteredUsers = _users.where((user) =>
-              user['id'].toString().toLowerCase().contains(query.toLowerCase()) ||
+      _filteredUsers = _users
+          .where((user) =>
+              user['id']
+                  .toString()
+                  .toLowerCase()
+                  .contains(query.toLowerCase()) ||
               (user['name'] + ' ' + user['lastName'])
                   .toLowerCase()
                   .contains(query.toLowerCase()))
@@ -1258,7 +1381,8 @@ class SuppliersScreenState extends State<SuppliersScreen> {
           onPressed: () {
             Navigator.pop(context); // Regresa a la pantalla anterior
           },
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
         ),
         title: const Text(
           'Proveedores',
@@ -1360,7 +1484,8 @@ class SuppliersScreenState extends State<SuppliersScreen> {
             radius: 30,
             backgroundImage: user['profileImageUrl'] != null
                 ? NetworkImage(user['profileImageUrl'])
-                : const AssetImage('assets/images/ProfilePhoto_predetermined.png'),
+                : const AssetImage(
+                    'assets/images/ProfilePhoto_predetermined.png'),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -1402,9 +1527,8 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
 
   // Función para obtener los servicios de Firestore
   Future<List<Map<String, dynamic>>> _fetchServices() async {
-    final QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('services')
-        .get();
+    final QuerySnapshot snapshot =
+        await FirebaseFirestore.instance.collection('services').get();
 
     List<Map<String, dynamic>> services = [];
     for (var doc in snapshot.docs) {
@@ -1461,7 +1585,8 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
           onPressed: () {
             Navigator.pop(context);
           },
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
         ),
         title: const Text(
           'Editar Proveedores',
@@ -1481,7 +1606,8 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                   children: [
                     Expanded(
                       child: TextFormField(
-                        controller: _idController, // Usa el TextEditingController
+                        controller:
+                            _idController, // Usa el TextEditingController
                         decoration: InputDecoration(
                           labelText: 'ID',
                           labelStyle: const TextStyle(color: Colors.black),
@@ -1514,14 +1640,16 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                           if (value != null) {
                             setState(() {
                               _selectedUser = value;
-                              _idController.text =
-                                  _selectedUser!['id'].toString(); // Actualiza el controlador
+                              _idController.text = _selectedUser!['id']
+                                  .toString(); // Actualiza el controlador
                               _nameController.text =
                                   '${_selectedUser!['name']} ${_selectedUser!['lastName']}'; // Actualiza el controlador
-                              _selectedStatus = _selectedUser!['permissions'] == 1
-                                  ? 'SI'
-                                  : 'NO'; // Actualiza el status
-                              _loadSupplierData(_selectedUser!['id'].toString()); // Carga los datos del proveedor si existen
+                              _selectedStatus =
+                                  _selectedUser!['permissions'] == 1
+                                      ? 'SI'
+                                      : 'NO'; // Actualiza el status
+                              _loadSupplierData(_selectedUser!['id']
+                                  .toString()); // Carga los datos del proveedor si existen
                             });
                           }
                         });
@@ -1644,20 +1772,22 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                                       return DropdownMenuItem<String>(
                                         value: service['id'].toString(),
                                         // Utiliza el ID como value
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(7), // Agrega redondeo a los bordes
-                                       ),
-                                        padding: const EdgeInsets.all(0.4), // Agrega padding
-                                        child: SizedBox(
-                                          width:
-                                              320, // Ajusta el ancho según sea necesario
-                                          child: Text(
-                                            '${service['id']} - ${service['serviceName']}',
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(
+                                                7), // Agrega redondeo a los bordes
+                                          ),
+                                          padding: const EdgeInsets.all(
+                                              0.4), // Agrega padding
+                                          child: SizedBox(
+                                            width:
+                                                320, // Ajusta el ancho según sea necesario
+                                            child: Text(
+                                              '${service['id']} - ${service['serviceName']}',
+                                            ),
                                           ),
                                         ),
-                                      ),
                                       );
                                     }).toList(),
                                   );
@@ -1705,7 +1835,7 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                       ),
                     ],
                   );
-                // ignore: unnecessary_to_list_in_spreads
+                  // ignore: unnecessary_to_list_in_spreads
                 }).toList(),
 
                 const SizedBox(height: 16.0),
@@ -1744,7 +1874,6 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                       // Aquí debes agregar la lógica para guardar los datos
                       // en Firestore
                       if (_formKey.currentState!.validate()) {
-                        
                         // ignore: avoid_print
                         print('Form is valid!');
 
@@ -1755,8 +1884,9 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                         Map<String, dynamic> userData = {
                           'name': _nameController.text,
                           'services': _addedServices,
-                          'permissions':
-                              _selectedStatus == 'SI' ? 1 : 0, // Agrega permissions
+                          'permissions': _selectedStatus == 'SI'
+                              ? 1
+                              : 0, // Agrega permissions
                         };
 
                         // Guarda los datos del usuario en una nueva colección
@@ -1769,7 +1899,9 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                         await FirebaseFirestore.instance
                             .collection('users')
                             .doc(userId)
-                            .update({'permissions': _selectedStatus == 'SI' ? 1 : 0});
+                            .update({
+                          'permissions': _selectedStatus == 'SI' ? 1 : 0
+                        });
 
                         // Navega a la pantalla anterior o muestra un mensaje de éxito
                         // ignore: use_build_context_synchronously
@@ -1810,6 +1942,7 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
     );
   }
 }
+
 class SearchUsersForSuppliersScreen extends StatefulWidget {
   const SearchUsersForSuppliersScreen({super.key});
 
@@ -1855,8 +1988,12 @@ class _SearchUsersForSuppliersScreenState
 
   void _onSearchChanged(String query) {
     setState(() {
-      _filteredUsers = _users.where((user) =>
-              user['id'].toString().toLowerCase().contains(query.toLowerCase()) ||
+      _filteredUsers = _users
+          .where((user) =>
+              user['id']
+                  .toString()
+                  .toLowerCase()
+                  .contains(query.toLowerCase()) ||
               user['email'].toLowerCase().contains(query.toLowerCase()))
           .toList();
     });
@@ -1873,7 +2010,8 @@ class _SearchUsersForSuppliersScreenState
           onPressed: () {
             Navigator.pop(context);
           },
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
         ),
       ),
       body: Padding(
@@ -1954,7 +2092,8 @@ class _SearchUsersForSuppliersScreenState
               radius: 30,
               backgroundImage: user['profileImageUrl'] != null
                   ? NetworkImage(user['profileImageUrl'])
-                  : const AssetImage('assets/images/ProfilePhoto_predetermined.png'),
+                  : const AssetImage(
+                      'assets/images/ProfilePhoto_predetermined.png'),
             ),
             const SizedBox(height: 8),
             Text(

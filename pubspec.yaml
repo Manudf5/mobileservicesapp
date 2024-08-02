@@ -58,6 +58,8 @@ dependencies:
   flutter_paypal: ^0.2.1
   html: ^0.15.4
   one_context: ^4.0.0
+  flutter_rating_bar: ^4.0.1
+  flutter_image_compress: ^2.3.0
   
 
   
