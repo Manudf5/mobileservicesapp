@@ -5,15 +5,21 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 // ignore: unnecessary_import
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_paypal/flutter_paypal.dart';
-import 'package:mobileservicesapp/screens/public/wallet.dart';
+import 'package:mobileservicesapp/screens/public/homepage.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' show parse;
+import 'package:one_context/one_context.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
+
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -932,6 +938,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   bool _hasCards = false;
   double _walletBalance = 0.0;
   String clientIDString = "";
+  String _chatID = '';
 
   double _bcvExchangeRate = 1.0;
   bool _showPagoMovilDetails = false;
@@ -1231,16 +1238,14 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
       return;
     }
 
-    bool paymentSuccess = false;
-
-    await Navigator.of(context).push(
+    final result = await Navigator.of(context).push<Map?>(
       MaterialPageRoute(
         builder: (BuildContext context) => UsePaypal(
-          sandboxMode: false,
+          sandboxMode: true,
           clientId:
-              "AdfwCuiRLwAVHmAtVZed11lO8eXlFw4uUyBxrlwIR3OXUwZDm6l_PgPa9Wji20E7hXYFW4JfyaDdcabi",
+              "AciP9nizmZQl-UH6A5w7Sr16NunuYnDJcA6VR6PLWWdxWzNWt5626cZi7KnPoRe9qmYfeFGAKkIeBu_X",
           secretKey:
-              "EA-2R8sv5qXqOEHxFxS7znBg30OrOhVL-nolsCR-ZVSH6P25wLARZ_kSw_uCAs2rSK4TkkcN_u6h70xv",
+              "EBuImUM-OmYSLgmFs125cE4jMou66FvKZU1AuAKn_qafYfbSoruFmKZwOodGchBXNq5s3UzQH-Co_YS_",
           returnURL: "https://samplesite.com/return",
           cancelURL: "https://samplesite.com/cancel",
           transactions: [
@@ -1267,123 +1272,149 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
               }
             }
           ],
-          note: "Contactanos para cualquier duda sobre tu pedido.",
+          note: "Contáctanos para cualquier duda sobre tu pedido.",
           onSuccess: (Map params) async {
             if (kDebugMode) {
               print("onSuccess: $params");
             }
-
-            await FirebaseFirestore.instance
-                .collection('wallets')
-                .doc(taskData['supplierID'])
-                .update(
-                    {'walletBalance': FieldValue.increment(totalAmountUSD)});
-
-            if (_walletBalance > 0) {
-              await FirebaseFirestore.instance
-                  .collection('wallets')
-                  .doc(clientIDString)
-                  .update(
-                      {'walletBalance': FieldValue.increment(-_walletBalance)});
-            }
-
-            final transactionData = {
-              'senderName': taskData['clientName'],
-              'senderId': taskData['clientID'],
-              'recipientName': taskData['supplierName'],
-              'recipientId': taskData['supplierID'],
-              'paymentType': 'Pago de servicio',
-              'date': FieldValue.serverTimestamp(),
-              'amount': totalAmountUSD,
-              'paymentMethod': _walletBalance > 0
-                  ? {
-                      'Monedero': {'amount': _walletBalance},
-                      'Paypal': {
-                        'amount': amountToPayWithPayPal,
-                        'transactionId': params['paymentId']
-                      }
-                    }
-                  : {
-                      'Paypal': {
-                        'amount': amountToPayWithPayPal,
-                        'transactionId': params['paymentId']
-                      }
-                    },
-              'taskId': widget.task.id,
-              'service': taskData['service'],
-            };
-
-            final transactionRef = await FirebaseFirestore.instance
-                .collection('transactions')
-                .add(transactionData);
-
-            await FirebaseFirestore.instance
-                .collection('tasks')
-                .doc(widget.task.id)
-                .update({'transactionID': transactionRef.id});
-
-            paymentSuccess = true;
-            // ignore: use_build_context_synchronously
-            Navigator.of(context).pop();
-
-            await FirebaseFirestore.instance
-                .collection('tasks')
-                .doc(widget.task.id)
-                .update({'state': 'Finalizada'});
-                
+            await _processSuccessfulPayment(
+                taskData, totalAmountUSD, amountToPayWithPayPal, params);
           },
           onError: (error) {
             if (kDebugMode) {
               print("onError: $error");
             }
-            paymentSuccess = false;
-            Navigator.of(context).pop();
+            Navigator.of(context).pop({'success': false});
           },
           onCancel: (params) {
             if (kDebugMode) {
               print('cancelled: $params');
             }
-            paymentSuccess = false;
-            Navigator.of(context).pop();
+            Navigator.of(context).pop({'success': false});
           },
         ),
       ),
     );
 
-    if (paymentSuccess) {
-      final taskDoc = await FirebaseFirestore.instance
-          .collection('tasks')
-          .doc(widget.task.id)
-          .get();
-      final updatedTaskData = taskDoc.data() as Map<String, dynamic>;
-      // ignore: use_build_context_synchronously
-
-      // ignore: use_build_context_synchronously
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => TransactionReceiptScreen(
-            paymentType: 'Pago de servicio',
-            date: DateTime.now(),
-            transactionId: updatedTaskData['transactionID'],
-            concept: taskData['service'],
-            recipientId: taskData['supplierID'],
-            recipientName: taskData['supplierName'],
-            amount: totalAmountUSD,
-            onBackPressed: () {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => TaskDetailsScreen(
-                    task: widget.task,
-                    supplier: widget.supplier,
-                    supplierInfo: widget.supplierInfo,
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      );
+    if (result != null && result['success'] == true) {
+      // El pago fue exitoso, la navegación y actualización ya se han manejado en _processSuccessfulPayment
     }
+  }
+
+  Future<void> _processSuccessfulPayment(Map<String, dynamic> taskData,
+      double totalAmountUSD, double amountToPayWithPayPal, Map params) async {
+    final transactionData = await _createTransactionData(
+        taskData, totalAmountUSD, amountToPayWithPayPal, params);
+    final transactionRef = await FirebaseFirestore.instance
+        .collection('transactions')
+        .add(transactionData);
+
+    await FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(widget.task.id)
+        .update({'transactionID': transactionRef.id});
+
+    final updatedTaskDoc = await FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(widget.task.id)
+        .get();
+    final updatedTaskData = updatedTaskDoc.data() as Map<String, dynamic>;
+
+    if (mounted) {
+      await _navigateToReceiptScreen(updatedTaskData, totalAmountUSD);
+    }
+
+    await _updateTaskWalletAndChat(taskData, totalAmountUSD);
+
+    // ignore: use_build_context_synchronously
+    Navigator.of(context).pop({'success': true});
+  }
+
+  Future<Map<String, dynamic>> _createTransactionData(
+      Map<String, dynamic> taskData,
+      double totalAmountUSD,
+      double amountToPayWithPayPal,
+      Map params) async {
+    return {
+      'senderName': taskData['clientName'],
+      'senderId': taskData['clientID'],
+      'recipientName': taskData['supplierName'],
+      'recipientId': taskData['supplierID'],
+      'paymentType': 'Pago de servicio',
+      'date': FieldValue.serverTimestamp(),
+      'amount': totalAmountUSD,
+      'paymentMethod': _walletBalance > 0
+          ? {
+              'Monedero': {'amount': _walletBalance},
+              'Paypal': {
+                'amount': amountToPayWithPayPal,
+                'transactionId': params['paymentId']
+              }
+            }
+          : {
+              'Paypal': {
+                'amount': amountToPayWithPayPal,
+                'transactionId': params['paymentId']
+              }
+            },
+      'taskId': widget.task.id,
+      'service': taskData['service'],
+    };
+  }
+
+  Future<void> _updateTaskWalletAndChat(
+      Map<String, dynamic> taskData, double totalAmountUSD) async {
+    _chatID = '${taskData['clientID']}_${taskData['supplierID']}';
+
+    await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(_chatID)
+        .update({'talk': false});
+
+    await FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(widget.task.id)
+        .update({'state': 'Finalizada'});
+
+    await FirebaseFirestore.instance
+        .collection('wallets')
+        .doc(taskData['supplierID'])
+        .update({'walletBalance': FieldValue.increment(totalAmountUSD)});
+
+    if (_walletBalance > 0) {
+      await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(clientIDString)
+          .update({'walletBalance': FieldValue.increment(-_walletBalance)});
+    }
+  }
+
+  Future<void> _navigateToReceiptScreen(
+      Map<String, dynamic> taskData, double totalAmountUSD) async {
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => ServiceTransactionReceiptScreen(
+          paymentType: 'Pago de servicio',
+          date: DateTime.now(),
+          transactionId: taskData['transactionID'],
+          concept: taskData['service'],
+          recipientId: taskData['supplierID'],
+          recipientName: taskData['supplierName'],
+          amount: totalAmountUSD,
+          onBackPressed: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (context) => TaskDetailsScreen(
+                  task: widget.task,
+                  supplier: widget.supplier,
+                  supplierInfo: widget.supplierInfo,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   Future<double> getBCVExchangeRate() async {
@@ -2603,11 +2634,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                         const EdgeInsets.all(
                                                             12.0),
                                                   ),
-                                                  child: FittedBox(
+                                                  child: SizedBox(
+                                                    height: 17,
                                                     child: Image.asset(
-                                                      'assets/images/Paypal_Logo.png',
-                                                      height: 50,
-                                                    ),
+                                                        'assets/images/Paypal_Logo.png'),
                                                   ),
                                                 ),
                                               ),
@@ -3316,5 +3346,241 @@ class ClientLocationMap extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class ServiceTransactionReceiptScreen extends StatelessWidget {
+  final String paymentType;
+  final DateTime date;
+  final String transactionId;
+  final String concept;
+  final String recipientId;
+  final String recipientName;
+  final double amount;
+  final VoidCallback? onBackPressed;
+
+  ServiceTransactionReceiptScreen({
+    super.key,
+    required this.paymentType,
+    required this.date,
+    required this.transactionId,
+    required this.concept,
+    required this.recipientId,
+    required this.recipientName,
+    required this.amount,
+    this.onBackPressed,
+  });
+
+  final ScreenshotController screenshotController = ScreenshotController();
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        _handleBackPress();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          title: const Text('Detalle de Transacción'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _handleBackPress,
+          ),
+        ),
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              Screenshot(
+                controller: screenshotController,
+                child: Container(
+                  color: Colors.white,
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(18.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Center(
+                              child: Icon(
+                                Icons.check_circle_outline_rounded,
+                                color: Colors.green,
+                                size: 80,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            const Center(
+                              child: Text(
+                                '¡Transacción aprobada!',
+                                style: TextStyle(
+                                    fontSize: 20, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            _buildInfoCard(context),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(15.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.share, color: Color(0xFF1CA424)),
+                      label: const Text('Compartir',
+                          style: TextStyle(color: Colors.white)),
+                      onPressed: () => _shareScreenshot(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF08143C),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      icon:
+                          const Icon(Icons.download, color: Color(0xFF1CA424)),
+                      label: const Text('Descargar',
+                          style: TextStyle(color: Colors.white)),
+                      onPressed: () => _saveScreenshot(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF08143C),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleBackPress() {
+    if (onBackPressed != null) {
+      onBackPressed!();
+    } else {
+      OneContext().pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => const HomePage(selectedIndex: 2),
+        ),
+      );
+    }
+  }
+
+  Widget _buildInfoCard(BuildContext context) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.blueGrey[50],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Text(
+                  paymentType,
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.indigo),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildInfoRow(context, 'Fecha',
+                  DateFormat('dd/MM/yyyy HH:mm').format(date)),
+              _buildInfoRow(context, 'Referencia', transactionId,
+                  isCopiable: true),
+              _buildInfoRow(context, 'Servicio', concept),
+              _buildInfoRow(context, 'Destinatario ID ', recipientId),
+              _buildInfoRow(context, 'Destinatario', recipientName),
+              _buildInfoRow(
+                  context, 'Monto total', '\$ ${amount.toStringAsFixed(2)}'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(BuildContext context, String label, String value,
+      {bool isCopiable = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              Text(value),
+              if (isCopiable)
+                IconButton(
+                  icon: const Icon(Icons.copy, size: 20),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: value));
+                    OneContext().showSnackBar(
+                      builder: (_) => const SnackBar(
+                        content: Text('Referencia copiada al portapapeles'),
+                      ),
+                    );
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _shareScreenshot(BuildContext context) async {
+    final Uint8List? image = await screenshotController.capture();
+    if (image != null) {
+      final directory = await getTemporaryDirectory();
+      final imagePath =
+          await File('${directory.path}/comprobante_transaccion.png').create();
+      await imagePath.writeAsBytes(image);
+
+      final xFile = XFile(imagePath.path);
+      await Share.shareXFiles([xFile], text: 'Comprobante de transacción');
+    }
+  }
+
+  Future<void> _saveScreenshot(BuildContext context) async {
+    try {
+      final Uint8List? image = await screenshotController.capture();
+      if (image != null) {
+        final directory = await getExternalStorageDirectory();
+        final imagePath = await File(
+                '${directory!.path}/comprobante_transaccion_${DateTime.now().millisecondsSinceEpoch}.png')
+            .create();
+        await imagePath.writeAsBytes(image);
+        OneContext().showSnackBar(
+          builder: (_) => SnackBar(
+            content: Text('Imagen guardada en ${imagePath.path}'),
+          ),
+        );
+      }
+    } catch (e) {
+      OneContext().showSnackBar(
+        builder: (_) => SnackBar(
+          content: Text('Error al guardar la imagen: $e'),
+        ),
+      );
+    }
   }
 }
