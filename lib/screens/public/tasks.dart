@@ -934,7 +934,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
   // ignore: unused_field
   late Future _initFuture;
-  late Future _cardsFuture;
+  late Future<QuerySnapshot> _cardsFuture;
   bool _hasCards = false;
   double _walletBalance = 0.0;
   String clientIDString = "";
@@ -1122,9 +1122,11 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   Future _initializeData() async {
     await _getUserInfo();
     await _getWalletBalance();
-    _cardsFuture = _getCardsData();
+    _cardsFuture =
+        _getCardsData(); // Esto ahora devolverá Future<QuerySnapshot>
     _hasCards = await _checkIfUserHasCards();
     _bcvExchangeRate = await getBCVExchangeRate();
+    setState(() {});
   }
 
   Future _getUserInfo() async {
@@ -1160,7 +1162,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     }
   }
 
-  Future _getCardsData() {
+  Future<QuerySnapshot> _getCardsData() {
     return FirebaseFirestore.instance
         .collection('wallets')
         .doc(clientIDString)
@@ -1168,8 +1170,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
         .get();
   }
 
-  Future _checkIfUserHasCards() async {
-    final cardsSnapshot = await _cardsFuture;
+  Future<bool> _checkIfUserHasCards() async {
+    final cardsSnapshot = await _getCardsData();
     return cardsSnapshot.docs.isNotEmpty;
   }
 
@@ -1238,6 +1240,22 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
       return;
     }
 
+    // Actualizar el método de pago en Firestore
+    await FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(widget.task.id)
+        .update({
+      'paymentMethods':
+          FieldValue.arrayRemove([widget.task.data()['paymentMethods'][1]])
+    });
+    await FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(widget.task.id)
+        .update({
+      'paymentMethods': FieldValue.arrayUnion(['PayPal'])
+    });
+
+    // ignore: use_build_context_synchronously
     final result = await Navigator.of(context).push<Map?>(
       MaterialPageRoute(
         builder: (BuildContext context) => UsePaypal(
@@ -1446,6 +1464,21 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     });
     if (_showPagoMovilDetails) {
       _animationController?.forward();
+      // Actualizar el método de pago en Firestore
+      FirebaseFirestore.instance
+          .collection('tasks')
+          .doc(widget.task.id)
+          .update({
+        'paymentMethods':
+            FieldValue.arrayRemove([widget.task.data()['paymentMethods'][1]])
+      }).then((_) {
+        FirebaseFirestore.instance
+            .collection('tasks')
+            .doc(widget.task.id)
+            .update({
+          'paymentMethods': FieldValue.arrayUnion(['Pago Móvil'])
+        });
+      });
     } else {
       _animationController?.reverse();
     }
@@ -1521,57 +1554,61 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   }
 
   void _showPaymentReceipt() async {
-  final taskData = widget.task.data();
-  final transactionID = taskData['transactionID'];
-  
-  if (transactionID == null) {
-    OneContext().showSnackBar(
-      builder: (_) => const SnackBar(content: Text('No se encontró el ID de la transacción')),
-    );
-    return;
-  }
+    final taskData = widget.task.data();
+    final transactionID = taskData['transactionID'];
 
-  try {
-    final transactionDoc = await FirebaseFirestore.instance
-        .collection('transactions')
-        .doc(transactionID)
-        .get();
-
-    if (!transactionDoc.exists) {
+    if (transactionID == null) {
       OneContext().showSnackBar(
-        builder: (_) => const SnackBar(content: Text('No se encontró la transacción')),
+        builder: (_) => const SnackBar(
+            content: Text('No se encontró el ID de la transacción')),
       );
       return;
     }
 
-    final transactionData = transactionDoc.data()!;
+    try {
+      final transactionDoc = await FirebaseFirestore.instance
+          .collection('transactions')
+          .doc(transactionID)
+          .get();
 
-    OneContext().push(
-      MaterialPageRoute(
-        builder: (context) => ServiceTransactionReceiptScreen(
-          paymentType: transactionData['paymentType'] ?? 'Pago de servicio',
-          date: (transactionData['date'] as Timestamp).toDate(),
-          transactionId: transactionID,
-          concept: transactionData['service'] ?? '',
-          recipientId: transactionData['recipientId'] ?? '',
-          recipientName: transactionData['recipientName'] ?? '',
-          amount: (transactionData['amount'] as num).toDouble(),
-          supplierProfileImageUrl: widget.supplier?.data()?['profileImageUrl'] ?? '',
-          supplierName: transactionData['recipientName'] ?? '',
-          supplierId: transactionData['recipientId'] ?? '',
-          taskId: widget.task.id,
-          onBackPressed: () {
-            OneContext().pop();
-          },
+      if (!transactionDoc.exists) {
+        OneContext().showSnackBar(
+          builder: (_) =>
+              const SnackBar(content: Text('No se encontró la transacción')),
+        );
+        return;
+      }
+
+      final transactionData = transactionDoc.data()!;
+
+      OneContext().push(
+        MaterialPageRoute(
+          builder: (context) => ServiceTransactionReceiptScreen(
+            paymentType: transactionData['paymentType'] ?? 'Pago de servicio',
+            date: (transactionData['date'] as Timestamp).toDate(),
+            transactionId: transactionID,
+            concept: transactionData['service'] ?? '',
+            recipientId: transactionData['recipientId'] ?? '',
+            recipientName: transactionData['recipientName'] ?? '',
+            amount: (transactionData['amount'] as num).toDouble(),
+            supplierProfileImageUrl:
+                widget.supplier?.data()?['profileImageUrl'] ?? '',
+            supplierName: transactionData['recipientName'] ?? '',
+            supplierId: transactionData['recipientId'] ?? '',
+            taskId: widget.task.id,
+            onBackPressed: () {
+              OneContext().pop();
+            },
+          ),
         ),
-      ),
-    );
-  } catch (e) {
-    OneContext().showSnackBar(
-      builder: (_) => SnackBar(content: Text('Error al obtener el comprobante: $e')),
-    );
+      );
+    } catch (e) {
+      OneContext().showSnackBar(
+        builder: (_) =>
+            SnackBar(content: Text('Error al obtener el comprobante: $e')),
+      );
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -1584,14 +1621,15 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
           style: TextStyle(color: Colors.black, fontSize: 20),
         ),
         leading: IconButton(
-            icon: const Icon(
-              Icons.arrow_back_ios_new_rounded, // Puedes cambiar este icono por otro
-              color: Colors.black,
-            ),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
+          icon: const Icon(
+            Icons
+                .arrow_back_ios_new_rounded, // Puedes cambiar este icono por otro
+            color: Colors.black,
           ),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
         actions: [
           Container(
             padding: const EdgeInsets.symmetric(
@@ -2493,7 +2531,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                 borderRadius:
                                                     BorderRadius.circular(10),
                                               ),
-                                              child: FutureBuilder(
+                                              child:
+                                                  FutureBuilder<QuerySnapshot>(
                                                 future: _cardsFuture,
                                                 builder:
                                                     (context, cardsSnapshot) {
@@ -2517,7 +2556,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                   return Column(
                                                     children: cardsSnapshot
                                                         .data!.docs
-                                                        .map((card) {
+                                                        .map<Widget>((card) {
                                                       final cardData =
                                                           card.data() as Map<
                                                               String, dynamic>;
@@ -2838,9 +2877,17 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                       ),
                                                     ],
                                                   ),
+                                                  const SizedBox(height: 0),
+                                                  Text(
+                                                    'Tasa BCV: ${_bcvExchangeRate.toStringAsFixed(2)}',
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.grey[600],
+                                                    ),
+                                                  ),
                                                   const SizedBox(height: 20),
                                                   Text(
-                                                    'Datos para Pago Móvil:',
+                                                    'Datos del pago Móvil:',
                                                     style: TextStyle(
                                                       fontSize: 16,
                                                       fontWeight:
@@ -2856,7 +2903,11 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                       borderRadius:
                                                           BorderRadius.circular(
                                                               10),
+                                                      side: const BorderSide(
+                                                          color: Color(
+                                                              0xFF1ca424)),
                                                     ),
+                                                    color: Colors.white,
                                                     child: Padding(
                                                       padding:
                                                           const EdgeInsets.all(
@@ -2871,8 +2922,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                               const Icon(
                                                                   Icons
                                                                       .account_balance,
-                                                                  color: Colors
-                                                                      .blue),
+                                                                  color: Color(
+                                                                      0xFF08143c)),
                                                               const SizedBox(
                                                                   width: 10),
                                                               Text(
@@ -2891,8 +2942,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                               const Icon(
                                                                   Icons
                                                                       .perm_identity,
-                                                                  color: Colors
-                                                                      .blue),
+                                                                  color: Color(
+                                                                      0xFF08143c)),
                                                               const SizedBox(
                                                                   width: 10),
                                                               Text(
@@ -2910,8 +2961,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                             children: [
                                                               const Icon(
                                                                   Icons.phone,
-                                                                  color: Colors
-                                                                      .blue),
+                                                                  color: Color(
+                                                                      0xFF08143c)),
                                                               const SizedBox(
                                                                   width: 10),
                                                               Text(
@@ -2928,30 +2979,95 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                     ),
                                                   ),
                                                   const SizedBox(height: 20),
-                                                  ElevatedButton(
-                                                    onPressed: _pickImage,
-                                                    child: const Text(
-                                                        'Subir comprobante de pago'),
-                                                  ),
-                                                  if (_comprobante != null)
-                                                    Column(
+                                                  Center(
+                                                    child: Column(
                                                       children: [
+                                                        if (_comprobante ==
+                                                            null)
+                                                          ElevatedButton(
+                                                            onPressed:
+                                                                _pickImage,
+                                                            style:
+                                                                ElevatedButton
+                                                                    .styleFrom(
+                                                              backgroundColor:
+                                                                  const Color(
+                                                                      0xFF08143c),
+                                                              foregroundColor:
+                                                                  Colors.white,
+                                                            ),
+                                                            child: const Text(
+                                                                'Subir comprobante de pago'),
+                                                          )
+                                                        else ...[
+                                                          ClipRRect(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        10),
+                                                            child: Image.file(
+                                                                _comprobante!),
+                                                          ),
+                                                          ElevatedButton(
+                                                            onPressed:
+                                                                _deleteComprobante,
+                                                            style:
+                                                                ElevatedButton
+                                                                    .styleFrom(
+                                                              backgroundColor:
+                                                                  const Color(
+                                                                      0xFF08143c),
+                                                              foregroundColor:
+                                                                  Colors.white,
+                                                            ),
+                                                            child: const Text(
+                                                                'Eliminar comprobante'),
+                                                          ),
+                                                        ],
                                                         const SizedBox(
                                                             height: 10),
-                                                        Image.file(
-                                                            _comprobante!),
-                                                        ElevatedButton(
-                                                          onPressed:
-                                                              _deleteComprobante,
-                                                          child: const Text(
-                                                              'Eliminar comprobante'),
-                                                        ),
+                                                        if (_comprobante ==
+                                                            null)
+                                                          Text(
+                                                            'Adjunte su comprobante para procesar el pago',
+                                                            style: TextStyle(
+                                                                fontSize: 12,
+                                                                color: Colors
+                                                                    .grey[600]),
+                                                          )
+                                                        else
+                                                          Row(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .center,
+                                                            children: [
+                                                              Icon(
+                                                                  Icons
+                                                                      .pending_actions,
+                                                                  color: Colors
+                                                                          .blue[
+                                                                      800]),
+                                                              const SizedBox(
+                                                                  width: 12),
+                                                              Text(
+                                                                'Esperando confirmación del agente',
+                                                                style: TextStyle(
+                                                                    color: Colors
+                                                                            .blue[
+                                                                        800],
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold),
+                                                              ),
+                                                            ],
+                                                          ),
                                                       ],
                                                     ),
+                                                  ),
                                                 ],
                                               ),
                                             ),
-                                          ),
+                                          )
                                         ],
                                       ),
                                     ),
@@ -3302,7 +3418,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                             ),
                           ),
 
-                          // Botón "Comprobante de pago"
+                        // Botón "Comprobante de pago"
                         if (taskData?['state'] == 'Finalizada')
                           Padding(
                             padding: const EdgeInsets.only(top: 20.0),
@@ -3665,7 +3781,8 @@ class _ServiceTransactionReceiptScreenState
                       Center(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF08143C), // Color de fondo #08143c
+                            backgroundColor: const Color(
+                                0xFF08143C), // Color de fondo #08143c
                             padding: const EdgeInsets.symmetric(
                               vertical: 5,
                               horizontal: 30,
@@ -3777,13 +3894,15 @@ class _ServiceTransactionReceiptScreenState
 
   Route _createRoute() {
     return PageRouteBuilder(
-      pageBuilder: (context, animation, secondaryAnimation) => const HomePage(selectedIndex: 2),
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          const HomePage(selectedIndex: 2),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         const begin = Offset(-1.0, 0.0);
         const end = Offset.zero;
         const curve = Curves.easeInOut;
 
-        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        var tween =
+            Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
 
         return SlideTransition(
           position: animation.drive(tween),

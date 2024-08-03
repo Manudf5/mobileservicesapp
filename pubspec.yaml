@@ -59,7 +59,7 @@ dependencies:
   html: ^0.15.4
   one_context: ^4.0.0
   flutter_rating_bar: ^4.0.1
-  flutter_image_compress: ^2.3.0
+  binance_pay: ^0.0.3
   
 
   
