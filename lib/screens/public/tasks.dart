@@ -928,8 +928,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   final Set _selectedCards = {};
   final bool _pagoMovilSelected = false;
   bool _efectivoSelected = false;
-  bool _paypalSelected = false;
-  bool _zinliSelected = false;
+  final bool _paypalSelected = false;
+  final bool _zinliSelected = false;
   final bool _binanceSelected = false;
 
   // ignore: unused_field
@@ -1251,6 +1251,11 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
       return;
     }
 
+    _showPagoMovilDetails = false;
+    _showBinanceDetails = false;
+    _showCards = false;
+    _efectivoSelected = false;
+
     // Actualizar el método de pago en Firestore
     await FirebaseFirestore.instance
         .collection('tasks')
@@ -1475,6 +1480,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     });
     if (_showPagoMovilDetails) {
       _animationController?.forward();
+      _showBinanceDetails = false;
+      _showCards = false;
+      _efectivoSelected = false;
       // Actualizar el método de pago en Firestore
       FirebaseFirestore.instance
           .collection('tasks')
@@ -1562,6 +1570,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     if (_showBinanceDetails) {
       _animationController?.forward();
       _getBinancePayData();
+      _showPagoMovilDetails = false;
+      _showCards = false;
+      _efectivoSelected = false;
       // Actualizar el método de pago en Firestore
       FirebaseFirestore.instance
           .collection('tasks')
@@ -1707,6 +1718,16 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
       );
     }
   }
+
+  // Función para censurar el número de tarjeta
+String _censorCardNumber(String cardNumber) {
+  if (cardNumber.length < 6) {
+    return cardNumber; // Si el número es corto, no se censura
+  }
+  final firstTwoDigits = cardNumber.substring(0, 2);
+  final lastFourDigits = cardNumber.substring(cardNumber.length - 4);
+  return '$firstTwoDigits********$lastFourDigits';
+}
 
   @override
   Widget build(BuildContext context) {
@@ -2566,148 +2587,109 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                           ),
                                           const SizedBox(height: 15),
                                           if (_hasCards)
-                                            SizedBox(
-                                              width: double.infinity,
-                                              child: ElevatedButton(
-                                                onPressed: () {
-                                                  setState(() {
-                                                    _showCards = !_showCards;
-                                                  });
-                                                },
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: _showCards
-                                                      ? Colors.green[100]
-                                                      : Colors.white,
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      vertical: 12,
-                                                      horizontal: 15),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            10),
-                                                    side: BorderSide(
-                                                      color: _showCards
-                                                          ? const Color(
-                                                              0xFF1ca424)
-                                                          : const Color(
-                                                              0xFF08143C),
-                                                    ),
-                                                  ),
-                                                ),
-                                                child: Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment
-                                                          .spaceBetween,
-                                                  children: [
-                                                    const Text('Tarjetas'),
-                                                    Row(
-                                                      children: [
-                                                        Image.asset(
-                                                          'assets/images/VISA_Logo.png',
-                                                          height: 20,
-                                                        ),
-                                                        const SizedBox(
-                                                            width: 10),
-                                                        Image.asset(
-                                                          'assets/images/MasterCard_Logo.png',
-                                                          height: 20,
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          if (_showCards)
-                                            Container(
-                                              margin: const EdgeInsets.only(
-                                                  top: 10),
-                                              padding: const EdgeInsets.all(10),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                              child:
-                                                  FutureBuilder<QuerySnapshot>(
-                                                future: _cardsFuture,
-                                                builder:
-                                                    (context, cardsSnapshot) {
-                                                  if (cardsSnapshot
-                                                          .connectionState ==
-                                                      ConnectionState.waiting) {
-                                                    return const CircularProgressIndicator(
-                                                        color: Colors.green);
-                                                  }
-                                                  if (cardsSnapshot.hasError) {
-                                                    return Text(
-                                                        'Error: ${cardsSnapshot.error}');
-                                                  }
-                                                  if (!cardsSnapshot.hasData ||
-                                                      cardsSnapshot
-                                                          .data!.docs.isEmpty) {
-                                                    return const Text(
-                                                        'No hay tarjetas disponibles');
-                                                  }
+  SizedBox(
+    width: double.infinity,
+    child: ElevatedButton(
+      onPressed: () {
+        setState(() {
+          _showCards = !_showCards;
+        });
+        _showPagoMovilDetails = false;
+        _showBinanceDetails = false;
+        _efectivoSelected = false;
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _showCards ? Colors.green[100] : Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 15),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(
+            color: _showCards ? const Color(0xFF1ca424) : const Color(0xFF08143C),
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text('Tarjetas'),
+          Row(
+            children: [
+              Image.asset(
+                'assets/images/VISA_Logo.png',
+                height: 20,
+              ),
+              const SizedBox(width: 10),
+              Image.asset(
+                'assets/images/MasterCard_Logo.png',
+                height: 20,
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  ),
+if (_showCards)
+  Container(
+    margin: const EdgeInsets.only(top: 1),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: FutureBuilder<QuerySnapshot>(
+      future: _cardsFuture,
+      builder: (context, cardsSnapshot) {
+        if (cardsSnapshot.connectionState == ConnectionState.waiting) {
+          return const CircularProgressIndicator(color: Colors.green);
+        }
+        if (cardsSnapshot.hasError) {
+          return Text('Error: ${cardsSnapshot.error}');
+        }
+        if (!cardsSnapshot.hasData || cardsSnapshot.data!.docs.isEmpty) {
+          return const Text('No hay tarjetas disponibles');
+        }
 
-                                                  return Column(
-                                                    children: cardsSnapshot
-                                                        .data!.docs
-                                                        .map<Widget>((card) {
-                                                      final cardData =
-                                                          card.data() as Map<
-                                                              String, dynamic>;
-                                                      final cardNumber = cardData[
-                                                              'cardNumber'] ??
-                                                          '';
-                                                      final cardType = cardData[
-                                                              'cardType'] ??
-                                                          '';
-                                                      final imagePath = cardType ==
-                                                              'Visa'
-                                                          ? 'assets/images/VISA_Logo.png'
-                                                          : 'assets/images/MasterCard_Logo.png';
+        return Column(
+          children: cardsSnapshot.data!.docs.map<Widget>((card) {
+            final cardData = card.data() as Map<String, dynamic>;
+            final cardNumber = cardData['cardNumber'] ?? '';
+            final cardType = cardData['cardType'] ?? '';
+            final imagePath =
+                cardType == 'Visa' ? 'assets/images/VISA_Logo.png' : 'assets/images/MasterCard_Logo.png';
 
-                                                      return CheckboxListTile(
-                                                        title: Row(
-                                                          children: [
-                                                            Text(
-                                                              cardNumber,
-                                                              style:
-                                                                  const TextStyle(
-                                                                      fontSize:
-                                                                          13),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 10),
-                                                            Image.asset(
-                                                              imagePath,
-                                                              height: 20,
-                                                            ),
-                                                          ],
-                                                        ),
-                                                        value: _selectedCards
-                                                            .contains(card.id),
-                                                        onChanged:
-                                                            (bool? value) {
-                                                          setState(() {
-                                                            if (value == true) {
-                                                              _selectedCards
-                                                                  .add(card.id);
-                                                            } else {
-                                                              _selectedCards
-                                                                  .remove(
-                                                                      card.id);
-                                                            }
-                                                          });
-                                                        },
-                                                      );
-                                                    }).toList(),
-                                                  );
-                                                },
-                                              ),
-                                            ),
+            // Censurar el número de tarjeta
+            final censoredCardNumber = _censorCardNumber(cardNumber);
+
+            return CheckboxListTile(
+              title: Row(
+                children: [
+                  Text(
+                    censoredCardNumber, // Mostrar el número censurado
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(width: 10),
+                  Image.asset(
+                    imagePath,
+                    height: 20,
+                  ),
+                ],
+              ),
+              value: _selectedCards.contains(card.id),
+              onChanged: (bool? value) {
+                setState(() {
+                  if (value == true) {
+                    _selectedCards.add(card.id);
+                  } else {
+                    _selectedCards.remove(card.id);
+                  }
+                });
+              },
+            );
+          }).toList(),
+        );
+      },
+    ),
+  ),
                                           const SizedBox(height: 15),
                                           Row(
                                             children: [
@@ -2722,7 +2704,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                         color: Colors.black,
                                                         fontSize: 13),
                                                   ),
-                                                  onPressed: _togglePagoMovilDetails,
+                                                  onPressed:
+                                                      _togglePagoMovilDetails,
                                                   style:
                                                       ElevatedButton.styleFrom(
                                                     backgroundColor:
@@ -2763,6 +2746,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                       _efectivoSelected =
                                                           !_efectivoSelected;
                                                     });
+                                                    _showPagoMovilDetails = false;
+                                                    _showBinanceDetails = false;
+                                                    _showCards = false;
                                                   },
                                                   style:
                                                       ElevatedButton.styleFrom(
@@ -2805,15 +2791,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                             children: [
                                               Expanded(
                                                 child: ElevatedButton(
-                                                  onPressed: () {
-                                                    setState(() {
-                                                      _paypalSelected =
-                                                          !_paypalSelected;
-                                                    });
-                                                    if (_paypalSelected) {
-                                                      _handlePayPalPayment();
-                                                    }
-                                                  },
+                                                  onPressed: _handlePayPalPayment,
                                                   style:
                                                       ElevatedButton.styleFrom(
                                                     backgroundColor:
@@ -2834,13 +2812,55 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                       ),
                                                     ),
                                                     padding:
-                                                        const EdgeInsets.all(
-                                                            12.0),
+                                                        const EdgeInsets.only(
+                                                            bottom: 8),
                                                   ),
-                                                  child: SizedBox(
-                                                    height: 17,
-                                                    child: Image.asset(
-                                                        'assets/images/Paypal_Logo.png'),
+                                                  child: Column(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Container(
+                                                        width: 88,
+                                                        height: 13,
+                                                        alignment:
+                                                            Alignment.center,
+                                                        decoration:
+                                                            const BoxDecoration(
+                                                          color: Color(
+                                                                0xFF08143C),
+                                                          borderRadius:
+                                                              BorderRadius.only(
+                                                            topLeft:
+                                                                Radius.circular(
+                                                                    10), // Radio para la esquina superior izquierda
+                                                            topRight:
+                                                                Radius.circular(
+                                                                    10), // Radio para la esquina superior derecha
+                                                            bottomLeft: Radius
+                                                                .zero, // Sin radio para la esquina inferior izquierda
+                                                            bottomRight: Radius
+                                                                .zero, // Sin radio para la esquina inferior derecha
+                                                          ),
+                                                        ),
+                                                        child: const Text(
+                                                          'Rápido y directo',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 8,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 5,
+                                                      ),
+                                                      SizedBox(
+                                                        height: 15,
+                                                        child: Image.asset(
+                                                            'assets/images/Paypal_Logo.png'),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
                                               ),
@@ -2848,10 +2868,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                               Expanded(
                                                 child: ElevatedButton(
                                                   onPressed: () {
-                                                    setState(() {
-                                                      _zinliSelected =
-                                                          !_zinliSelected;
-                                                    });
+                                                    _showPagoMovilDetails = false;
+                                                    _showBinanceDetails = false;
+                                                    _showCards = false;
+                                                    _efectivoSelected = false;
                                                   },
                                                   style:
                                                       ElevatedButton.styleFrom(
@@ -2884,7 +2904,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                               const SizedBox(width: 10),
                                               Expanded(
                                                 child: ElevatedButton(
-                                                  onPressed: _toggleBinanceDetails,
+                                                  onPressed:
+                                                      _toggleBinanceDetails,
                                                   style:
                                                       ElevatedButton.styleFrom(
                                                     backgroundColor:
@@ -3146,7 +3167,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                           Row(
                                                             children: [
                                                               const Icon(
-                                                                  Icons.qr_code,
+                                                                  Icons
+                                                                      .qr_code_rounded,
                                                                   color: Color(
                                                                       0xFF08143c)),
                                                               const SizedBox(
@@ -3165,7 +3187,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                           Row(
                                                             children: [
                                                               const Icon(
-                                                                  Icons.email,
+                                                                  Icons
+                                                                      .email_rounded,
                                                                   color: Color(
                                                                       0xFF08143c)),
                                                               const SizedBox(
@@ -3184,7 +3207,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                           Row(
                                                             children: [
                                                               const Icon(
-                                                                  Icons.phone,
+                                                                  Icons
+                                                                      .local_phone_rounded,
                                                                   color: Color(
                                                                       0xFF08143c)),
                                                               const SizedBox(
