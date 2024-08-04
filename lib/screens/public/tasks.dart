@@ -930,7 +930,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   bool _efectivoSelected = false;
   bool _paypalSelected = false;
   bool _zinliSelected = false;
-  bool _binanceSelected = false;
+  final bool _binanceSelected = false;
 
   // ignore: unused_field
   late Future _initFuture;
@@ -940,8 +940,14 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   String clientIDString = "";
   String _chatID = '';
 
+  String? _supplierID;
+  Map<String, dynamic>? _mobilePaymentData;
+  Map<String, dynamic>? _binancePayData;
+
   double _bcvExchangeRate = 1.0;
   bool _showPagoMovilDetails = false;
+  bool _showBinanceDetails = false;
+
   File? _comprobante;
 
   String formatDateTime(Timestamp? dateTime) {
@@ -1122,11 +1128,16 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   Future _initializeData() async {
     await _getUserInfo();
     await _getWalletBalance();
-    _cardsFuture =
-        _getCardsData(); // Esto ahora devolverá Future<QuerySnapshot>
+    await _getSupplierID();
+    await _getMobilePaymentData();
+    _cardsFuture = _getCardsData();
     _hasCards = await _checkIfUserHasCards();
     _bcvExchangeRate = await getBCVExchangeRate();
     setState(() {});
+  }
+
+  Future<void> _getSupplierID() async {
+    _supplierID = widget.task.data()['supplierID'];
   }
 
   Future _getUserInfo() async {
@@ -1477,6 +1488,93 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
             .doc(widget.task.id)
             .update({
           'paymentMethods': FieldValue.arrayUnion(['Pago Móvil'])
+        });
+      });
+    } else {
+      _animationController?.reverse();
+    }
+  }
+
+  Future<void> _getMobilePaymentData() async {
+    if (_supplierID != null) {
+      try {
+        final walletDoc = await FirebaseFirestore.instance
+            .collection('wallets')
+            .doc(_supplierID)
+            .get();
+
+        if (walletDoc.exists) {
+          final mobilePaymentDoc = await FirebaseFirestore.instance
+              .collection('wallets')
+              .doc(_supplierID)
+              .collection('paymentMethods')
+              .doc('mobilePayment')
+              .get();
+
+          if (mobilePaymentDoc.exists) {
+            setState(() {
+              _mobilePaymentData = mobilePaymentDoc.data();
+            });
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error al obtener datos de pago móvil: $e');
+        }
+      }
+    }
+  }
+
+  Future<void> _getBinancePayData() async {
+    if (_supplierID != null) {
+      try {
+        final walletDoc = await FirebaseFirestore.instance
+            .collection('wallets')
+            .doc(_supplierID)
+            .get();
+
+        if (walletDoc.exists) {
+          final binancePayDoc = await FirebaseFirestore.instance
+              .collection('wallets')
+              .doc(_supplierID)
+              .collection('paymentMethods')
+              .doc('binancePay')
+              .get();
+
+          if (binancePayDoc.exists) {
+            setState(() {
+              _binancePayData = binancePayDoc.data();
+            });
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error al obtener datos de Binance Pay: $e');
+        }
+      }
+    }
+  }
+
+  void _toggleBinanceDetails() {
+    setState(() {
+      _showBinanceDetails = !_showBinanceDetails;
+    });
+    if (_showBinanceDetails) {
+      _animationController?.forward();
+      _getBinancePayData();
+      // Actualizar el método de pago en Firestore
+      FirebaseFirestore.instance
+          .collection('tasks')
+          .doc(widget.task.id)
+          .update({
+        'paymentMethods':
+            FieldValue.arrayRemove([widget.task.data()['paymentMethods'][1]])
+      }).then((_) {
+        FirebaseFirestore.instance
+            .collection('tasks')
+            .doc(widget.task.id)
+            .update({
+          'paymentMethods': FieldValue.arrayUnion(['Binance Pay'])
         });
       });
     } else {
@@ -2624,8 +2722,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                         color: Colors.black,
                                                         fontSize: 13),
                                                   ),
-                                                  onPressed:
-                                                      _togglePagoMovilDetails,
+                                                  onPressed: _togglePagoMovilDetails,
                                                   style:
                                                       ElevatedButton.styleFrom(
                                                     backgroundColor:
@@ -2787,12 +2884,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                               const SizedBox(width: 10),
                                               Expanded(
                                                 child: ElevatedButton(
-                                                  onPressed: () {
-                                                    setState(() {
-                                                      _binanceSelected =
-                                                          !_binanceSelected;
-                                                    });
-                                                  },
+                                                  onPressed: _toggleBinanceDetails,
                                                   style:
                                                       ElevatedButton.styleFrom(
                                                     backgroundColor:
@@ -2927,7 +3019,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                               const SizedBox(
                                                                   width: 10),
                                                               Text(
-                                                                'Banco: ${widget.supplierInfo?['mobilePayment'][0]['bank'] ?? 'N/A'}',
+                                                                'Banco: ${_mobilePaymentData?['bank'] ?? 'N/A'}',
                                                                 style:
                                                                     const TextStyle(
                                                                         fontSize:
@@ -2947,7 +3039,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                               const SizedBox(
                                                                   width: 10),
                                                               Text(
-                                                                'Cédula: ${widget.supplierInfo?['mobilePayment'][0]['identification'] ?? 'N/A'}',
+                                                                'Cédula: ${_mobilePaymentData?['identification'] ?? 'N/A'}',
                                                                 style:
                                                                     const TextStyle(
                                                                         fontSize:
@@ -2966,7 +3058,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                               const SizedBox(
                                                                   width: 10),
                                                               Text(
-                                                                'Teléfono: ${widget.supplierInfo?['mobilePayment'][0]['phone'] ?? 'N/A'}',
+                                                                'Teléfono: ${_mobilePaymentData?['phone'] ?? 'N/A'}',
                                                                 style:
                                                                     const TextStyle(
                                                                         fontSize:
@@ -2978,96 +3070,144 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                       ),
                                                     ),
                                                   ),
-                                                  const SizedBox(height: 20),
-                                                  Center(
-                                                    child: Column(
-                                                      children: [
-                                                        if (_comprobante ==
-                                                            null)
-                                                          ElevatedButton(
-                                                            onPressed:
-                                                                _pickImage,
-                                                            style:
-                                                                ElevatedButton
-                                                                    .styleFrom(
-                                                              backgroundColor:
-                                                                  const Color(
-                                                                      0xFF08143c),
-                                                              foregroundColor:
-                                                                  Colors.white,
-                                                            ),
-                                                            child: const Text(
-                                                                'Subir comprobante de pago'),
-                                                          )
-                                                        else ...[
-                                                          ClipRRect(
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        10),
-                                                            child: Image.file(
-                                                                _comprobante!),
-                                                          ),
-                                                          ElevatedButton(
-                                                            onPressed:
-                                                                _deleteComprobante,
-                                                            style:
-                                                                ElevatedButton
-                                                                    .styleFrom(
-                                                              backgroundColor:
-                                                                  const Color(
-                                                                      0xFF08143c),
-                                                              foregroundColor:
-                                                                  Colors.white,
-                                                            ),
-                                                            child: const Text(
-                                                                'Eliminar comprobante'),
-                                                          ),
-                                                        ],
-                                                        const SizedBox(
-                                                            height: 10),
-                                                        if (_comprobante ==
-                                                            null)
-                                                          Text(
-                                                            'Adjunte su comprobante para procesar el pago',
-                                                            style: TextStyle(
-                                                                fontSize: 12,
-                                                                color: Colors
-                                                                    .grey[600]),
-                                                          )
-                                                        else
-                                                          Row(
-                                                            mainAxisAlignment:
-                                                                MainAxisAlignment
-                                                                    .center,
-                                                            children: [
-                                                              Icon(
-                                                                  Icons
-                                                                      .pending_actions,
-                                                                  color: Colors
-                                                                          .blue[
-                                                                      800]),
-                                                              const SizedBox(
-                                                                  width: 12),
-                                                              Text(
-                                                                'Esperando confirmación del agente',
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                            .blue[
-                                                                        800],
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                      ],
-                                                    ),
-                                                  ),
+                                                  _buildComprobanteUploader(
+                                                      'Pago Móvil'),
                                                 ],
                                               ),
                                             ),
-                                          )
+                                          ),
+                                          AnimatedContainer(
+                                            duration: const Duration(
+                                                milliseconds: 500),
+                                            height:
+                                                _showBinanceDetails ? null : 0,
+                                            child: AnimatedOpacity(
+                                              duration: const Duration(
+                                                  milliseconds: 500),
+                                              opacity: _showBinanceDetails
+                                                  ? 1.0
+                                                  : 0.0,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const SizedBox(height: 20),
+                                                  Text(
+                                                    'Monto a pagar:',
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.blue[800],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Text(
+                                                    '${((taskData?['quotation']['totalAmountUSD'] as double) - _walletBalance).toStringAsFixed(2)} USDT',
+                                                    style: const TextStyle(
+                                                      fontSize: 24,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.green,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 20),
+                                                  Text(
+                                                    'Datos de Binance Pay:',
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.blue[800],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Card(
+                                                    elevation: 2,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              10),
+                                                      side: const BorderSide(
+                                                          color: Color(
+                                                              0xFF1ca424)),
+                                                    ),
+                                                    color: Colors.white,
+                                                    child: Padding(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              16.0),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Row(
+                                                            children: [
+                                                              const Icon(
+                                                                  Icons.qr_code,
+                                                                  color: Color(
+                                                                      0xFF08143c)),
+                                                              const SizedBox(
+                                                                  width: 10),
+                                                              Text(
+                                                                'Binance ID: ${_binancePayData?['binanceID'] ?? 'N/A'}',
+                                                                style:
+                                                                    const TextStyle(
+                                                                        fontSize:
+                                                                            16),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          const SizedBox(
+                                                              height: 10),
+                                                          Row(
+                                                            children: [
+                                                              const Icon(
+                                                                  Icons.email,
+                                                                  color: Color(
+                                                                      0xFF08143c)),
+                                                              const SizedBox(
+                                                                  width: 10),
+                                                              Text(
+                                                                'Email: ${_binancePayData?['email'] ?? 'N/A'}',
+                                                                style:
+                                                                    const TextStyle(
+                                                                        fontSize:
+                                                                            16),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          const SizedBox(
+                                                              height: 10),
+                                                          Row(
+                                                            children: [
+                                                              const Icon(
+                                                                  Icons.phone,
+                                                                  color: Color(
+                                                                      0xFF08143c)),
+                                                              const SizedBox(
+                                                                  width: 10),
+                                                              Text(
+                                                                'Teléfono: ${_binancePayData?['phone'] ?? 'N/A'}',
+                                                                style:
+                                                                    const TextStyle(
+                                                                        fontSize:
+                                                                            16),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  _buildComprobanteUploader(
+                                                      'Binance'),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -3496,6 +3636,64 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildComprobanteUploader(String paymentMethod) {
+    return Column(
+      children: [
+        const SizedBox(height: 20),
+        Center(
+          child: Column(
+            children: [
+              if (_comprobante == null)
+                ElevatedButton(
+                  onPressed: _pickImage,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF08143c),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Subir comprobante de pago'),
+                )
+              else ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.file(_comprobante!),
+                ),
+                ElevatedButton(
+                  onPressed: _deleteComprobante,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF08143c),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Eliminar comprobante'),
+                ),
+              ],
+              const SizedBox(height: 10),
+              if (_comprobante == null)
+                Text(
+                  'Adjunte su comprobante para procesar el pago',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                )
+              else
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.pending_actions, color: Colors.blue[800]),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Esperando confirmación del agente',
+                      style: TextStyle(
+                        color: Colors.blue[800],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
