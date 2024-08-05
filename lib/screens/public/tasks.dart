@@ -1264,6 +1264,114 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     super.dispose();
   }
 
+  void _handleWalletPayment() async {
+  final taskData = widget.task.data();
+  final quotation = taskData['quotation'] as Map<String, dynamic>;
+  final totalAmountUSD = quotation['totalAmountUSD'] as double;
+
+  if (_walletBalance >= totalAmountUSD) {
+    // Suficiente saldo
+    await _processWalletPayment(taskData, totalAmountUSD);
+  } else {
+    // Saldo insuficiente
+    OneContext().showSnackBar(
+      builder: (_) => const SnackBar(
+        content: Text('Saldo insuficiente. Por favor, use otros métodos de pago.'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
+
+Future<void> _processWalletPayment(Map<String, dynamic> taskData, double totalAmountUSD) async {
+  try {
+    // Crear transacción
+    final transactionData = {
+      'senderName': taskData['clientName'],
+      'senderId': taskData['clientID'],
+      'recipientName': taskData['supplierName'],
+      'recipientId': taskData['supplierID'],
+      'paymentType': 'Pago de servicio',
+      'date': FieldValue.serverTimestamp(),
+      'amount': totalAmountUSD,
+      'paymentMethod': {'Monedero': {'amount': totalAmountUSD}},
+      'taskId': widget.task.id,
+      'service': taskData['service'],
+    };
+
+    final transactionRef = await FirebaseFirestore.instance
+        .collection('transactions')
+        .add(transactionData);
+
+    // Actualizar task
+    await FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(widget.task.id)
+        .update({
+      'transactionID': transactionRef.id,
+      'state': 'Finalizada',
+    });
+
+    // Actualizar wallets
+    await FirebaseFirestore.instance
+        .collection('wallets')
+        .doc(clientIDString)
+        .update({'walletBalance': FieldValue.increment(-totalAmountUSD)});
+
+    await FirebaseFirestore.instance
+        .collection('wallets')
+        .doc(taskData['supplierID'])
+        .update({'walletBalance': FieldValue.increment(totalAmountUSD)});
+
+    // Mostrar snackbar
+    OneContext().showSnackBar(
+      builder: (_) => const SnackBar(
+        content: Text('Transacción aprobada'),
+        backgroundColor: Colors.green,
+      ),
+    );
+
+    // Navegar a la pantalla de recibo
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) => ServiceTransactionReceiptScreen(
+            paymentType: 'Pago de servicio',
+            date: DateTime.now(),
+            transactionId: transactionRef.id,
+            concept: taskData['service'],
+            recipientId: taskData['supplierID'],
+            recipientName: taskData['supplierName'],
+            amount: totalAmountUSD,
+            supplierProfileImageUrl: widget.supplier?.data()?['profileImageUrl'] ?? '',
+            supplierName: taskData['supplierName'],
+            supplierId: taskData['supplierID'],
+            taskId: widget.task.id,
+            onBackPressed: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => TaskDetailsScreen(
+                    task: widget.task,
+                    supplier: widget.supplier,
+                    supplierInfo: widget.supplierInfo,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    }
+  } catch (e) {
+    OneContext().showSnackBar(
+      builder: (_) => SnackBar(
+        content: Text('Error al procesar el pago: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
+
   void _handlePayPalPayment() async {
     final taskData = widget.task.data();
     final quotation = taskData['quotation'] as Map<String, dynamic>;
@@ -2605,7 +2713,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                             8),
                                                   ),
                                                   child: const Text(
-                                                    'Bs',
+                                                    'VES',
                                                     style: TextStyle(
                                                         fontSize: 16,
                                                         color: Colors.white,
@@ -2624,7 +2732,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                   ),
                                                 ),
                                                 Text(
-                                                  '${taskData?['quotation']['totalAmountBs'].toStringAsFixed(2)}',
+                                                  ((taskData?['quotation']['totalAmountUSD'] as double) * _bcvExchangeRate).toStringAsFixed(2),
                                                   style: const TextStyle(
                                                       fontSize: 16,
                                                       color: Colors.black),
@@ -2721,6 +2829,23 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                               ],
                                             ),
                                           ),
+                                          const SizedBox(height: 8),
+ElevatedButton.icon(
+  icon: const Icon(Icons.account_balance_wallet, color: Colors.black),
+  label: const Text(
+    'Monedero',
+    style: TextStyle(color: Colors.black, fontSize: 13),
+  ),
+  onPressed: _handleWalletPayment,
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.white,
+    minimumSize: const Size(double.infinity, 50), // para que ocupe todo el ancho
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+      side: const BorderSide(color: Color(0xFF08143C)),
+    ),
+  ),
+),
                                           const SizedBox(height: 8),
                                           const Text(
                                             'Si posee dinero en su monedero pero no es suficiente, se descontará por defecto de su saldo disponible y se permitirá cancelar el restante con cualquiera de los siguientes métodos:',
