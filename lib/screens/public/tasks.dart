@@ -931,6 +931,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   final bool _paypalSelected = false;
   final bool _zinliSelected = false;
   final bool _binanceSelected = false;
+  final bool _zelleSelected = false;
 
   // ignore: unused_field
   late Future _initFuture;
@@ -943,10 +944,18 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   String? _supplierID;
   Map<String, dynamic>? _mobilePaymentData;
   Map<String, dynamic>? _binancePayData;
+  Map<String, dynamic>? _zinliData;
+  Map<String, dynamic>? _zelleData;
 
   double _bcvExchangeRate = 1.0;
   bool _showPagoMovilDetails = false;
   bool _showBinanceDetails = false;
+  bool _showZinliDetails = false;
+  bool _showZelleDetails = false;
+
+  bool _hasZinli = false;
+  bool _hasBinance = false;
+  bool _hasZelle = false;
 
   File? _comprobante;
 
@@ -1130,6 +1139,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     await _getWalletBalance();
     await _getSupplierID();
     await _getMobilePaymentData();
+    await _checkPaymentMethods();
     _cardsFuture = _getCardsData();
     _hasCards = await _checkIfUserHasCards();
     _bcvExchangeRate = await getBCVExchangeRate();
@@ -1169,6 +1179,25 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
         setState(() {
           _walletBalance = walletData['walletBalance'] ?? 0.0;
         });
+      }
+    }
+  }
+
+  Future<void> _checkPaymentMethods() async {
+    if (_supplierID != null) {
+      final walletDoc = await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(_supplierID)
+          .get();
+
+      if (walletDoc.exists) {
+        final paymentMethodsCollection =
+            walletDoc.reference.collection('paymentMethods');
+
+        _hasZinli = (await paymentMethodsCollection.doc('zinli').get()).exists;
+        _hasBinance =
+            (await paymentMethodsCollection.doc('binancePay').get()).exists;
+        _hasZelle = (await paymentMethodsCollection.doc('zelle').get()).exists;
       }
     }
   }
@@ -1253,17 +1282,14 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
     _showPagoMovilDetails = false;
     _showBinanceDetails = false;
+    _showZinliDetails = false;
+    _showZelleDetails = false;
     _showCards = false;
     _efectivoSelected = false;
 
     // Actualizar el método de pago en Firestore
-    await FirebaseFirestore.instance
-        .collection('tasks')
-        .doc(widget.task.id)
-        .update({
-      'paymentMethods':
-          FieldValue.arrayRemove([widget.task.data()['paymentMethods'][1]])
-    });
+    _updatePaymentMethod('PayPal');
+
     await FirebaseFirestore.instance
         .collection('tasks')
         .doc(widget.task.id)
@@ -1481,23 +1507,13 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     if (_showPagoMovilDetails) {
       _animationController?.forward();
       _showBinanceDetails = false;
+      _showZinliDetails = false;
       _showCards = false;
       _efectivoSelected = false;
+      _showZelleDetails = false;
+
       // Actualizar el método de pago en Firestore
-      FirebaseFirestore.instance
-          .collection('tasks')
-          .doc(widget.task.id)
-          .update({
-        'paymentMethods':
-            FieldValue.arrayRemove([widget.task.data()['paymentMethods'][1]])
-      }).then((_) {
-        FirebaseFirestore.instance
-            .collection('tasks')
-            .doc(widget.task.id)
-            .update({
-          'paymentMethods': FieldValue.arrayUnion(['Pago Móvil'])
-        });
-      });
+      _updatePaymentMethod('Pago Móvil');
     } else {
       _animationController?.reverse();
     }
@@ -1573,23 +1589,140 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
       _showPagoMovilDetails = false;
       _showCards = false;
       _efectivoSelected = false;
+      _showZinliDetails = false;
+      _showZelleDetails = false;
+
       // Actualizar el método de pago en Firestore
-      FirebaseFirestore.instance
-          .collection('tasks')
-          .doc(widget.task.id)
-          .update({
-        'paymentMethods':
-            FieldValue.arrayRemove([widget.task.data()['paymentMethods'][1]])
-      }).then((_) {
-        FirebaseFirestore.instance
-            .collection('tasks')
-            .doc(widget.task.id)
-            .update({
-          'paymentMethods': FieldValue.arrayUnion(['Binance Pay'])
-        });
-      });
+      _updatePaymentMethod('Binance');
     } else {
       _animationController?.reverse();
+    }
+  }
+
+  Future<void> _getZinliData() async {
+    if (_supplierID != null) {
+      try {
+        final walletDoc = await FirebaseFirestore.instance
+            .collection('wallets')
+            .doc(_supplierID)
+            .get();
+
+        if (walletDoc.exists) {
+          final zinliDoc = await FirebaseFirestore.instance
+              .collection('wallets')
+              .doc(_supplierID)
+              .collection('paymentMethods')
+              .doc('zinli')
+              .get();
+
+          if (zinliDoc.exists) {
+            setState(() {
+              _zinliData = zinliDoc.data();
+            });
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error al obtener datos de Zinli: $e');
+        }
+      }
+    }
+  }
+
+  void _toggleZinliDetails() {
+    setState(() {
+      _showZinliDetails = !_showZinliDetails;
+    });
+    if (_showZinliDetails) {
+      _animationController?.forward();
+      _getZinliData();
+      _showPagoMovilDetails = false;
+      _showCards = false;
+      _efectivoSelected = false;
+      _showBinanceDetails = false;
+      _showZelleDetails = false;
+      // Actualizar el método de pago en Firestore
+      _updatePaymentMethod('Zinli');
+    } else {
+      _animationController?.reverse();
+    }
+  }
+
+  Future<void> _getZelleData() async {
+    if (_supplierID != null) {
+      try {
+        final walletDoc = await FirebaseFirestore.instance
+            .collection('wallets')
+            .doc(_supplierID)
+            .get();
+
+        if (walletDoc.exists) {
+          final zelleDoc = await FirebaseFirestore.instance
+              .collection('wallets')
+              .doc(_supplierID)
+              .collection('paymentMethods')
+              .doc('zelle')
+              .get();
+
+          if (zelleDoc.exists) {
+            setState(() {
+              _zelleData = zelleDoc.data();
+            });
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error al obtener datos de Zelle: $e');
+        }
+      }
+    }
+  }
+
+  void _toggleZelleDetails() {
+    setState(() {
+      _showZelleDetails = !_showZelleDetails;
+    });
+    if (_showZelleDetails) {
+      _animationController?.forward();
+      _getZelleData();
+      _showPagoMovilDetails = false;
+      _showCards = false;
+      _efectivoSelected = false;
+      _showBinanceDetails = false;
+      _showZinliDetails = false;
+      // Actualizar el método de pago en Firestore
+      _updatePaymentMethod('Zelle');
+    } else {
+      _animationController?.reverse();
+    }
+  }
+
+  Future<void> _updatePaymentMethod(String method) async {
+    try {
+      final taskDoc = await FirebaseFirestore.instance
+          .collection('tasks')
+          .doc(widget.task.id)
+          .get();
+
+      List<dynamic> currentMethods =
+          List.from(taskDoc.data()?['paymentMethods'] ?? []);
+
+      if (currentMethods.length > 1) {
+        currentMethods[1] = method;
+      } else if (currentMethods.length == 1) {
+        currentMethods.add(method);
+      } else {
+        currentMethods = ['', method];
+      }
+
+      await FirebaseFirestore.instance
+          .collection('tasks')
+          .doc(widget.task.id)
+          .update({'paymentMethods': currentMethods});
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al actualizar el método de pago: $e');
+      }
     }
   }
 
@@ -1611,15 +1744,19 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     try {
       final ref = FirebaseStorage.instance
           .ref()
-          .child('comprobantes')
+          .child('vouchers')
           .child('${widget.task.id}.jpg');
       await ref.putFile(_comprobante!);
       final url = await ref.getDownloadURL();
 
+      // Update the task document, including 'paymentReceived' field
       await FirebaseFirestore.instance
           .collection('tasks')
           .doc(widget.task.id)
-          .update({'comprobanteURL': url});
+          .update({
+        'voucherURL': url,
+        'paymentReceived': false // Set paymentReceived to false
+      });
 
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1637,14 +1774,18 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     try {
       final ref = FirebaseStorage.instance
           .ref()
-          .child('comprobantes')
+          .child('vouchers')
           .child('${widget.task.id}.jpg');
       await ref.delete();
 
+      // Update the task document, removing 'paymentReceived' field
       await FirebaseFirestore.instance
           .collection('tasks')
           .doc(widget.task.id)
-          .update({'comprobanteURL': FieldValue.delete()});
+          .update({
+        'voucherURL': FieldValue.delete(),
+        'paymentReceived': FieldValue.delete()
+      });
 
       setState(() {
         _comprobante = null;
@@ -1720,14 +1861,14 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   }
 
   // Función para censurar el número de tarjeta
-String _censorCardNumber(String cardNumber) {
-  if (cardNumber.length < 6) {
-    return cardNumber; // Si el número es corto, no se censura
+  String _censorCardNumber(String cardNumber) {
+    if (cardNumber.length < 6) {
+      return cardNumber; // Si el número es corto, no se censura
+    }
+    final firstTwoDigits = cardNumber.substring(0, 2);
+    final lastFourDigits = cardNumber.substring(cardNumber.length - 4);
+    return '$firstTwoDigits********$lastFourDigits';
   }
-  final firstTwoDigits = cardNumber.substring(0, 2);
-  final lastFourDigits = cardNumber.substring(cardNumber.length - 4);
-  return '$firstTwoDigits********$lastFourDigits';
-}
 
   @override
   Widget build(BuildContext context) {
@@ -2547,12 +2688,7 @@ String _censorCardNumber(String cardNumber) {
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                          const Text(
-                                            'Los pagos se realizan al finalizar el servicio',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                            ),
-                                          ),
+                                          
                                           const SizedBox(height: 15),
                                           Container(
                                             padding: const EdgeInsets.all(16),
@@ -2585,111 +2721,168 @@ String _censorCardNumber(String cardNumber) {
                                               ],
                                             ),
                                           ),
+                                          const SizedBox(height: 8),
+                                          const Text(
+                                            'Si posee dinero en su monedero pero no es suficiente, se descontará por defecto de su saldo disponible y se permitirá cancelar el restante con cualquiera de los siguientes métodos:',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                            ),
+                                          ),
                                           const SizedBox(height: 15),
                                           if (_hasCards)
-  SizedBox(
-    width: double.infinity,
-    child: ElevatedButton(
-      onPressed: () {
-        setState(() {
-          _showCards = !_showCards;
-        });
-        _showPagoMovilDetails = false;
-        _showBinanceDetails = false;
-        _efectivoSelected = false;
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: _showCards ? Colors.green[100] : Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 15),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(
-            color: _showCards ? const Color(0xFF1ca424) : const Color(0xFF08143C),
-          ),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const Text('Tarjetas'),
-          Row(
-            children: [
-              Image.asset(
-                'assets/images/VISA_Logo.png',
-                height: 20,
-              ),
-              const SizedBox(width: 10),
-              Image.asset(
-                'assets/images/MasterCard_Logo.png',
-                height: 20,
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  ),
-if (_showCards)
-  Container(
-    margin: const EdgeInsets.only(top: 1),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: FutureBuilder<QuerySnapshot>(
-      future: _cardsFuture,
-      builder: (context, cardsSnapshot) {
-        if (cardsSnapshot.connectionState == ConnectionState.waiting) {
-          return const CircularProgressIndicator(color: Colors.green);
-        }
-        if (cardsSnapshot.hasError) {
-          return Text('Error: ${cardsSnapshot.error}');
-        }
-        if (!cardsSnapshot.hasData || cardsSnapshot.data!.docs.isEmpty) {
-          return const Text('No hay tarjetas disponibles');
-        }
+                                            SizedBox(
+                                              width: double.infinity,
+                                              child: ElevatedButton(
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _showCards = !_showCards;
+                                                  });
+                                                  _showPagoMovilDetails = false;
+                                                  _showBinanceDetails = false;
+                                                  _efectivoSelected = false;
+                                                  _showZinliDetails = false;
+                                                  _showZelleDetails = false;
+                                                  _updatePaymentMethod(
+                                                      'VISA/Mastercard');
+                                                },
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: _showCards
+                                                      ? Colors.green[100]
+                                                      : Colors.white,
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      vertical: 12,
+                                                      horizontal: 15),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10),
+                                                    side: BorderSide(
+                                                      color: _showCards
+                                                          ? const Color(
+                                                              0xFF1ca424)
+                                                          : const Color(
+                                                              0xFF08143C),
+                                                    ),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  children: [
+                                                    const Text('Tarjetas'),
+                                                    Row(
+                                                      children: [
+                                                        Image.asset(
+                                                          'assets/images/VISA_Logo.png',
+                                                          height: 20,
+                                                        ),
+                                                        const SizedBox(
+                                                            width: 10),
+                                                        Image.asset(
+                                                          'assets/images/MasterCard_Logo.png',
+                                                          height: 20,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          if (_showCards)
+                                            Container(
+                                              margin:
+                                                  const EdgeInsets.only(top: 1),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child:
+                                                  FutureBuilder<QuerySnapshot>(
+                                                future: _cardsFuture,
+                                                builder:
+                                                    (context, cardsSnapshot) {
+                                                  if (cardsSnapshot
+                                                          .connectionState ==
+                                                      ConnectionState.waiting) {
+                                                    return const CircularProgressIndicator(
+                                                        color: Colors.green);
+                                                  }
+                                                  if (cardsSnapshot.hasError) {
+                                                    return Text(
+                                                        'Error: ${cardsSnapshot.error}');
+                                                  }
+                                                  if (!cardsSnapshot.hasData ||
+                                                      cardsSnapshot
+                                                          .data!.docs.isEmpty) {
+                                                    return const Text(
+                                                        'No hay tarjetas disponibles');
+                                                  }
 
-        return Column(
-          children: cardsSnapshot.data!.docs.map<Widget>((card) {
-            final cardData = card.data() as Map<String, dynamic>;
-            final cardNumber = cardData['cardNumber'] ?? '';
-            final cardType = cardData['cardType'] ?? '';
-            final imagePath =
-                cardType == 'Visa' ? 'assets/images/VISA_Logo.png' : 'assets/images/MasterCard_Logo.png';
+                                                  return Column(
+                                                    children: cardsSnapshot
+                                                        .data!.docs
+                                                        .map<Widget>((card) {
+                                                      final cardData =
+                                                          card.data() as Map<
+                                                              String, dynamic>;
+                                                      final cardNumber = cardData[
+                                                              'cardNumber'] ??
+                                                          '';
+                                                      final cardType = cardData[
+                                                              'cardType'] ??
+                                                          '';
+                                                      final imagePath = cardType ==
+                                                              'Visa'
+                                                          ? 'assets/images/VISA_Logo.png'
+                                                          : 'assets/images/MasterCard_Logo.png';
 
-            // Censurar el número de tarjeta
-            final censoredCardNumber = _censorCardNumber(cardNumber);
+                                                      // Censurar el número de tarjeta
+                                                      final censoredCardNumber =
+                                                          _censorCardNumber(
+                                                              cardNumber);
 
-            return CheckboxListTile(
-              title: Row(
-                children: [
-                  Text(
-                    censoredCardNumber, // Mostrar el número censurado
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  const SizedBox(width: 10),
-                  Image.asset(
-                    imagePath,
-                    height: 20,
-                  ),
-                ],
-              ),
-              value: _selectedCards.contains(card.id),
-              onChanged: (bool? value) {
-                setState(() {
-                  if (value == true) {
-                    _selectedCards.add(card.id);
-                  } else {
-                    _selectedCards.remove(card.id);
-                  }
-                });
-              },
-            );
-          }).toList(),
-        );
-      },
-    ),
-  ),
+                                                      return CheckboxListTile(
+                                                        title: Row(
+                                                          children: [
+                                                            Text(
+                                                              censoredCardNumber, // Mostrar el número censurado
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          13),
+                                                            ),
+                                                            const SizedBox(
+                                                                width: 10),
+                                                            Image.asset(
+                                                              imagePath,
+                                                              height: 20,
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        value: _selectedCards
+                                                            .contains(card.id),
+                                                        onChanged:
+                                                            (bool? value) {
+                                                          setState(() {
+                                                            if (value == true) {
+                                                              _selectedCards
+                                                                  .add(card.id);
+                                                            } else {
+                                                              _selectedCards
+                                                                  .remove(
+                                                                      card.id);
+                                                            }
+                                                          });
+                                                        },
+                                                      );
+                                                    }).toList(),
+                                                  );
+                                                },
+                                              ),
+                                            ),
                                           const SizedBox(height: 15),
                                           Row(
                                             children: [
@@ -2746,9 +2939,14 @@ if (_showCards)
                                                       _efectivoSelected =
                                                           !_efectivoSelected;
                                                     });
-                                                    _showPagoMovilDetails = false;
+                                                    _showPagoMovilDetails =
+                                                        false;
                                                     _showBinanceDetails = false;
                                                     _showCards = false;
+                                                    _showZinliDetails = false;
+                                                    _showZelleDetails = false;
+                                                    _updatePaymentMethod(
+                                                        'Efectivo');
                                                   },
                                                   style:
                                                       ElevatedButton.styleFrom(
@@ -2787,158 +2985,8 @@ if (_showCards)
                                               ),
                                             ),
                                           const SizedBox(height: 15),
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: ElevatedButton(
-                                                  onPressed: _handlePayPalPayment,
-                                                  style:
-                                                      ElevatedButton.styleFrom(
-                                                    backgroundColor:
-                                                        _paypalSelected
-                                                            ? Colors.green[100]
-                                                            : Colors.white,
-                                                    shape:
-                                                        RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              10),
-                                                      side: BorderSide(
-                                                        color: _paypalSelected
-                                                            ? const Color(
-                                                                0xFF1ca424)
-                                                            : const Color(
-                                                                0xFF08143C),
-                                                      ),
-                                                    ),
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            bottom: 8),
-                                                  ),
-                                                  child: Column(
-                                                    mainAxisSize:
-                                                        MainAxisSize.min,
-                                                    children: [
-                                                      Container(
-                                                        width: 88,
-                                                        height: 13,
-                                                        alignment:
-                                                            Alignment.center,
-                                                        decoration:
-                                                            const BoxDecoration(
-                                                          color: Color(
-                                                                0xFF08143C),
-                                                          borderRadius:
-                                                              BorderRadius.only(
-                                                            topLeft:
-                                                                Radius.circular(
-                                                                    10), // Radio para la esquina superior izquierda
-                                                            topRight:
-                                                                Radius.circular(
-                                                                    10), // Radio para la esquina superior derecha
-                                                            bottomLeft: Radius
-                                                                .zero, // Sin radio para la esquina inferior izquierda
-                                                            bottomRight: Radius
-                                                                .zero, // Sin radio para la esquina inferior derecha
-                                                          ),
-                                                        ),
-                                                        child: const Text(
-                                                          'Rápido y directo',
-                                                          style: TextStyle(
-                                                            color: Colors.white,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            fontSize: 8,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      const SizedBox(
-                                                        height: 5,
-                                                      ),
-                                                      SizedBox(
-                                                        height: 15,
-                                                        child: Image.asset(
-                                                            'assets/images/Paypal_Logo.png'),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 10),
-                                              Expanded(
-                                                child: ElevatedButton(
-                                                  onPressed: () {
-                                                    _showPagoMovilDetails = false;
-                                                    _showBinanceDetails = false;
-                                                    _showCards = false;
-                                                    _efectivoSelected = false;
-                                                  },
-                                                  style:
-                                                      ElevatedButton.styleFrom(
-                                                    backgroundColor:
-                                                        _zinliSelected
-                                                            ? Colors.green[100]
-                                                            : Colors.white,
-                                                    shape:
-                                                        RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              10),
-                                                      side: BorderSide(
-                                                        color: _zinliSelected
-                                                            ? const Color(
-                                                                0xFF1ca424)
-                                                            : const Color(
-                                                                0xFF08143C),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  child: FittedBox(
-                                                    child: Image.asset(
-                                                      'assets/images/Zinli_Logo.png',
-                                                      height: 40,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 10),
-                                              Expanded(
-                                                child: ElevatedButton(
-                                                  onPressed:
-                                                      _toggleBinanceDetails,
-                                                  style:
-                                                      ElevatedButton.styleFrom(
-                                                    backgroundColor:
-                                                        _binanceSelected
-                                                            ? Colors.green[100]
-                                                            : Colors.white,
-                                                    shape:
-                                                        RoundedRectangleBorder(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              10),
-                                                      side: BorderSide(
-                                                        color: _binanceSelected
-                                                            ? const Color(
-                                                                0xFF1ca424)
-                                                            : const Color(
-                                                                0xFF08143C),
-                                                      ),
-                                                    ),
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                            11.0),
-                                                  ),
-                                                  child: FittedBox(
-                                                    child: Image.asset(
-                                                      'assets/images/Binance_Logo.png',
-                                                      height: 50,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                          _buildPaymentButtons(),
+                                          const SizedBox(height: 15),
                                           AnimatedContainer(
                                             duration: const Duration(
                                                 milliseconds: 500),
@@ -3228,6 +3276,236 @@ if (_showCards)
                                                   ),
                                                   _buildComprobanteUploader(
                                                       'Binance'),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          AnimatedContainer(
+                                            duration: const Duration(
+                                                milliseconds: 500),
+                                            height:
+                                                _showZinliDetails ? null : 0,
+                                            child: AnimatedOpacity(
+                                              duration: const Duration(
+                                                  milliseconds: 500),
+                                              opacity:
+                                                  _showZinliDetails ? 1.0 : 0.0,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const SizedBox(height: 20),
+                                                  Text(
+                                                    'Monto a pagar:',
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.blue[800],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Row(
+                                                    children: [
+                                                      const Icon(
+                                                        Icons.attach_money,
+                                                        color: Colors.green,
+                                                        size:
+                                                            26, // Ajusta el tamaño del ícono según tus necesidades
+                                                      ),
+                                                      Text(
+                                                        ((taskData?['quotation']
+                                                                        [
+                                                                        'totalAmountUSD']
+                                                                    as double) -
+                                                                _walletBalance)
+                                                            .toStringAsFixed(2),
+                                                        style: const TextStyle(
+                                                          fontSize: 24,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Colors.green,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 20),
+                                                  Text(
+                                                    'Datos de Zinli:',
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.blue[800],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Card(
+                                                    elevation: 2,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              10),
+                                                      side: const BorderSide(
+                                                          color: Color(
+                                                              0xFF1ca424)),
+                                                    ),
+                                                    color: Colors.white,
+                                                    child: Padding(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              16.0),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Row(
+                                                            children: [
+                                                              const Icon(
+                                                                  Icons
+                                                                      .email_rounded,
+                                                                  color: Color(
+                                                                      0xFF08143c)),
+                                                              const SizedBox(
+                                                                  width: 10),
+                                                              Text(
+                                                                'Email: ${_zinliData?['email'] ?? 'N/A'}',
+                                                                style:
+                                                                    const TextStyle(
+                                                                        fontSize:
+                                                                            16),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          const SizedBox(
+                                                              height: 10),
+                                                          Row(
+                                                            children: [
+                                                              const Icon(
+                                                                  Icons
+                                                                      .local_phone_rounded,
+                                                                  color: Color(
+                                                                      0xFF08143c)),
+                                                              const SizedBox(
+                                                                  width: 10),
+                                                              Text(
+                                                                'Teléfono: ${_zinliData?['phone'] ?? 'N/A'}',
+                                                                style:
+                                                                    const TextStyle(
+                                                                        fontSize:
+                                                                            16),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  _buildComprobanteUploader(
+                                                      'Zinli'),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          AnimatedContainer(
+                                            duration: const Duration(
+                                                milliseconds: 500),
+                                            height:
+                                                _showZelleDetails ? null : 0,
+                                            child: AnimatedOpacity(
+                                              duration: const Duration(
+                                                  milliseconds: 500),
+                                              opacity:
+                                                  _showZelleDetails ? 1.0 : 0.0,
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const SizedBox(height: 20),
+                                                  Text(
+                                                    'Monto a pagar:',
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.blue[800],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Row(
+                                                    children: [
+                                                      const Icon(
+                                                        Icons.attach_money,
+                                                        color: Colors.green,
+                                                        size:
+                                                            26, // Ajusta el tamaño del ícono según tus necesidades
+                                                      ),
+                                                      Text(
+                                                        ((taskData?['quotation']
+                                                                        [
+                                                                        'totalAmountUSD']
+                                                                    as double) -
+                                                                _walletBalance)
+                                                            .toStringAsFixed(2),
+                                                        style: const TextStyle(
+                                                          fontSize: 24,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Colors.green,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 20),
+                                                  Text(
+                                                    'Datos de Zelle:',
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.blue[800],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 10),
+                                                  Card(
+                                                    elevation: 2,
+                                                    shape:
+                                                        RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              10),
+                                                      side: const BorderSide(
+                                                          color: Color(
+                                                              0xFF1ca424)),
+                                                    ),
+                                                    color: Colors.white,
+                                                    child: Padding(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                              16.0),
+                                                      child: Row(
+                                                        children: [
+                                                          const Icon(
+                                                              Icons.email,
+                                                              color: Color(
+                                                                  0xFF08143c)),
+                                                          const SizedBox(
+                                                              width: 10),
+                                                          Text(
+                                                            'Email: ${_zelleData?['email'] ?? 'N/A'}',
+                                                            style:
+                                                                const TextStyle(
+                                                                    fontSize:
+                                                                        16),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  _buildComprobanteUploader(
+                                                      'Zelle'),
                                                 ],
                                               ),
                                             ),
@@ -3720,6 +3998,109 @@ if (_showCards)
       ],
     );
   }
+
+  Widget _buildPaymentButtons() {
+  return SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      children: [
+        _buildPaymentButton(
+          onPressed: _handlePayPalPayment,
+          selected: _paypalSelected,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: double.infinity, // Ensures the container takes all available width
+                height: 20,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF08143C),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(10),
+                    topRight: Radius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  'Rápido y directo',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 1),
+              SizedBox(
+                height: 30,
+                width: 70,
+                child: Image.asset('assets/images/Paypal_Logo.png'),
+              ),
+            ],
+          ),
+        ),
+        if (_hasZelle)
+          _buildPaymentButton(
+            onPressed: _toggleZelleDetails,
+            selected: _zelleSelected,
+            child: Image.asset(
+              'assets/images/Zelle_Logo.png',
+              height: 25,
+              width: 50,
+            ),
+          ),
+        if (_hasBinance)
+          _buildPaymentButton(
+            onPressed: _toggleBinanceDetails,
+            selected: _binanceSelected,
+            child: Image.asset(
+              'assets/images/Binance_LogoNew.png',
+              height: 40,
+              width: 50,
+            ),
+          ),
+        if (_hasZinli)
+          _buildPaymentButton(
+            onPressed: _toggleZinliDetails,
+            selected: _zinliSelected,
+            child: Image.asset(
+              'assets/images/Zinli_Logo.png',
+              height: 25,
+              width: 50,
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+Widget _buildPaymentButton({
+  required VoidCallback onPressed,
+  required bool selected,
+  required Widget child,
+}) {
+  return Padding(
+    padding: const EdgeInsets.only(right: 7),
+    child: ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        padding: EdgeInsets.zero, // Removes internal padding
+        backgroundColor: selected ? Colors.green[100] : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(
+            color: selected ? const Color(0xFF1ca424) : const Color(0xFF08143C),
+          ),
+        ),
+        minimumSize: const Size(90, 50),
+      ),
+      child: SizedBox(
+        width: 110, // Sets the width of the child container to match the button's minimum size
+        child: child,
+      ),
+    ),
+  );
+}
 }
 
 Icon getColoredIcon(String state) {
