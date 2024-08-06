@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -917,7 +916,6 @@ class TaskDetailsScreen extends StatefulWidget {
 
 class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     with SingleTickerProviderStateMixin {
-  StreamSubscription<DocumentSnapshot>? _paymentReceivedSubscription;
   bool _showProfileImage = false;
   String? _selectedReason;
   final TextEditingController _otherReasonController = TextEditingController();
@@ -926,8 +924,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   AnimationController? _animationController;
   Timer? _timer;
   DateTime? _startTime;
-  bool _showCards = false;
-  final Set _selectedCards = {};
   final bool _pagoMovilSelected = false;
   bool _efectivoSelected = false;
   final bool _paypalSelected = false;
@@ -937,8 +933,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
   // ignore: unused_field
   late Future _initFuture;
-  late Future<QuerySnapshot> _cardsFuture;
-  bool _hasCards = false;
   double _walletBalance = 0.0;
   String clientIDString = "";
   String _chatID = '';
@@ -1142,8 +1136,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     await _getSupplierID();
     await _getMobilePaymentData();
     await _checkPaymentMethods();
-    _cardsFuture = _getCardsData();
-    _hasCards = await _checkIfUserHasCards();
     _bcvExchangeRate = await getBCVExchangeRate();
     setState(() {});
   }
@@ -1204,19 +1196,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     }
   }
 
-  Future<QuerySnapshot> _getCardsData() {
-    return FirebaseFirestore.instance
-        .collection('wallets')
-        .doc(clientIDString)
-        .collection('cards')
-        .get();
-  }
-
-  Future<bool> _checkIfUserHasCards() async {
-    final cardsSnapshot = await _getCardsData();
-    return cardsSnapshot.docs.isNotEmpty;
-  }
-
   void _initializeStartTime() {
     final taskData = widget.task.data();
     if (taskData['state'] == 'En proceso') {
@@ -1256,63 +1235,84 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
         .collection('tasks')
         .doc(widget.task.id)
         .snapshots();
-
-    _listenForPaymentReceived();
   }
 
   @override
   void dispose() {
-    _paymentReceivedSubscription?.cancel();
     _timer?.cancel();
     _animationController?.dispose();
     _messageController.dispose();
     super.dispose();
   }
 
-  void _listenForPaymentReceived() {
-    _paymentReceivedSubscription = FirebaseFirestore.instance
-        .collection('tasks')
-        .doc(widget.task.id)
-        .snapshots()
-        .listen((snapshot) async {
-      if (snapshot.data()?['paymentReceived'] == true) {
-        await _handlePaymentReceived(snapshot);
-      }
-    });
-  }
+  void _handleWalletPayment() async {
+  final taskData = widget.task.data();
+  final quotation = taskData['quotation'] as Map<String, dynamic>;
+  final totalAmountUSD = quotation['totalAmountUSD'] as double;
 
-  Future<void> _handlePaymentReceived(DocumentSnapshot snapshot) async {
-    // Cancelar la suscripción para evitar múltiples ejecuciones
-    await _paymentReceivedSubscription?.cancel();
-
-    // 0. Eliminar el campo paymentReceived
-    await FirebaseFirestore.instance
-        .collection('tasks')
-        .doc(widget.task.id)
-        .update({'paymentReceived': FieldValue.delete()});
-
-    // 1. Mostrar snackbar
+  if (_walletBalance >= totalAmountUSD) {
+    // Suficiente saldo
+    await _processWalletPayment(taskData, totalAmountUSD);
+  } else {
+    // Saldo insuficiente
     OneContext().showSnackBar(
       builder: (_) => const SnackBar(
-        content: Text('Muchas gracias por usar nuestros servicios'),
-        backgroundColor: Colors.green,
+        content: Text('Saldo insuficiente. Por favor, use otros métodos de pago.'),
+        backgroundColor: Colors.red,
       ),
     );
+  }
+}
 
-    // 2. Guardar la transacción
-    final taskData = snapshot.data() as Map<String, dynamic>;
-    final transactionData = await _createTransactionDataPMZZB(taskData);
+Future<void> _processWalletPayment(Map<String, dynamic> taskData, double totalAmountUSD) async {
+  try {
+    // Crear transacción
+    final transactionData = {
+      'senderName': taskData['clientName'],
+      'senderId': taskData['clientID'],
+      'recipientName': taskData['supplierName'],
+      'recipientId': taskData['supplierID'],
+      'paymentType': 'Pago de servicio',
+      'date': FieldValue.serverTimestamp(),
+      'amount': totalAmountUSD,
+      'paymentMethod': {'Monedero': {'amount': totalAmountUSD}},
+      'taskId': widget.task.id,
+      'service': taskData['service'],
+    };
+
     final transactionRef = await FirebaseFirestore.instance
         .collection('transactions')
         .add(transactionData);
 
-    // Guardar el ID de la transacción en el documento de tasks
+    // Actualizar task
     await FirebaseFirestore.instance
         .collection('tasks')
         .doc(widget.task.id)
-        .update({'transactionID': transactionRef.id});
+        .update({
+      'transactionID': transactionRef.id,
+      'state': 'Finalizada',
+    });
 
-    // 3. Mostrar ServiceTransactionReceiptScreen
+    // Actualizar wallets
+    await FirebaseFirestore.instance
+        .collection('wallets')
+        .doc(clientIDString)
+        .update({'walletBalance': FieldValue.increment(-totalAmountUSD)});
+
+    await FirebaseFirestore.instance
+        .collection('wallets')
+        .doc(taskData['supplierID'])
+        .update({'walletBalance': FieldValue.increment(totalAmountUSD)});
+
+    // Mostrar snackbar
+    OneContext().showSnackBar(
+      builder: (_) => const SnackBar(
+        content: Text('Transacción aprobada'),
+        backgroundColor: Colors.green,
+      ),
+    );
+
+    // Navegar a la pantalla de recibo
     if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -1323,9 +1323,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
             concept: taskData['service'],
             recipientId: taskData['supplierID'],
             recipientName: taskData['supplierName'],
-            amount: taskData['quotation']['totalAmountUSD'],
-            supplierProfileImageUrl:
-                widget.supplier?.data()?['profileImageUrl'] ?? '',
+            amount: totalAmountUSD,
+            supplierProfileImageUrl: widget.supplier?.data()?['profileImageUrl'] ?? '',
             supplierName: taskData['supplierName'],
             supplierId: taskData['supplierID'],
             taskId: widget.task.id,
@@ -1344,180 +1343,15 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
         ),
       );
     }
-
-    // 4. Actualizar wallets y chat
-    await _updateWalletsAndChat(taskData);
+  } catch (e) {
+    OneContext().showSnackBar(
+      builder: (_) => SnackBar(
+        content: Text('Error al procesar el pago: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
-
-  Future<Map<String, dynamic>> _createTransactionDataPMZZB(
-      Map<String, dynamic> taskData) async {
-    final quotation = taskData['quotation'] as Map<String, dynamic>;
-    final totalAmountUSD = quotation['totalAmountUSD'] as double;
-    final amountPaidWithWallet = min(_walletBalance, totalAmountUSD);
-    final amountPaidWithOtherMethod = totalAmountUSD - amountPaidWithWallet;
-
-    return {
-      'senderName': taskData['clientName'],
-      'senderId': taskData['clientID'],
-      'recipientName': taskData['supplierName'],
-      'recipientId': taskData['supplierID'],
-      'paymentType': 'Pago de servicio',
-      'date': FieldValue.serverTimestamp(),
-      'amount': totalAmountUSD,
-      'paymentMethod': {
-        if (amountPaidWithWallet > 0)
-          'Monedero': {'amount': amountPaidWithWallet},
-        if (amountPaidWithOtherMethod > 0)
-          taskData['paymentMethods'][1]: {'amount': amountPaidWithOtherMethod},
-      },
-      'taskId': widget.task.id,
-      'service': taskData['service'],
-    };
-  }
-
-  Future<void> _updateWalletsAndChat(Map<String, dynamic> taskData) async {
-    final quotation = taskData['quotation'] as Map<String, dynamic>;
-    final totalAmountUSD = quotation['totalAmountUSD'] as double;
-    final amountPaidWithWallet = min(_walletBalance, totalAmountUSD);
-
-    if (amountPaidWithWallet > 0) {
-      await FirebaseFirestore.instance
-          .collection('wallets')
-          .doc(clientIDString)
-          .update(
-              {'walletBalance': FieldValue.increment(-amountPaidWithWallet)});
-
-      await FirebaseFirestore.instance
-          .collection('wallets')
-          .doc(taskData['supplierID'])
-          .update(
-              {'walletBalance': FieldValue.increment(amountPaidWithWallet)});
-    }
-
-    final chatId = '${taskData['clientID']}_${taskData['supplierID']}';
-    await FirebaseFirestore.instance
-        .collection('chats')
-        .doc(chatId)
-        .update({'talk': false});
-
-    await FirebaseFirestore.instance
-        .collection('tasks')
-        .doc(widget.task.id)
-        .update({'state': 'Finalizada'});
-  }
-
-  void _handleWalletPayment() async {
-    final taskData = widget.task.data();
-    final quotation = taskData['quotation'] as Map<String, dynamic>;
-    final totalAmountUSD = quotation['totalAmountUSD'] as double;
-
-    if (_walletBalance >= totalAmountUSD) {
-      // Suficiente saldo
-      await _processWalletPayment(taskData, totalAmountUSD);
-    } else {
-      // Saldo insuficiente
-      OneContext().showSnackBar(
-        builder: (_) => const SnackBar(
-          content:
-              Text('Saldo insuficiente. Por favor, use otros métodos de pago.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> _processWalletPayment(
-      Map<String, dynamic> taskData, double totalAmountUSD) async {
-    try {
-      // Crear transacción
-      final transactionData = {
-        'senderName': taskData['clientName'],
-        'senderId': taskData['clientID'],
-        'recipientName': taskData['supplierName'],
-        'recipientId': taskData['supplierID'],
-        'paymentType': 'Pago de servicio',
-        'date': FieldValue.serverTimestamp(),
-        'amount': totalAmountUSD,
-        'paymentMethod': {
-          'Monedero': {'amount': totalAmountUSD}
-        },
-        'taskId': widget.task.id,
-        'service': taskData['service'],
-      };
-
-      final transactionRef = await FirebaseFirestore.instance
-          .collection('transactions')
-          .add(transactionData);
-
-      // Actualizar task
-      await FirebaseFirestore.instance
-          .collection('tasks')
-          .doc(widget.task.id)
-          .update({
-        'transactionID': transactionRef.id,
-        'state': 'Finalizada',
-      });
-
-      // Actualizar wallets
-      await FirebaseFirestore.instance
-          .collection('wallets')
-          .doc(clientIDString)
-          .update({'walletBalance': FieldValue.increment(-totalAmountUSD)});
-
-      await FirebaseFirestore.instance
-          .collection('wallets')
-          .doc(taskData['supplierID'])
-          .update({'walletBalance': FieldValue.increment(totalAmountUSD)});
-
-      // Mostrar snackbar
-      OneContext().showSnackBar(
-        builder: (_) => const SnackBar(
-          content: Text('Transacción aprobada'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // Navegar a la pantalla de recibo
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => ServiceTransactionReceiptScreen(
-              paymentType: 'Pago de servicio',
-              date: DateTime.now(),
-              transactionId: transactionRef.id,
-              concept: taskData['service'],
-              recipientId: taskData['supplierID'],
-              recipientName: taskData['supplierName'],
-              amount: totalAmountUSD,
-              supplierProfileImageUrl:
-                  widget.supplier?.data()?['profileImageUrl'] ?? '',
-              supplierName: taskData['supplierName'],
-              supplierId: taskData['supplierID'],
-              taskId: widget.task.id,
-              onBackPressed: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (context) => TaskDetailsScreen(
-                      task: widget.task,
-                      supplier: widget.supplier,
-                      supplierInfo: widget.supplierInfo,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      OneContext().showSnackBar(
-        builder: (_) => SnackBar(
-          content: Text('Error al procesar el pago: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
+}
 
   void _handlePayPalPayment() async {
     final taskData = widget.task.data();
@@ -1539,7 +1373,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     _showBinanceDetails = false;
     _showZinliDetails = false;
     _showZelleDetails = false;
-    _showCards = false;
     _efectivoSelected = false;
 
     // Actualizar el método de pago en Firestore
@@ -1763,7 +1596,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
       _animationController?.forward();
       _showBinanceDetails = false;
       _showZinliDetails = false;
-      _showCards = false;
       _efectivoSelected = false;
       _showZelleDetails = false;
 
@@ -1842,7 +1674,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
       _animationController?.forward();
       _getBinancePayData();
       _showPagoMovilDetails = false;
-      _showCards = false;
       _efectivoSelected = false;
       _showZinliDetails = false;
       _showZelleDetails = false;
@@ -1892,7 +1723,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
       _animationController?.forward();
       _getZinliData();
       _showPagoMovilDetails = false;
-      _showCards = false;
       _efectivoSelected = false;
       _showBinanceDetails = false;
       _showZelleDetails = false;
@@ -1941,7 +1771,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
       _animationController?.forward();
       _getZelleData();
       _showPagoMovilDetails = false;
-      _showCards = false;
       _efectivoSelected = false;
       _showBinanceDetails = false;
       _showZinliDetails = false;
@@ -2065,8 +1894,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     if (transactionID == null) {
       OneContext().showSnackBar(
         builder: (_) => const SnackBar(
-            content: Text(
-                'No se encontró el ID de la transacción, intente de nuevo más tarde')),
+            content: Text('No se encontró el ID de la transacción')),
       );
       return;
     }
@@ -2114,16 +1942,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
             SnackBar(content: Text('Error al obtener el comprobante: $e')),
       );
     }
-  }
-
-  // Función para censurar el número de tarjeta
-  String _censorCardNumber(String cardNumber) {
-    if (cardNumber.length < 6) {
-      return cardNumber; // Si el número es corto, no se censura
-    }
-    final firstTwoDigits = cardNumber.substring(0, 2);
-    final lastFourDigits = cardNumber.substring(cardNumber.length - 4);
-    return '$firstTwoDigits********$lastFourDigits';
   }
 
   @override
@@ -2560,40 +2378,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                     fontSize: 16),
                                               ),
                                             ),
-                                            if (widget.task
-                                                    .data()['paymentMethods']
-                                                    ?.contains('Tarjetas') ==
-                                                true)
-                                              // Número de tarjeta
-                                              Row(
-                                                children: [
-                                                  Container(
-                                                    padding:
-                                                        const EdgeInsets.all(
-                                                            4.0),
-                                                    decoration: BoxDecoration(
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              5.0),
-                                                      color:
-                                                          Colors.blueGrey[600],
-                                                    ),
-                                                    child: const Icon(
-                                                      Icons.credit_card,
-                                                      size: 18.0,
-                                                      color: Colors.tealAccent,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 10),
-                                                  Expanded(
-                                                    child: Text(
-                                                      'Tarjeta: ${widget.task.data()['selectedCards']?.join(', ') ?? 'No disponible'}',
-                                                      style: const TextStyle(
-                                                          fontSize: 16),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
                                           ],
                                         ),
                                         const SizedBox(height: 10),
@@ -2798,7 +2582,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                 ],
                                               ),
                                             ),
-                                          const Divider(height: 32),
+                                          const Divider(height: 32, color: Colors.black,),
                                           Padding(
                                             padding: const EdgeInsets.only(
                                                 bottom: 12.0),
@@ -2880,11 +2664,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                   ),
                                                 ),
                                                 Text(
-                                                  ((taskData?['quotation'][
-                                                                  'totalAmountUSD']
-                                                              as double) *
-                                                          _bcvExchangeRate)
-                                                      .toStringAsFixed(2),
+                                                  ((taskData?['quotation']['totalAmountUSD'] as double) * _bcvExchangeRate).toStringAsFixed(2),
                                                   style: const TextStyle(
                                                       fontSize: 16,
                                                       color: Colors.black),
@@ -2948,6 +2728,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
+                                          
                                           const SizedBox(height: 15),
                                           Container(
                                             padding: const EdgeInsets.all(16),
@@ -2981,30 +2762,22 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                             ),
                                           ),
                                           const SizedBox(height: 8),
-                                          ElevatedButton.icon(
-                                            icon: const Icon(
-                                                Icons.account_balance_wallet,
-                                                color: Colors.black),
-                                            label: const Text(
-                                              'Monedero',
-                                              style: TextStyle(
-                                                  color: Colors.black,
-                                                  fontSize: 13),
-                                            ),
-                                            onPressed: _handleWalletPayment,
-                                            style: ElevatedButton.styleFrom(
-                                              backgroundColor: Colors.white,
-                                              minimumSize: const Size(
-                                                  double.infinity,
-                                                  50), // para que ocupe todo el ancho
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                                side: const BorderSide(
-                                                    color: Color(0xFF08143C)),
-                                              ),
-                                            ),
-                                          ),
+ElevatedButton.icon(
+  icon: const Icon(Icons.account_balance_wallet, color: Colors.black),
+  label: const Text(
+    'Monedero',
+    style: TextStyle(color: Colors.black, fontSize: 13),
+  ),
+  onPressed: _handleWalletPayment,
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.white,
+    minimumSize: const Size(double.infinity, 50), // para que ocupe todo el ancho
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+      side: const BorderSide(color: Color(0xFF08143C)),
+    ),
+  ),
+),
                                           const SizedBox(height: 8),
                                           const Text(
                                             'Si posee dinero en su monedero pero no es suficiente, será descontado su saldo disponible y se permitirá cancelar el restante con cualquiera de los siguientes métodos:',
@@ -3012,161 +2785,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                               fontSize: 12,
                                             ),
                                           ),
-                                          const SizedBox(height: 15),
-                                          if (_hasCards)
-                                            SizedBox(
-                                              width: double.infinity,
-                                              child: ElevatedButton(
-                                                onPressed: () {
-                                                  setState(() {
-                                                    _showCards = !_showCards;
-                                                  });
-                                                  _showPagoMovilDetails = false;
-                                                  _showBinanceDetails = false;
-                                                  _efectivoSelected = false;
-                                                  _showZinliDetails = false;
-                                                  _showZelleDetails = false;
-                                                  _updatePaymentMethod(
-                                                      'VISA/Mastercard');
-                                                },
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: _showCards
-                                                      ? Colors.green[100]
-                                                      : Colors.white,
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      vertical: 12,
-                                                      horizontal: 15),
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            10),
-                                                    side: BorderSide(
-                                                      color: _showCards
-                                                          ? const Color(
-                                                              0xFF1ca424)
-                                                          : const Color(
-                                                              0xFF08143C),
-                                                    ),
-                                                  ),
-                                                ),
-                                                child: Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment
-                                                          .spaceBetween,
-                                                  children: [
-                                                    const Text('Tarjetas'),
-                                                    Row(
-                                                      children: [
-                                                        Image.asset(
-                                                          'assets/images/VISA_Logo.png',
-                                                          height: 20,
-                                                        ),
-                                                        const SizedBox(
-                                                            width: 10),
-                                                        Image.asset(
-                                                          'assets/images/MasterCard_Logo.png',
-                                                          height: 20,
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          if (_showCards)
-                                            Container(
-                                              margin:
-                                                  const EdgeInsets.only(top: 1),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white,
-                                                borderRadius:
-                                                    BorderRadius.circular(10),
-                                              ),
-                                              child:
-                                                  FutureBuilder<QuerySnapshot>(
-                                                future: _cardsFuture,
-                                                builder:
-                                                    (context, cardsSnapshot) {
-                                                  if (cardsSnapshot
-                                                          .connectionState ==
-                                                      ConnectionState.waiting) {
-                                                    return const CircularProgressIndicator(
-                                                        color: Colors.green);
-                                                  }
-                                                  if (cardsSnapshot.hasError) {
-                                                    return Text(
-                                                        'Error: ${cardsSnapshot.error}');
-                                                  }
-                                                  if (!cardsSnapshot.hasData ||
-                                                      cardsSnapshot
-                                                          .data!.docs.isEmpty) {
-                                                    return const Text(
-                                                        'No hay tarjetas disponibles');
-                                                  }
-
-                                                  return Column(
-                                                    children: cardsSnapshot
-                                                        .data!.docs
-                                                        .map<Widget>((card) {
-                                                      final cardData =
-                                                          card.data() as Map<
-                                                              String, dynamic>;
-                                                      final cardNumber = cardData[
-                                                              'cardNumber'] ??
-                                                          '';
-                                                      final cardType = cardData[
-                                                              'cardType'] ??
-                                                          '';
-                                                      final imagePath = cardType ==
-                                                              'Visa'
-                                                          ? 'assets/images/VISA_Logo.png'
-                                                          : 'assets/images/MasterCard_Logo.png';
-
-                                                      // Censurar el número de tarjeta
-                                                      final censoredCardNumber =
-                                                          _censorCardNumber(
-                                                              cardNumber);
-
-                                                      return CheckboxListTile(
-                                                        title: Row(
-                                                          children: [
-                                                            Text(
-                                                              censoredCardNumber, // Mostrar el número censurado
-                                                              style:
-                                                                  const TextStyle(
-                                                                      fontSize:
-                                                                          13),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 10),
-                                                            Image.asset(
-                                                              imagePath,
-                                                              height: 20,
-                                                            ),
-                                                          ],
-                                                        ),
-                                                        value: _selectedCards
-                                                            .contains(card.id),
-                                                        onChanged:
-                                                            (bool? value) {
-                                                          setState(() {
-                                                            if (value == true) {
-                                                              _selectedCards
-                                                                  .add(card.id);
-                                                            } else {
-                                                              _selectedCards
-                                                                  .remove(
-                                                                      card.id);
-                                                            }
-                                                          });
-                                                        },
-                                                      );
-                                                    }).toList(),
-                                                  );
-                                                },
-                                              ),
-                                            ),
                                           const SizedBox(height: 15),
                                           Row(
                                             children: [
@@ -3226,7 +2844,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                     _showPagoMovilDetails =
                                                         false;
                                                     _showBinanceDetails = false;
-                                                    _showCards = false;
                                                     _showZinliDetails = false;
                                                     _showZelleDetails = false;
                                                     _updatePaymentMethod(
@@ -3256,21 +2873,57 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                               ),
                                             ],
                                           ),
-                                          if (_efectivoSelected)
-                                            const Padding(
-                                              padding: EdgeInsets.all(8.0),
-                                              child: Text(
-                                                'Advertencia: Si el agente no tiene cambio, el monto restante será añadido a su monedero instantáneamente.',
-                                                style: TextStyle(
-                                                  color: Color.fromARGB(
-                                                      255, 250, 96, 85),
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ),
                                           const SizedBox(height: 15),
                                           _buildPaymentButtons(),
                                           const SizedBox(height: 15),
+                                          // Campo de texto para billete y Advertencia con Visibility
+              Visibility(
+                visible: _efectivoSelected,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(7.0),
+                      child: TextField(
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Billete',
+                          labelStyle: const TextStyle(color: Colors.black),
+                          hintText: 'Denominación del billete',
+                          hintStyle: const TextStyle(color: Colors.grey),
+                          filled: true,
+                          fillColor: Colors.transparent,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16.0),
+                            borderSide: const BorderSide(color: Colors.blue),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 16.0,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Image.asset('assets/images/IconSend.png', height: 35, width: 35), // Reemplaza con tu imagen
+                            onPressed: () {
+                              // Función para enviar el valor a Firestore (implementar)
+                              print('Enviar a Firestore');
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.all(6.0),
+                      child: Text(
+                        'Advertencia: Si el agente no posee disponibilidad de cambio, el monto restante será añadido a su monedero instantáneamente.',
+                        style: TextStyle(
+                          color: Color.fromARGB(255, 250, 96, 85),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
                                           AnimatedContainer(
                                             duration: const Duration(
                                                 milliseconds: 500),
@@ -4284,110 +3937,107 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   }
 
   Widget _buildPaymentButtons() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
+  return SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      children: [
+        _buildPaymentButton(
+          onPressed: _handlePayPalPayment,
+          selected: _paypalSelected,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: double.infinity, // Ensures the container takes all available width
+                height: 20,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF08143C),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(10),
+                    topRight: Radius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  'Rápido y directo',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 1),
+              SizedBox(
+                height: 30,
+                width: 70,
+                child: Image.asset('assets/images/Paypal_Logo.png'),
+              ),
+            ],
+          ),
+        ),
+        if (_hasZelle)
           _buildPaymentButton(
-            onPressed: _handlePayPalPayment,
-            selected: _paypalSelected,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: double
-                      .infinity, // Ensures the container takes all available width
-                  height: 20,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF08143C),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(10),
-                      topRight: Radius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    'Rápido y directo',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 1),
-                SizedBox(
-                  height: 30,
-                  width: 70,
-                  child: Image.asset('assets/images/Paypal_Logo.png'),
-                ),
-              ],
+            onPressed: _toggleZelleDetails,
+            selected: _zelleSelected,
+            child: Image.asset(
+              'assets/images/Zelle_Logo.png',
+              height: 25,
+              width: 50,
             ),
           ),
-          if (_hasZelle)
-            _buildPaymentButton(
-              onPressed: _toggleZelleDetails,
-              selected: _zelleSelected,
-              child: Image.asset(
-                'assets/images/Zelle_Logo.png',
-                height: 25,
-                width: 50,
-              ),
+        if (_hasBinance)
+          _buildPaymentButton(
+            onPressed: _toggleBinanceDetails,
+            selected: _binanceSelected,
+            child: Image.asset(
+              'assets/images/Binance_LogoNew.png',
+              height: 40,
+              width: 50,
             ),
-          if (_hasBinance)
-            _buildPaymentButton(
-              onPressed: _toggleBinanceDetails,
-              selected: _binanceSelected,
-              child: Image.asset(
-                'assets/images/Binance_LogoNew.png',
-                height: 40,
-                width: 50,
-              ),
+          ),
+        if (_hasZinli)
+          _buildPaymentButton(
+            onPressed: _toggleZinliDetails,
+            selected: _zinliSelected,
+            child: Image.asset(
+              'assets/images/Zinli_Logo.png',
+              height: 25,
+              width: 50,
             ),
-          if (_hasZinli)
-            _buildPaymentButton(
-              onPressed: _toggleZinliDetails,
-              selected: _zinliSelected,
-              child: Image.asset(
-                'assets/images/Zinli_Logo.png',
-                height: 25,
-                width: 50,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
+          ),
+      ],
+    ),
+  );
+}
 
-  Widget _buildPaymentButton({
-    required VoidCallback onPressed,
-    required bool selected,
-    required Widget child,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 7),
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          padding: EdgeInsets.zero, // Removes internal padding
-          backgroundColor: selected ? Colors.green[100] : Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: BorderSide(
-              color:
-                  selected ? const Color(0xFF1ca424) : const Color(0xFF08143C),
-            ),
+Widget _buildPaymentButton({
+  required VoidCallback onPressed,
+  required bool selected,
+  required Widget child,
+}) {
+  return Padding(
+    padding: const EdgeInsets.only(right: 7),
+    child: ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        padding: EdgeInsets.zero, // Removes internal padding
+        backgroundColor: selected ? Colors.green[100] : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(
+            color: selected ? const Color(0xFF1ca424) : const Color(0xFF08143C),
           ),
-          minimumSize: const Size(90, 50),
         ),
-        child: SizedBox(
-          width:
-              110, // Sets the width of the child container to match the button's minimum size
-          child: child,
-        ),
+        minimumSize: const Size(90, 50),
       ),
-    );
-  }
+      child: SizedBox(
+        width: 110, // Sets the width of the child container to match the button's minimum size
+        child: child,
+      ),
+    ),
+  );
+}
 }
 
 Icon getColoredIcon(String state) {
