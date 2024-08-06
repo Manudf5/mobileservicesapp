@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -916,6 +917,7 @@ class TaskDetailsScreen extends StatefulWidget {
 
 class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     with SingleTickerProviderStateMixin {
+  StreamSubscription<DocumentSnapshot>? _paymentReceivedSubscription;
   bool _showProfileImage = false;
   String? _selectedReason;
   final TextEditingController _otherReasonController = TextEditingController();
@@ -1254,84 +1256,63 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
         .collection('tasks')
         .doc(widget.task.id)
         .snapshots();
+
+    _listenForPaymentReceived();
   }
 
   @override
   void dispose() {
+    _paymentReceivedSubscription?.cancel();
     _timer?.cancel();
     _animationController?.dispose();
     _messageController.dispose();
     super.dispose();
   }
 
-  void _handleWalletPayment() async {
-  final taskData = widget.task.data();
-  final quotation = taskData['quotation'] as Map<String, dynamic>;
-  final totalAmountUSD = quotation['totalAmountUSD'] as double;
-
-  if (_walletBalance >= totalAmountUSD) {
-    // Suficiente saldo
-    await _processWalletPayment(taskData, totalAmountUSD);
-  } else {
-    // Saldo insuficiente
-    OneContext().showSnackBar(
-      builder: (_) => const SnackBar(
-        content: Text('Saldo insuficiente. Por favor, use otros métodos de pago.'),
-        backgroundColor: Colors.red,
-      ),
-    );
+  void _listenForPaymentReceived() {
+    _paymentReceivedSubscription = FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(widget.task.id)
+        .snapshots()
+        .listen((snapshot) async {
+      if (snapshot.data()?['paymentReceived'] == true) {
+        await _handlePaymentReceived(snapshot);
+      }
+    });
   }
-}
 
-Future<void> _processWalletPayment(Map<String, dynamic> taskData, double totalAmountUSD) async {
-  try {
-    // Crear transacción
-    final transactionData = {
-      'senderName': taskData['clientName'],
-      'senderId': taskData['clientID'],
-      'recipientName': taskData['supplierName'],
-      'recipientId': taskData['supplierID'],
-      'paymentType': 'Pago de servicio',
-      'date': FieldValue.serverTimestamp(),
-      'amount': totalAmountUSD,
-      'paymentMethod': {'Monedero': {'amount': totalAmountUSD}},
-      'taskId': widget.task.id,
-      'service': taskData['service'],
-    };
+  Future<void> _handlePaymentReceived(DocumentSnapshot snapshot) async {
+    // Cancelar la suscripción para evitar múltiples ejecuciones
+    await _paymentReceivedSubscription?.cancel();
 
-    final transactionRef = await FirebaseFirestore.instance
-        .collection('transactions')
-        .add(transactionData);
-
-    // Actualizar task
+    // 0. Eliminar el campo paymentReceived
     await FirebaseFirestore.instance
         .collection('tasks')
         .doc(widget.task.id)
-        .update({
-      'transactionID': transactionRef.id,
-      'state': 'Finalizada',
-    });
+        .update({'paymentReceived': FieldValue.delete()});
 
-    // Actualizar wallets
-    await FirebaseFirestore.instance
-        .collection('wallets')
-        .doc(clientIDString)
-        .update({'walletBalance': FieldValue.increment(-totalAmountUSD)});
-
-    await FirebaseFirestore.instance
-        .collection('wallets')
-        .doc(taskData['supplierID'])
-        .update({'walletBalance': FieldValue.increment(totalAmountUSD)});
-
-    // Mostrar snackbar
+    // 1. Mostrar snackbar
     OneContext().showSnackBar(
       builder: (_) => const SnackBar(
-        content: Text('Transacción aprobada'),
+        content: Text('Muchas gracias por usar nuestros servicios'),
         backgroundColor: Colors.green,
       ),
     );
 
-    // Navegar a la pantalla de recibo
+    // 2. Guardar la transacción
+    final taskData = snapshot.data() as Map<String, dynamic>;
+    final transactionData = await _createTransactionDataPMZZB(taskData);
+    final transactionRef = await FirebaseFirestore.instance
+        .collection('transactions')
+        .add(transactionData);
+
+    // Guardar el ID de la transacción en el documento de tasks
+    await FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(widget.task.id)
+        .update({'transactionID': transactionRef.id});
+
+    // 3. Mostrar ServiceTransactionReceiptScreen
     if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -1342,8 +1323,9 @@ Future<void> _processWalletPayment(Map<String, dynamic> taskData, double totalAm
             concept: taskData['service'],
             recipientId: taskData['supplierID'],
             recipientName: taskData['supplierName'],
-            amount: totalAmountUSD,
-            supplierProfileImageUrl: widget.supplier?.data()?['profileImageUrl'] ?? '',
+            amount: taskData['quotation']['totalAmountUSD'],
+            supplierProfileImageUrl:
+                widget.supplier?.data()?['profileImageUrl'] ?? '',
             supplierName: taskData['supplierName'],
             supplierId: taskData['supplierID'],
             taskId: widget.task.id,
@@ -1362,15 +1344,180 @@ Future<void> _processWalletPayment(Map<String, dynamic> taskData, double totalAm
         ),
       );
     }
-  } catch (e) {
-    OneContext().showSnackBar(
-      builder: (_) => SnackBar(
-        content: Text('Error al procesar el pago: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
+
+    // 4. Actualizar wallets y chat
+    await _updateWalletsAndChat(taskData);
   }
-}
+
+  Future<Map<String, dynamic>> _createTransactionDataPMZZB(
+      Map<String, dynamic> taskData) async {
+    final quotation = taskData['quotation'] as Map<String, dynamic>;
+    final totalAmountUSD = quotation['totalAmountUSD'] as double;
+    final amountPaidWithWallet = min(_walletBalance, totalAmountUSD);
+    final amountPaidWithOtherMethod = totalAmountUSD - amountPaidWithWallet;
+
+    return {
+      'senderName': taskData['clientName'],
+      'senderId': taskData['clientID'],
+      'recipientName': taskData['supplierName'],
+      'recipientId': taskData['supplierID'],
+      'paymentType': 'Pago de servicio',
+      'date': FieldValue.serverTimestamp(),
+      'amount': totalAmountUSD,
+      'paymentMethod': {
+        if (amountPaidWithWallet > 0)
+          'Monedero': {'amount': amountPaidWithWallet},
+        if (amountPaidWithOtherMethod > 0)
+          taskData['paymentMethods'][1]: {'amount': amountPaidWithOtherMethod},
+      },
+      'taskId': widget.task.id,
+      'service': taskData['service'],
+    };
+  }
+
+  Future<void> _updateWalletsAndChat(Map<String, dynamic> taskData) async {
+    final quotation = taskData['quotation'] as Map<String, dynamic>;
+    final totalAmountUSD = quotation['totalAmountUSD'] as double;
+    final amountPaidWithWallet = min(_walletBalance, totalAmountUSD);
+
+    if (amountPaidWithWallet > 0) {
+      await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(clientIDString)
+          .update(
+              {'walletBalance': FieldValue.increment(-amountPaidWithWallet)});
+
+      await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(taskData['supplierID'])
+          .update(
+              {'walletBalance': FieldValue.increment(amountPaidWithWallet)});
+    }
+
+    final chatId = '${taskData['clientID']}_${taskData['supplierID']}';
+    await FirebaseFirestore.instance
+        .collection('chats')
+        .doc(chatId)
+        .update({'talk': false});
+
+    await FirebaseFirestore.instance
+        .collection('tasks')
+        .doc(widget.task.id)
+        .update({'state': 'Finalizada'});
+  }
+
+  void _handleWalletPayment() async {
+    final taskData = widget.task.data();
+    final quotation = taskData['quotation'] as Map<String, dynamic>;
+    final totalAmountUSD = quotation['totalAmountUSD'] as double;
+
+    if (_walletBalance >= totalAmountUSD) {
+      // Suficiente saldo
+      await _processWalletPayment(taskData, totalAmountUSD);
+    } else {
+      // Saldo insuficiente
+      OneContext().showSnackBar(
+        builder: (_) => const SnackBar(
+          content:
+              Text('Saldo insuficiente. Por favor, use otros métodos de pago.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _processWalletPayment(
+      Map<String, dynamic> taskData, double totalAmountUSD) async {
+    try {
+      // Crear transacción
+      final transactionData = {
+        'senderName': taskData['clientName'],
+        'senderId': taskData['clientID'],
+        'recipientName': taskData['supplierName'],
+        'recipientId': taskData['supplierID'],
+        'paymentType': 'Pago de servicio',
+        'date': FieldValue.serverTimestamp(),
+        'amount': totalAmountUSD,
+        'paymentMethod': {
+          'Monedero': {'amount': totalAmountUSD}
+        },
+        'taskId': widget.task.id,
+        'service': taskData['service'],
+      };
+
+      final transactionRef = await FirebaseFirestore.instance
+          .collection('transactions')
+          .add(transactionData);
+
+      // Actualizar task
+      await FirebaseFirestore.instance
+          .collection('tasks')
+          .doc(widget.task.id)
+          .update({
+        'transactionID': transactionRef.id,
+        'state': 'Finalizada',
+      });
+
+      // Actualizar wallets
+      await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(clientIDString)
+          .update({'walletBalance': FieldValue.increment(-totalAmountUSD)});
+
+      await FirebaseFirestore.instance
+          .collection('wallets')
+          .doc(taskData['supplierID'])
+          .update({'walletBalance': FieldValue.increment(totalAmountUSD)});
+
+      // Mostrar snackbar
+      OneContext().showSnackBar(
+        builder: (_) => const SnackBar(
+          content: Text('Transacción aprobada'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Navegar a la pantalla de recibo
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => ServiceTransactionReceiptScreen(
+              paymentType: 'Pago de servicio',
+              date: DateTime.now(),
+              transactionId: transactionRef.id,
+              concept: taskData['service'],
+              recipientId: taskData['supplierID'],
+              recipientName: taskData['supplierName'],
+              amount: totalAmountUSD,
+              supplierProfileImageUrl:
+                  widget.supplier?.data()?['profileImageUrl'] ?? '',
+              supplierName: taskData['supplierName'],
+              supplierId: taskData['supplierID'],
+              taskId: widget.task.id,
+              onBackPressed: () {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (context) => TaskDetailsScreen(
+                      task: widget.task,
+                      supplier: widget.supplier,
+                      supplierInfo: widget.supplierInfo,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      OneContext().showSnackBar(
+        builder: (_) => SnackBar(
+          content: Text('Error al procesar el pago: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   void _handlePayPalPayment() async {
     final taskData = widget.task.data();
@@ -1918,7 +2065,8 @@ Future<void> _processWalletPayment(Map<String, dynamic> taskData, double totalAm
     if (transactionID == null) {
       OneContext().showSnackBar(
         builder: (_) => const SnackBar(
-            content: Text('No se encontró el ID de la transacción')),
+            content: Text(
+                'No se encontró el ID de la transacción, intente de nuevo más tarde')),
       );
       return;
     }
@@ -2732,7 +2880,11 @@ Future<void> _processWalletPayment(Map<String, dynamic> taskData, double totalAm
                                                   ),
                                                 ),
                                                 Text(
-                                                  ((taskData?['quotation']['totalAmountUSD'] as double) * _bcvExchangeRate).toStringAsFixed(2),
+                                                  ((taskData?['quotation'][
+                                                                  'totalAmountUSD']
+                                                              as double) *
+                                                          _bcvExchangeRate)
+                                                      .toStringAsFixed(2),
                                                   style: const TextStyle(
                                                       fontSize: 16,
                                                       color: Colors.black),
@@ -2796,7 +2948,6 @@ Future<void> _processWalletPayment(Map<String, dynamic> taskData, double totalAm
                                               fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                          
                                           const SizedBox(height: 15),
                                           Container(
                                             padding: const EdgeInsets.all(16),
@@ -2830,25 +2981,33 @@ Future<void> _processWalletPayment(Map<String, dynamic> taskData, double totalAm
                                             ),
                                           ),
                                           const SizedBox(height: 8),
-ElevatedButton.icon(
-  icon: const Icon(Icons.account_balance_wallet, color: Colors.black),
-  label: const Text(
-    'Monedero',
-    style: TextStyle(color: Colors.black, fontSize: 13),
-  ),
-  onPressed: _handleWalletPayment,
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.white,
-    minimumSize: const Size(double.infinity, 50), // para que ocupe todo el ancho
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(10),
-      side: const BorderSide(color: Color(0xFF08143C)),
-    ),
-  ),
-),
+                                          ElevatedButton.icon(
+                                            icon: const Icon(
+                                                Icons.account_balance_wallet,
+                                                color: Colors.black),
+                                            label: const Text(
+                                              'Monedero',
+                                              style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 13),
+                                            ),
+                                            onPressed: _handleWalletPayment,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.white,
+                                              minimumSize: const Size(
+                                                  double.infinity,
+                                                  50), // para que ocupe todo el ancho
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                side: const BorderSide(
+                                                    color: Color(0xFF08143C)),
+                                              ),
+                                            ),
+                                          ),
                                           const SizedBox(height: 8),
                                           const Text(
-                                            'Si posee dinero en su monedero pero no es suficiente, se descontará por defecto de su saldo disponible y se permitirá cancelar el restante con cualquiera de los siguientes métodos:',
+                                            'Si posee dinero en su monedero pero no es suficiente, será descontado su saldo disponible y se permitirá cancelar el restante con cualquiera de los siguientes métodos:',
                                             style: TextStyle(
                                               fontSize: 12,
                                             ),
@@ -4125,107 +4284,110 @@ ElevatedButton.icon(
   }
 
   Widget _buildPaymentButtons() {
-  return SingleChildScrollView(
-    scrollDirection: Axis.horizontal,
-    child: Row(
-      children: [
-        _buildPaymentButton(
-          onPressed: _handlePayPalPayment,
-          selected: _paypalSelected,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: double.infinity, // Ensures the container takes all available width
-                height: 20,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF08143C),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(10),
-                    topRight: Radius.circular(10),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          _buildPaymentButton(
+            onPressed: _handlePayPalPayment,
+            selected: _paypalSelected,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: double
+                      .infinity, // Ensures the container takes all available width
+                  height: 20,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF08143C),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(10),
+                      topRight: Radius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'Rápido y directo',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                    ),
                   ),
                 ),
-                child: const Text(
-                  'Rápido y directo',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
-                  ),
+                const SizedBox(height: 1),
+                SizedBox(
+                  height: 30,
+                  width: 70,
+                  child: Image.asset('assets/images/Paypal_Logo.png'),
                 ),
+              ],
+            ),
+          ),
+          if (_hasZelle)
+            _buildPaymentButton(
+              onPressed: _toggleZelleDetails,
+              selected: _zelleSelected,
+              child: Image.asset(
+                'assets/images/Zelle_Logo.png',
+                height: 25,
+                width: 50,
               ),
-              const SizedBox(height: 1),
-              SizedBox(
-                height: 30,
-                width: 70,
-                child: Image.asset('assets/images/Paypal_Logo.png'),
+            ),
+          if (_hasBinance)
+            _buildPaymentButton(
+              onPressed: _toggleBinanceDetails,
+              selected: _binanceSelected,
+              child: Image.asset(
+                'assets/images/Binance_LogoNew.png',
+                height: 40,
+                width: 50,
               ),
-            ],
-          ),
-        ),
-        if (_hasZelle)
-          _buildPaymentButton(
-            onPressed: _toggleZelleDetails,
-            selected: _zelleSelected,
-            child: Image.asset(
-              'assets/images/Zelle_Logo.png',
-              height: 25,
-              width: 50,
             ),
-          ),
-        if (_hasBinance)
-          _buildPaymentButton(
-            onPressed: _toggleBinanceDetails,
-            selected: _binanceSelected,
-            child: Image.asset(
-              'assets/images/Binance_LogoNew.png',
-              height: 40,
-              width: 50,
+          if (_hasZinli)
+            _buildPaymentButton(
+              onPressed: _toggleZinliDetails,
+              selected: _zinliSelected,
+              child: Image.asset(
+                'assets/images/Zinli_Logo.png',
+                height: 25,
+                width: 50,
+              ),
             ),
-          ),
-        if (_hasZinli)
-          _buildPaymentButton(
-            onPressed: _toggleZinliDetails,
-            selected: _zinliSelected,
-            child: Image.asset(
-              'assets/images/Zinli_Logo.png',
-              height: 25,
-              width: 50,
-            ),
-          ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
-Widget _buildPaymentButton({
-  required VoidCallback onPressed,
-  required bool selected,
-  required Widget child,
-}) {
-  return Padding(
-    padding: const EdgeInsets.only(right: 7),
-    child: ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        padding: EdgeInsets.zero, // Removes internal padding
-        backgroundColor: selected ? Colors.green[100] : Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(
-            color: selected ? const Color(0xFF1ca424) : const Color(0xFF08143C),
+  Widget _buildPaymentButton({
+    required VoidCallback onPressed,
+    required bool selected,
+    required Widget child,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 7),
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          padding: EdgeInsets.zero, // Removes internal padding
+          backgroundColor: selected ? Colors.green[100] : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(
+              color:
+                  selected ? const Color(0xFF1ca424) : const Color(0xFF08143C),
+            ),
           ),
+          minimumSize: const Size(90, 50),
         ),
-        minimumSize: const Size(90, 50),
+        child: SizedBox(
+          width:
+              110, // Sets the width of the child container to match the button's minimum size
+          child: child,
+        ),
       ),
-      child: SizedBox(
-        width: 110, // Sets the width of the child container to match the button's minimum size
-        child: child,
-      ),
-    ),
-  );
-}
+    );
+  }
 }
 
 Icon getColoredIcon(String state) {
