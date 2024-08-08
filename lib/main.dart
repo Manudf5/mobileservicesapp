@@ -24,6 +24,7 @@ class MyApp extends StatelessWidget {
       builder: (_, __) => MaterialApp(
         title: 'Mobile App Services',
         theme: ThemeData(
+          fontFamily: 'Georgia',
           primarySwatch: Colors.green,
         ),
         navigatorKey: OneContext().key,

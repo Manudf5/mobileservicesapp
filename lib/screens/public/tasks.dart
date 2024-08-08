@@ -2905,7 +2905,9 @@ ElevatedButton.icon(
                             icon: Image.asset('assets/images/IconSend.png', height: 35, width: 35), // Reemplaza con tu imagen
                             onPressed: () {
                               // Función para enviar el valor a Firestore (implementar)
-                              print('Enviar a Firestore');
+                              if (kDebugMode) {
+                                print('Enviar a Firestore');
+                              }
                             },
                           ),
                         ),

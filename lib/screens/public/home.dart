@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -28,10 +27,9 @@ class HomeScreen extends StatefulWidget {
   _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State {
+class _HomeScreenState extends State<HomeScreen> {
   String greeting = '';
   String userName = '';
-  String userLastName = '';
 
   @override
   void initState() {
@@ -39,7 +37,7 @@ class _HomeScreenState extends State {
     _fetchGreetingAndUserName();
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
-        statusBarColor: Colors.white,
+        statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
       ),
     );
@@ -92,99 +90,23 @@ class _HomeScreenState extends State {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Center(
-          child: Text(
-            'MSA [Clientes]',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.green,
-            ),
-          ),
-        ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-      ),
-      // Agrega un Container para el degradado
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.white, // Color del AppBar
-              Colors.white, // Color del fondo de la pantalla
-            ],
-          ),
-        ),
+      body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Mostrar el saludo y el nombre solo si están cargados
-              if (greeting.isNotEmpty && userName.isNotEmpty)
-                AnimatedTextKit(
-                  animatedTexts: [
-                    // Combina el saludo y el nombre en un solo TyperAnimatedText
-                    TyperAnimatedText(
-                      '¡$greeting, $userName!',
-                      textStyle: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      speed: const Duration(milliseconds: 50),
-                      textAlign: TextAlign.start,
-                    ),
-                  ],
-                  isRepeatingAnimation: false,
-                )
-              else
-                const CircularProgressIndicator(color: Colors.green),
-              const SizedBox(height: 20),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const SearchScreen(),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        height: 50,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          color: Colors.grey[200],
-                        ),
-                        child: const Row(
-                          children: [
-                            Padding(
-                              padding: EdgeInsets.only(left: 16.0),
-                              child: Icon(
-                                Icons.search,
-                                color: Colors.black87,
-                              ),
-                            ),
-                            SizedBox(width: 16.0),
-                            Expanded(
-                              child: Text(
-                                "¿Que servicio necesitas hoy?",
-                                style: TextStyle(
-                                  color: Colors.black54,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  Text(
+                    'MSA [Clientes]',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green[700],
                     ),
                   ),
-                  const SizedBox(width: 10),
                   GestureDetector(
                     onTap: () {
                       Navigator.push(
@@ -195,50 +117,101 @@ class _HomeScreenState extends State {
                       );
                     },
                     child: Container(
-                      height: 45,
-                      width: 45,
+                      height: 50,
+                      width: 50,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
+                        shape: BoxShape.circle,
                         color: Colors.grey[200],
                       ),
-                      padding: const EdgeInsets.all(5),
-                      child: Image.asset(
-                        'assets/images/IconNotification.png',
-                        height: 22,
-                        width: 22,
+                      child: Icon(
+                        Icons.notifications_none,
+                        color: Colors.green[700],
+                        size: 28,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 17),
+              const SizedBox(height: 32),
+              if (greeting.isNotEmpty && userName.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$greeting,',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w300,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    Text(
+                      userName,
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[900],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '¿Qué servicio podemos ofrecerte hoy?',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                )
+              else
+                const CircularProgressIndicator(color: Colors.green),
+              const SizedBox(height: 24),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SearchScreen(),
+                    ),
+                  );
+                },
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(25),
+                    color: Colors.grey[200],
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.search,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        "Buscar servicios",
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
               Expanded(
                 child: GridView.count(
                   crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 9 / 10.1,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 1.07,
                   children: [
-                    _buildButton(
-                      'assets/images/IconHome_Screen.jpg',
-                      'Hogar',
-                      context,
-                    ),
-                    _buildButton(
-                      'assets/images/IconWelfare_Screen.jpg',
-                      'Personal',
-                      context,
-                    ),
-                    _buildButton(
-                      'assets/images/IconProfessional_Screen.jpg',
-                      'Profesional',
-                      context,
-                    ),
-                    _buildButton(
-                      'assets/images/IconEntertainment_Screen.jpg',
-                      'Entretenimiento',
-                      context,
-                    ),
+                    _buildButton('assets/images/IconHome_Screen.jpg', 'Hogar', context),
+                    _buildButton('assets/images/IconWelfare_Screen.jpg', 'Personal', context),
+                    _buildButton('assets/images/IconProfessional_Screen.jpg', 'Profesional', context),
+                    _buildButton('assets/images/IconEntertainment_Screen.jpg', 'Entretenimiento', context),
                   ],
                 ),
               )
@@ -251,100 +224,61 @@ class _HomeScreenState extends State {
 }
 
 Widget _buildButton(String imagePath, String text, BuildContext context) {
-  return InkWell(
+  return GestureDetector(
     onTap: () {
-      if (text == 'Hogar') {
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const HogarScreen(),
-            transitionDuration: const Duration(milliseconds: 500),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return ScaleTransition(
-                scale: animation,
-                child: child,
-              );
-            },
-          ),
-        );
-      } else if (text == 'Personal') {
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const PersonalScreen(),
-            transitionDuration: const Duration(milliseconds: 500),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return ScaleTransition(
-                scale: animation,
-                child: child,
-              );
-            },
-          ),
-        );
-      } else if (text == 'Profesional') {
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const ProfesionalScreen(),
-            transitionDuration: const Duration(milliseconds: 500),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return ScaleTransition(
-                scale: animation,
-                child: child,
-              );
-            },
-          ),
-        );
-      } else if (text == 'Entretenimiento') {
-        Navigator.push(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const EntretenimientoScreen(),
-            transitionDuration: const Duration(milliseconds: 500),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return ScaleTransition(
-                scale: animation,
-                child: child,
-              );
-            },
-          ),
-        );
-      }
+      // Navega a la pantalla correspondiente sin animación
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) {
+            switch (text) {
+              case 'Hogar':
+                return const HogarScreen();
+              case 'Personal':
+                return const PersonalScreen();
+              case 'Profesional':
+                return const ProfesionalScreen();
+              case 'Entretenimiento':
+                return const EntretenimientoScreen();
+              default:
+                return const HomeScreen();
+            }
+          },
+        ),
+      );
     },
     child: Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: Colors.green[100],
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.3),
+            spreadRadius: 0,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(3),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(
-                10), // Aplica el borde redondeado a la imagen
+            borderRadius: BorderRadius.circular(20),
             child: Image.asset(
               imagePath,
-              height: 170,
-              width: 200,
-              fit: BoxFit.cover, // Opcional: ajusta la imagen al contenedor
+              height: 120,
+              width: double.infinity,
+              fit: BoxFit.cover,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             text,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[800],
             ),
           ),
         ],
@@ -410,7 +344,7 @@ class _SearchScreenState extends State {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: const Text('¿Que servicio necesitas hoy?'),
+        title: const Text('¿Que servicio necesitas hoy?', style: TextStyle(fontSize: 19)),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
@@ -425,7 +359,7 @@ class _SearchScreenState extends State {
             Container(
               height: 50,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(25),
                 color: Colors.grey[200],
               ),
               child: Row(
@@ -464,7 +398,7 @@ class _SearchScreenState extends State {
                           crossAxisCount: 2,
                           crossAxisSpacing: 10,
                           mainAxisSpacing: 10,
-                          childAspectRatio: 9 / 7,
+                          childAspectRatio: 9 / 7.45,
                           children: _filteredServices.map((service) {
                             return _buildServiceButton(service['imageUrl'],
                                 service['serviceName'], service['id']);
@@ -478,26 +412,29 @@ class _SearchScreenState extends State {
   }
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(
-              serviceName: text,
-              id: serviceId,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: const Color(0xFF08143C),
-            width: 1.0,
+  return InkWell(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LocationDetailsScreen(
+            serviceName: text,
+            id: serviceId,
           ),
         ),
+      );
+    },
+    child: Card(
+      color: Colors.white,
+      elevation: 5.0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(
+          color: Color(0xFF08143C),
+          width: 1.0,
+        ),
+      ),
+      child: Padding(
         padding: const EdgeInsets.all(2),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
@@ -518,15 +455,16 @@ class _SearchScreenState extends State {
               text,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.bold,
               ),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class NotificacionesScreen extends StatefulWidget {
@@ -537,46 +475,55 @@ class NotificacionesScreen extends StatefulWidget {
 }
 
 class _NotificacionesScreenState extends State {
-  @override
+   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: const Text('Notificaciones'),
+        elevation: 0,
+        title: Text(
+          'Notificaciones',
+          style: TextStyle(color: Colors.grey[800], fontSize: 20),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          icon: Icon(Icons.arrow_back_ios, color: Colors.grey[800]),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Título de la sección
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16.0),
-              child: Text(
-                'Notificaciones recientes',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+            Text(
+              'Notificaciones recientes',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
               ),
             ),
-
-            // Lista de notificaciones
+            const SizedBox(height: 16),
             Expanded(
-              child: ListView.builder(
+              child: ListView.separated(
                 itemCount: 5, // Reemplaza con el número real de notificaciones
+                separatorBuilder: (context, index) => Divider(color: Colors.grey[300]),
                 itemBuilder: (context, index) {
-                  return const ListTile(
-                    leading: Icon(Icons.notifications),
-                    title: Text('Título de la notificación'),
-                    subtitle: Text('Descripción de la notificación'),
-                    trailing: Icon(Icons.more_vert),
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.green[100],
+                      child: const Icon(Icons.notifications, color: Colors.green),
+                    ),
+                    title: Text(
+                      'Título de la notificación',
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[800]),
+                    ),
+                    subtitle: Text(
+                      'Descripción de la notificación',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
                   );
                 },
               ),
@@ -660,7 +607,7 @@ class _HogarScreenState extends State<HogarScreen> {
                     crossAxisCount: 2,
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
-                    childAspectRatio: 9 / 7,
+                    childAspectRatio: 9 / 7.45,
                     children: _services.map((service) {
                       return _buildServiceButton(service['imageUrl'],
                           service['serviceName'], service['id']);
@@ -671,26 +618,29 @@ class _HogarScreenState extends State<HogarScreen> {
   }
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(
-              serviceName: text,
-              id: serviceId,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: const Color(0xFF08143C),
-            width: 2.0,
+  return InkWell(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LocationDetailsScreen(
+            serviceName: text,
+            id: serviceId,
           ),
         ),
+      );
+    },
+    child: Card(
+      color: Colors.white,
+      elevation: 5.0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(
+          color: Color(0xFF08143C),
+          width: 1.0,
+        ),
+      ),
+      child: Padding(
         padding: const EdgeInsets.all(2),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
@@ -718,8 +668,9 @@ class _HogarScreenState extends State<HogarScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class PersonalScreen extends StatefulWidget {
@@ -797,26 +748,29 @@ class _PersonalScreenState extends State<PersonalScreen> {
   }
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(
-              serviceName: text,
-              id: serviceId,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: const Color(0xFF08143C),
-            width: 2.0,
+  return InkWell(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LocationDetailsScreen(
+            serviceName: text,
+            id: serviceId,
           ),
         ),
+      );
+    },
+    child: Card(
+      color: Colors.white,
+      elevation: 5.0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(
+          color: Color(0xFF08143C),
+          width: 1.0,
+        ),
+      ),
+      child: Padding(
         padding: const EdgeInsets.all(2),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
@@ -844,8 +798,9 @@ class _PersonalScreenState extends State<PersonalScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class ProfesionalScreen extends StatefulWidget {
@@ -923,26 +878,29 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
   }
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(
-              serviceName: text,
-              id: serviceId,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: const Color(0xFF08143C),
-            width: 2.0,
+  return InkWell(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LocationDetailsScreen(
+            serviceName: text,
+            id: serviceId,
           ),
         ),
+      );
+    },
+    child: Card(
+      color: Colors.white,
+      elevation: 5.0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(
+          color: Color(0xFF08143C),
+          width: 1.0,
+        ),
+      ),
+      child: Padding(
         padding: const EdgeInsets.all(2),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
@@ -970,8 +928,9 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class EntretenimientoScreen extends StatefulWidget {
@@ -1049,26 +1008,29 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
   }
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(
-              serviceName: text,
-              id: serviceId,
-            ),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: const Color(0xFF08143C),
-            width: 2.0,
+  return InkWell(
+    onTap: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LocationDetailsScreen(
+            serviceName: text,
+            id: serviceId,
           ),
         ),
+      );
+    },
+    child: Card(
+      color: Colors.white,
+      elevation: 5.0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(
+          color: Color(0xFF08143C),
+          width: 1.0,
+        ),
+      ),
+      child: Padding(
         padding: const EdgeInsets.all(2),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
@@ -1096,8 +1058,9 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class LocationDetailsScreen extends StatefulWidget {
@@ -1217,66 +1180,66 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    String selectedServiceName = widget.serviceName;
-    if (selectedServiceName.length > 25) {
-      selectedServiceName = '${selectedServiceName.substring(0, 25)}...';
-    }
-    return Scaffold(
+Widget build(BuildContext context) {
+  String selectedServiceName = widget.serviceName;
+  if (selectedServiceName.length > 25) {
+    selectedServiceName = '${selectedServiceName.substring(0, 30)}...';
+  }
+  return Scaffold(
+    backgroundColor: Colors.white,
+    appBar: AppBar(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        title: Text(selectedServiceName),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
+      elevation: 0,
+      title: Text(
+        selectedServiceName,
+        style: TextStyle(color: Colors.grey[800], fontSize: 20),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            const Text(
-              "¿En donde requieres del servicio?",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              "Ingrese su ubicación en la barra de búsqueda o para mayor precisión, seleccione su dirección interactuando dentro del mapa:",
-              style: TextStyle(
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 15),
-            Container(
-              height: 50,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: Colors.grey[200],
-              ),
-              child: Row(
+      leading: IconButton(
+        icon: Icon(Icons.arrow_back_ios, color: Colors.grey[800]),
+        onPressed: () => Navigator.pop(context),
+      ),
+    ),
+    body: GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: SingleChildScrollView(
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(left: 16.0),
-                    child: Icon(
-                      Icons.search,
-                      color: Colors.black87,
+                  Text(
+                    "¿Dónde requieres el servicio?",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
                     ),
                   ),
-                  const SizedBox(width: 16.0),
-                  Expanded(
+                  const SizedBox(height: 8),
+                  Text(
+                    "Ingresa tu ubicación o selecciona en el mapa:",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(25),
+                    ),
                     child: TextField(
                       controller: _searchController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: "Buscar ubicación",
+                        prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
                         border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 15),
                       ),
                       onChanged: (text) {
                         if (text.isNotEmpty) {
@@ -1289,169 +1252,176 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                       },
                     ),
                   ),
-                ],
-              ),
-            ),
-            if (_isLoadingSuggestions)
-              const Center(
-                child: CircularProgressIndicator(
-                  color: Colors.green,
-                ),
-              )
-            else if (_suggestions.isNotEmpty)
-              SizedBox(
-                height: 150,
-                child: ListView.builder(
-                  itemCount: _suggestions.length,
-                  itemBuilder: (context, index) {
-                    final suggestion = _suggestions[index];
-                    return ListTile(
-                      title: Text(suggestion['place_name']),
-                      subtitle: Text(suggestion['properties']['text'] ?? ''),
-                      onTap: () {
-                        _searchController.text = suggestion['place_name'];
-                        // Convertimos el place_id a una cadena de texto
-                        _selectedLatLng = LatLng(
-                            suggestion['geometry']['coordinates'][1],
-                            suggestion['geometry']['coordinates'][0]);
-                        _markerLatLng =
-                            _selectedLatLng; // Actualizar _markerLatLng al seleccionar una sugerencia
-                        mapController.move(_selectedLatLng!, 15);
-                        setState(() {
-                          _suggestions = [];
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: PopupScope(
-                child: FlutterMap(
-                  mapController: mapController,
-                  options: MapOptions(
-                    center: _selectedLatLng ??
-                        const LatLng(10.4806, -66.9036), // Caracas
-                    zoom: _selectedLatLng != null ? 15 : 5, // Zoom inicial
-                    interactiveFlags: InteractiveFlag.all,
-                    onTap: (tapPosition, latLng) {
-                      setState(() {
-                        _selectedLatLng = latLng;
-                        _markerLatLng =
-                            latLng; // Actualizar _markerLatLng al tocar el mapa
-                        if (kDebugMode) {
-                          print('Latitud: ${_markerLatLng?.latitude}');
-                        } // Imprimir las coordenadas
-                        if (kDebugMode) {
-                          print('Longitud: ${_markerLatLng?.longitude}');
-                        } // Imprimir las coordenadas
-                      });
-                    },
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      subdomains: const ['a', 'b', 'c'],
-                    ),
-                    MarkerClusterLayerWidget(
-                      options: MarkerClusterLayerOptions(
-                        maxClusterRadius: 20,
-                        disableClusteringAtZoom: 16,
-                        size: const Size(40, 40),
-                        builder: (context, markers) {
-                          return Container(
-                            alignment: Alignment.center,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.green,
+                  if (_isLoadingSuggestions)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8.0),
+                      child: Center(child: CircularProgressIndicator(color: Colors.green)),
+                    )
+                  else if (_suggestions.isNotEmpty)
+                    Container(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.3,
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: _suggestions.length,
+                        itemBuilder: (context, index) {
+                          final suggestion = _suggestions[index];
+                          return ListTile(
+                            title: Text(
+                              suggestion['place_name'],
+                              style: const TextStyle(fontSize: 14),
                             ),
-                            child: Text(
-                              '${markers.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                              ),
+                            subtitle: Text(
+                              suggestion['properties']['text'] ?? '',
+                              style: const TextStyle(fontSize: 12),
                             ),
+                            onTap: () {
+                              _searchController.text = suggestion['place_name'];
+                              _selectedLatLng = LatLng(
+                                suggestion['geometry']['coordinates'][1],
+                                suggestion['geometry']['coordinates'][0],
+                              );
+                              _markerLatLng = _selectedLatLng;
+                              mapController.move(_selectedLatLng!, 15);
+                              setState(() {
+                                _suggestions = [];
+                              });
+                              FocusScope.of(context).unfocus();
+                            },
                           );
                         },
-                        polygonOptions: const PolygonOptions(
-                          borderColor: Colors.black,
-                          color: Colors.black12,
-                          borderStrokeWidth: 3,
-                        ),
-                        markers: [
-                          if (_markerLatLng != null) // Usar _markerLatLng aquí
-                            Marker(
-                              width: 80,
-                              height: 80,
-                              point: _markerLatLng!,
-                              builder: (ctx) => const Icon(Icons.location_pin,
-                                  color: Colors.green, size: 40),
-                            ),
-                        ],
-                        popupOptions: PopupOptions(
-                          popupSnap: PopupSnap.markerTop,
-                          popupBuilder: (_, marker) => Container(
-                            width: 200,
-                            height: 100,
-                            color: Colors.white,
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text(_searchController.text),
-                            ),
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.5,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(15),
+                      child: PopupScope(
+                        child: FlutterMap(
+                          mapController: mapController,
+                          options: MapOptions(
+                            center: _selectedLatLng ?? const LatLng(10.4806, -66.9036),
+                            zoom: _selectedLatLng != null ? 15 : 5,
+                            interactiveFlags: InteractiveFlag.all,
+                            onTap: (tapPosition, latLng) {
+                              setState(() {
+                                _selectedLatLng = latLng;
+                                _markerLatLng = latLng;
+                                if (kDebugMode) {
+                                  print('Latitud: ${_markerLatLng?.latitude}');
+                                }
+                                if (kDebugMode) {
+                                  print('Longitud: ${_markerLatLng?.longitude}');
+                                }
+                              });
+                            },
                           ),
+                          children: [
+                            TileLayer(
+                              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              subdomains: const ['a', 'b', 'c'],
+                            ),
+                            MarkerClusterLayerWidget(
+                              options: MarkerClusterLayerOptions(
+                                maxClusterRadius: 20,
+                                disableClusteringAtZoom: 16,
+                                size: const Size(40, 40),
+                                builder: (context, markers) {
+                                  return Container(
+                                    alignment: Alignment.center,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.green,
+                                    ),
+                                    child: Text(
+                                      '${markers.length}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                polygonOptions: const PolygonOptions(
+                                  borderColor: Colors.black,
+                                  color: Colors.black12,
+                                  borderStrokeWidth: 3,
+                                ),
+                                markers: [
+                                  if (_markerLatLng != null)
+                                    Marker(
+                                      width: 80,
+                                      height: 80,
+                                      point: _markerLatLng!,
+                                      builder: (ctx) => const Icon(Icons.location_pin,
+                                          color: Colors.green, size: 40),
+                                    ),
+                                ],
+                                popupOptions: PopupOptions(
+                                  popupSnap: PopupSnap.markerTop,
+                                  popupBuilder: (_, marker) => Container(
+                                    width: 200,
+                                    height: 100,
+                                    color: Colors.white,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Text(_searchController.text),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _referenceController,
-              decoration: InputDecoration(
-                labelText: 'Punto de referencia e información adicional',
-                labelStyle: const TextStyle(color: Colors.black),
-                hintText: 'Ej. Frente a la tienda, cerca del parque...',
-                hintStyle: const TextStyle(color: Colors.grey),
-                filled: true,
-                fillColor: Colors.transparent,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16.0),
-                  borderSide: const BorderSide(color: Colors.blue),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 16.0,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Center(
-              child: ElevatedButton(
-                onPressed: _markerLatLng != null ? _saveLocationDetails : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                  textStyle: const TextStyle(fontSize: 16),
-                ),
-                child: const Text(
-                  'Continuar',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _referenceController,
+                    decoration: InputDecoration(
+                      labelText: 'Punto de referencia',
+                      hintText: 'Ej. Frente a la tienda, cerca del parque...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        borderSide: const BorderSide(color: Colors.green),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: _markerLatLng != null ? _saveLocationDetails : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                      ),
+                      child: const Text(
+                        'Continuar',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 // Nueva pantalla SelectSuppliersScreen
@@ -1908,7 +1878,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                   Text(
                     widget.serviceName,
                     style: const TextStyle(
-                        fontSize: 14.0, fontStyle: FontStyle.italic),
+                        fontSize: 12.0, fontStyle: FontStyle.italic),
                   ),
                   Row(
                     children: [
@@ -2111,19 +2081,8 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   bool _showReservationModal = false;
   String clientIDString = "";
   String clientName = "";
-  double _walletBalance = 0.0;
-
-  bool _showCards = false;
-  final Set<String> _selectedCards = {};
-  bool _pagoMovilSelected = false;
-  bool _efectivoSelected = false;
-  bool _paypalSelected = false;
-  bool _zinliSelected = false;
-  bool _binanceSelected = false;
 
   late Future<void> _initFuture;
-  late Future<QuerySnapshot> _cardsFuture;
-  bool _hasCards = false;
 
   @override
   void initState() {
@@ -2145,9 +2104,6 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
 
   Future<void> _initializeData() async {
     await _getUserInfo();
-    await _getWalletBalance();
-    _cardsFuture = _getCardsData();
-    _hasCards = await _checkIfUserHasCards();
   }
 
   Future<void> _getUserInfo() async {
@@ -2166,35 +2122,6 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
         });
       }
     }
-  }
-
-  Future<void> _getWalletBalance() async {
-    if (clientIDString.isNotEmpty) {
-      final walletDoc = await FirebaseFirestore.instance
-          .collection('wallets')
-          .doc(clientIDString)
-          .get();
-
-      if (walletDoc.exists) {
-        final walletData = walletDoc.data() as Map<String, dynamic>;
-        setState(() {
-          _walletBalance = walletData['walletBalance'] ?? 0.0;
-        });
-      }
-    }
-  }
-
-  Future<QuerySnapshot> _getCardsData() {
-    return FirebaseFirestore.instance
-        .collection('wallets')
-        .doc(clientIDString)
-        .collection('cards')
-        .get();
-  }
-
-  Future<bool> _checkIfUserHasCards() async {
-    final cardsSnapshot = await _cardsFuture;
-    return cardsSnapshot.docs.isNotEmpty;
   }
 
   @override
@@ -2409,369 +2336,6 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                                     ),
                                   ),
                                   const SizedBox(height: 10),
-                                  Container(
-                                    padding: const EdgeInsets.all(15),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF08143C),
-                                      borderRadius: BorderRadius.circular(15),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        const Text(
-                                          'Métodos de pago disponibles',
-                                          style: TextStyle(
-                                            fontSize: 19,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        const Text(
-                                          'Los pagos se realizan al finalizar el servicio',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 15),
-                                        // Mostrar saldo del monedero
-                                        Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.all(10),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue[200],
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                          ),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const Text(
-                                                'Saldo disponible del monedero',
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.black,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 5),
-                                              Container(
-                                                width: 400,
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 15,
-                                                        vertical: 8),
-                                                decoration: BoxDecoration(
-                                                  color:
-                                                      const Color(0xFF08143C),
-                                                  borderRadius:
-                                                      BorderRadius.circular(10),
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment
-                                                          .spaceBetween,
-                                                  children: [
-                                                    Container(
-                                                      width: 60,
-                                                      height: 30,
-                                                      decoration: BoxDecoration(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(8),
-                                                        color: const Color(
-                                                            0xFF1ca424),
-                                                      ),
-                                                      child: const Center(
-                                                        child: Text(
-                                                          'USD',
-                                                          style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontSize: 16),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(width: 10),
-                                                    Text(
-                                                      _walletBalance
-                                                          .toStringAsFixed(2),
-                                                      style: const TextStyle(
-                                                          fontSize: 24,
-                                                          color: Colors.white),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(height: 15),
-                                        // Botón para mostrar tarjetas
-                                        if (_hasCards)
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: ElevatedButton(
-                                              onPressed: () {
-                                                setState(() {
-                                                  _showCards = !_showCards;
-                                                });
-                                              },
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: _showCards
-                                                    ? Colors.green[100]
-                                                    : Colors.white,
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        vertical: 12,
-                                                        horizontal: 15),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(10),
-                                                ),
-                                              ),
-                                              child: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
-                                                children: [
-                                                  const Text('Tarjetas'),
-                                                  Row(
-                                                    children: [
-                                                      Image.asset(
-                                                          'assets/images/VISA_Logo.png',
-                                                          height: 20),
-                                                      const SizedBox(width: 10),
-                                                      Image.asset(
-                                                          'assets/images/MasterCard_Logo.png',
-                                                          height: 20),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        if (_showCards)
-                                          Container(
-                                            margin:
-                                                const EdgeInsets.only(top: 10),
-                                            padding: const EdgeInsets.all(10),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                            child: FutureBuilder<QuerySnapshot>(
-                                              future: _cardsFuture,
-                                              builder:
-                                                  (context, cardsSnapshot) {
-                                                if (cardsSnapshot
-                                                        .connectionState ==
-                                                    ConnectionState.waiting) {
-                                                  return const CircularProgressIndicator(
-                                                      color: Colors.green);
-                                                }
-                                                if (cardsSnapshot.hasError) {
-                                                  return Text(
-                                                      'Error: ${cardsSnapshot.error}');
-                                                }
-                                                if (!cardsSnapshot.hasData ||
-                                                    cardsSnapshot
-                                                        .data!.docs.isEmpty) {
-                                                  return const Text(
-                                                      'No hay tarjetas disponibles');
-                                                }
-
-                                                return Column(
-                                                  children: cardsSnapshot
-                                                      .data!.docs
-                                                      .map((card) {
-                                                    final cardData = card.data()
-                                                        as Map<String, dynamic>;
-                                                    final cardNumber = cardData[
-                                                            'cardNumber'] ??
-                                                        '';
-                                                    final cardType =
-                                                        cardData['cardType'] ??
-                                                            '';
-                                                    final imagePath = cardType ==
-                                                            'Visa'
-                                                        ? 'assets/images/VISA_Logo.png'
-                                                        : 'assets/images/MasterCard_Logo.png';
-
-                                                    return CheckboxListTile(
-                                                      title: Row(
-                                                        children: [
-                                                          Text(cardNumber),
-                                                          const SizedBox(
-                                                              width: 10),
-                                                          Image.asset(imagePath,
-                                                              height: 20),
-                                                        ],
-                                                      ),
-                                                      value: _selectedCards
-                                                          .contains(card.id),
-                                                      onChanged: (bool? value) {
-                                                        setState(() {
-                                                          if (value == true) {
-                                                            _selectedCards
-                                                                .add(card.id);
-                                                          } else {
-                                                            _selectedCards
-                                                                .remove(
-                                                                    card.id);
-                                                          }
-                                                        });
-                                                      },
-                                                    );
-                                                  }).toList(),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                        const SizedBox(height: 15),
-
-                                        // Pago Móvil y Efectivo
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: ElevatedButton.icon(
-                                                icon: const Icon(
-                                                    Icons.phone_android,
-                                                    color: Colors.black),
-                                                label: const Text('Pago Móvil',
-                                                    style: TextStyle(
-                                                        color: Colors.black)),
-                                                onPressed: () {
-                                                  setState(() {
-                                                    _pagoMovilSelected =
-                                                        !_pagoMovilSelected;
-                                                  });
-                                                },
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      _pagoMovilSelected
-                                                          ? Colors.green[100]
-                                                          : Colors.white,
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: ElevatedButton.icon(
-                                                icon: const Icon(
-                                                    Icons.attach_money_rounded,
-                                                    color: Colors.green),
-                                                label: const Text('Efectivo',
-                                                    style: TextStyle(
-                                                        color: Colors.green)),
-                                                onPressed: () {
-                                                  setState(() {
-                                                    _efectivoSelected =
-                                                        !_efectivoSelected;
-                                                  });
-                                                },
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      _efectivoSelected
-                                                          ? Colors.green[100]
-                                                          : Colors.white,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        if (_efectivoSelected)
-                                          const Padding(
-                                            padding: EdgeInsets.all(8.0),
-                                            child: Text(
-                                              'Advertencia: Si el agente no tiene cambio, el monto restante será añadido a su monedero instantáneamente.',
-                                              style: TextStyle(
-                                                  color: Color.fromARGB(
-                                                      255, 250, 96, 85),
-                                                  fontSize: 12),
-                                            ),
-                                          ),
-                                        const SizedBox(height: 15),
-
-                                      // Paypal, Zinli y Binance
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: ElevatedButton(
-                                                onPressed: () {
-                                                  setState(() {
-                                                    _paypalSelected =
-                                                        !_paypalSelected;
-                                                  });
-                                                },
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      _paypalSelected
-                                                          ? Colors.green[100]
-                                                          : Colors.white,
-                                                ),
-                                                child: FittedBox(
-                                                  child: Image.asset(
-                                                      'assets/images/Paypal_Logo.png',
-                                                      height: 50),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: ElevatedButton(
-                                                onPressed: () {
-                                                  setState(() {
-                                                    _zinliSelected =
-                                                        !_zinliSelected;
-                                                  });
-                                                },
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      _zinliSelected
-                                                          ? Colors.green[100]
-                                                          : Colors.white,
-                                                ),
-                                                child: FittedBox(
-                                                  child: Image.asset(
-                                                      'assets/images/Zinli_Logo.png',
-                                                      height: 40),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: ElevatedButton(
-                                                onPressed: () {
-                                                  setState(() {
-                                                    _binanceSelected =
-                                                        !_binanceSelected;
-                                                  });
-                                                },
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      _binanceSelected
-                                                          ? Colors.green[100]
-                                                          : Colors.white,
-                                                ),
-                                                child: FittedBox(
-                                                  child: Image.asset(
-                                                      'assets/images/Binance_Logo.png',
-                                                      height: 50),
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
                                   const Text(
                                     '¿Por qué requiere del servicio?',
                                     style: TextStyle(
@@ -2805,26 +2369,6 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                                   const SizedBox(height: 20),
                                   ElevatedButton(
                                     onPressed: () async {
-                                      // Verificar si se ha seleccionado al menos un método de pago adicional al monedero
-                                      bool hasAdditionalPaymentMethod =
-                                          _selectedCards.isNotEmpty ||
-                                              _pagoMovilSelected ||
-                                              _efectivoSelected ||
-                                              _paypalSelected ||
-                                              _zinliSelected ||
-                                              _binanceSelected;
-
-                                      if (!hasAdditionalPaymentMethod) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                                'Seleccione un método de pago adicional al monedero.'),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
-                                        return;
-                                      }
 
                                       // Verificar la longitud del texto de la descripción del servicio
                                       if (_reservationTextController
@@ -2852,25 +2396,6 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                                       List<String> selectedPaymentMethods = [
                                         'Monedero'
                                       ];
-                                      if (_selectedCards.isNotEmpty) {
-                                        selectedPaymentMethods.add('Tarjetas');
-                                      }
-                                      if (_pagoMovilSelected) {
-                                        selectedPaymentMethods
-                                            .add('Pago Móvil');
-                                      }
-                                      if (_efectivoSelected) {
-                                        selectedPaymentMethods.add('Efectivo');
-                                      }
-                                      if (_paypalSelected) {
-                                        selectedPaymentMethods.add('Paypal');
-                                      }
-                                      if (_zinliSelected) {
-                                        selectedPaymentMethods.add('Zinli');
-                                      }
-                                      if (_binanceSelected) {
-                                        selectedPaymentMethods.add('Binance');
-                                      }
 
                                       // Guardar la reserva en la colección "tasks"
                                       final taskData = {
@@ -2896,8 +2421,6 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                                             .data()?['name'],
                                         'paymentMethods':
                                             selectedPaymentMethods,
-                                        'selectedCards':
-                                            _selectedCards.toList(),
                                       };
 
                                       await FirebaseFirestore.instance
