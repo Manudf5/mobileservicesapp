@@ -737,7 +737,7 @@ class _PersonalScreenState extends State<PersonalScreen> {
                 crossAxisCount: 2,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                childAspectRatio: 9 / 7,
+                childAspectRatio: 9 / 7.45,
                 children: _services.map((service) {
                   return _buildServiceButton(service['imageUrl'],
                       service['serviceName'], service['id']);
@@ -867,7 +867,7 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
                 crossAxisCount: 2,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                childAspectRatio: 9 / 7,
+                childAspectRatio: 9 / 7.45,
                 children: _services.map((service) {
                   return _buildServiceButton(service['imageUrl'],
                       service['serviceName'], service['id']);
@@ -997,7 +997,7 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
                 crossAxisCount: 2,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                childAspectRatio: 9 / 7,
+                childAspectRatio: 9 / 7.45,
                 children: _services.map((service) {
                   return _buildServiceButton(service['imageUrl'],
                       service['serviceName'], service['id']);

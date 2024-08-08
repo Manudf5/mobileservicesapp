@@ -26,30 +26,21 @@ class _WalletScreenState extends State<WalletScreen> {
   double? _walletBalance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String _userId = '';
-  String _name = '';
-  String _lastName = '';
-  String _profileImageUrl = '';
   DateTime _currentTime = DateTime.now();
-  bool _isBalanceHidden = true;
   bool _isLoading = true;
   String _userDocId = '';
-  String? _pin;
-
-  StreamSubscription<DocumentSnapshot>? _walletSubscription;
+  String _userName = '';
+  String _userLastName = '';
+  String _profileImageUrl = '';
 
   @override
   void initState() {
     super.initState();
     initializeDateFormatting('es_ES', null).then((_) {
       _fetchClientId();
+      _loadUserData();
       _updateTime();
     });
-  }
-
-  @override
-  void dispose() {
-    _walletSubscription?.cancel();
-    super.dispose();
   }
 
   void _updateTime() {
@@ -77,16 +68,9 @@ class _WalletScreenState extends State<WalletScreen> {
 
         if (querySnapshot.docs.isNotEmpty) {
           final userDoc = querySnapshot.docs.first;
-          final userData = userDoc.data();
           _userDocId = userDoc.id;
 
-          setState(() {
-            _name = userData['name'] ?? '';
-            _lastName = userData['lastName'] ?? '';
-            _profileImageUrl = userData['profileImageUrl'] ?? '';
-          });
-
-          _walletSubscription = FirebaseFirestore.instance
+          FirebaseFirestore.instance
               .collection('wallets')
               .doc(_userDocId)
               .snapshots()
@@ -94,7 +78,6 @@ class _WalletScreenState extends State<WalletScreen> {
             if (walletDoc.exists) {
               setState(() {
                 _walletBalance = walletDoc.data()?['walletBalance'];
-                _pin = walletDoc.data()?['pin'];
                 _isLoading = false;
               });
             }
@@ -111,353 +94,262 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
-  void _toggleBalanceVisibility() {
-    setState(() {
-      _isBalanceHidden = !_isBalanceHidden;
-    });
-  }
+  Future _loadUserData() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      String combinedId = await _getCombinedIdFromFirestore(user.uid);
 
-  // ignore: unused_element
-  void _checkPin() {
-    if (_pin == null) {
-      _showCreatePinDialog();
-    } else {
-      _showEnterPinDialog();
-    }
-  }
+      DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+          .instance
+          .collection('users')
+          .doc(combinedId)
+          .get();
 
-  void _showCreatePinDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        String newPin = '';
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Crear PIN'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                  'Por favor, cree un PIN de 4 dígitos para acceder a sus tarjetas.'),
-              TextField(
-                keyboardType: TextInputType.number,
-                maxLength: 4,
-                obscureText: true,
-                decoration: InputDecoration(
-                  hintText: 'Ingrese el PIN',
-                  filled: true,
-                  fillColor: Colors.grey[200],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                onChanged: (value) {
-                  newPin = value;
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Guardar'),
-              onPressed: () {
-                if (newPin.length == 4) {
-                  _savePin(newPin);
-                  Navigator.of(context).pop();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('El PIN debe tener 4 dígitos')),
-                  );
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showEnterPinDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        String enteredPin = '';
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Ingresar PIN'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                  'Por favor, ingrese su PIN de 4 dígitos para acceder a sus tarjetas.'),
-              TextField(
-                keyboardType: TextInputType.number,
-                maxLength: 4,
-                obscureText: true,
-                decoration: InputDecoration(
-                  hintText: 'Ingrese el PIN',
-                  filled: true,
-                  fillColor: Colors.grey[200],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                onChanged: (value) {
-                  enteredPin = value;
-                },
-              ),
-              const Text('Si olvidó su pin, contacte a soporte.',
-                  style: TextStyle(color: Colors.black, fontSize: 12)),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child:
-                  const Text('Cancelar', style: TextStyle(color: Colors.red)),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Confirmar',
-                  style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18)),
-              onPressed: () {
-                if (enteredPin == _pin) {
-                  Navigator.of(context).pop();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('PIN incorrecto'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _savePin(String pin) async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('wallets')
-          .doc(_userDocId)
-          .update({'pin': pin});
-      setState(() {
-        _pin = pin;
-      });
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error saving PIN: $e');
+      if (userDoc.exists) {
+        setState(() {
+          _userName = userDoc.data()!['name'];
+          _userLastName = userDoc.data()!['lastName'];
+          _profileImageUrl = userDoc.data()!['profileImageUrl'] ?? '';
+        });
       }
     }
   }
 
-  void _navigateToTransferFundsScreen() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-          builder: (context) => TransferFundsScreen(userId: _userDocId)),
-    );
+  Future _getCombinedIdFromFirestore(String uid) async {
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+        .instance
+        .collection('users')
+        .where('uid', isEqualTo: uid)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      return querySnapshot.docs.first.id;
+    }
+
+    return '';
   }
+
+  void _navigateToTransferFundsScreen() {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+        builder: (context) => TransferFundsScreen(userId: _userDocId)),
+  );
+}
+
+void _navigateToTransactionHistoryScreen() {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+        builder: (context) => const TransactionHistoryScreen()),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        centerTitle: true,
-        title: const Text(
-          'Monedero',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 28,
-          ),
-        ),
-      ),
-      body: Center(
-        child: Column(
-          children: <Widget>[
-            Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 5, horizontal: 30),
-                child: Text(
-                  '${DateFormat('EEEE', 'es_ES').format(_currentTime)[0].toUpperCase()}${DateFormat('EEEE', 'es_ES').format(_currentTime).substring(1)}, ${DateFormat('dd/MM/yyyy HH:mm:ss', 'es_ES').format(_currentTime)}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ),
-            ),
-            Container(
-              width: MediaQuery.of(context).size.width * 0.9,
-              height: 200,
-              decoration: BoxDecoration(
-                color: const Color(0xFF08143c),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 15,
-                          backgroundImage: _profileImageUrl.isNotEmpty
-                              ? NetworkImage(_profileImageUrl)
-                              : null,
-                          child: _profileImageUrl.isEmpty
-                              ? const Icon(Icons.person)
-                              : null,
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          '$_name $_lastName',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ],
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Monedero',
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
                     ),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 60,
-                          height: 35,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(15),
-                            color: const Color(0xFF1ca424),
-                          ),
-                          child: const Center(
-                            child: Text(
-                              'USD',
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 20),
+                  ),
+                  Row(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '$_userName $_userLastName',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        _isLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white)
-                            : Text(
-                                _isBalanceHidden
-                                    ? '****'
-                                    : (_walletBalance?.toStringAsFixed(2) ??
-                                        '0.00'),
-                                style: const TextStyle(
-                                    fontSize: 36, color: Colors.white),
-                              ),
-                        IconButton(
-                          icon: Icon(
-                              _isBalanceHidden
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              size: 25),
-                          color: Colors.blueGrey[200],
-                          onPressed: _toggleBalanceVisibility,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                GestureDetector(
-                  onTap: _navigateToTransferFundsScreen,
-                  child: Container(
-                    width: MediaQuery.of(context).size.width * 0.42,
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      border: Border.all(color: const Color(0xFF08143c)),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.offline_share,
-                              size: 50, color: Color(0xFF08143c)),
-                          SizedBox(width: 8),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text('Transferir',
-                                  style: TextStyle(fontSize: 18)),
-                              Text('fondos', style: TextStyle(fontSize: 18)),
-                            ],
+                          Text(
+                            DateFormat('dd/MM/yyyy HH:mm:ss').format(_currentTime),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey,
+                            ),
                           ),
                         ],
                       ),
+                      const SizedBox(width: 10),
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundImage: _profileImageUrl.isNotEmpty
+                            ? NetworkImage(_profileImageUrl)
+                            : null,
+                        child: _profileImageUrl.isEmpty
+                            ? const Icon(Icons.person, color: Colors.green)
+                            : null,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 30),
+              const Text(
+                'Saldo Disponible',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _isLoading ? '\$--' : '\$ ${_walletBalance?.toStringAsFixed(2) ?? '0.00'}',
+                style: const TextStyle(
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildActionButton(
+                    icon: Icons.send,
+                    label: 'Enviar',
+                    onTap: _navigateToTransferFundsScreen,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Tu actividad',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-              ],
-            ),
-            const SizedBox(height: 20),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => const TransactionHistoryScreen()),
-                );
-              },
-              child: Container(
-                width: MediaQuery.of(context).size.width * 0.91,
-                decoration: BoxDecoration(
-                  color: Colors.blueGrey[50],
-                  border: Border.all(color: const Color(0xFF08143c)),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Historial de transacciones',
-                        style: TextStyle(fontSize: 20),
-                      ),
-                      Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        size: 30,
+                  GestureDetector(
+                    onTap: _navigateToTransactionHistoryScreen,
+                    child: const Text(
+                      'Historial',
+                      style: TextStyle(
                         color: Color(0xFF08143c),
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: ListView(
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      _buildTransactionItem('Car loans', 'Chase', 5000),
+                      _buildTransactionItem('Bank Account', 'Transfer to bank', -2980),
+                      _buildTransactionItem('Grocery Store', 'Walmart', 550),
+                      _buildTransactionItem('Shopping', 'Nike', 1300),
                     ],
                   ),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        decoration: BoxDecoration(
+          color: const Color(0xFF08143c),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionItem(String title, String subtitle, double amount) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 15),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(Icons.account_balance_wallet, color: Color(0xFF08143c)),
+              ),
+              const SizedBox(width: 15),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Text(
+            '${amount >= 0 ? '+' : ''}\$${amount.abs().toStringAsFixed(0)}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: amount >= 0 ? Colors.green : Colors.red,
+            ),
+          ),
+        ],
       ),
     );
   }
