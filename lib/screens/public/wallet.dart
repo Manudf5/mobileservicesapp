@@ -108,20 +108,6 @@ class _WalletScreenState extends State<WalletScreen> {
         .orderBy('date', descending: true)
         .limit(5);
 
-    final QuerySnapshot<Map<String, dynamic>> snapshot = await query.get();
-
-    if (kDebugMode) {
-      print('Número de transacciones obtenidas: ${snapshot.docs.length}');
-    }
-
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      if (kDebugMode) {
-        print('Transacción: $data');
-        print('Tipo de amount: ${data['amount'].runtimeType}');
-      }
-    }
-
     query.snapshots().listen((snapshot) {
       setState(() {
         _transactions = snapshot.docs
@@ -169,17 +155,39 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _navigateToTransferFundsScreen() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-          builder: (context) => TransferFundsScreen(userId: _userDocId)),
-    );
-  }
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+        builder: (context) => TransferFundsScreen(userId: _userDocId)),
+  );
+}
 
   void _navigateToTransactionHistoryScreen() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const TransactionHistoryScreen()),
+    );
+  }
+
+  void _navigateToTransactionReceiptScreen(
+      QueryDocumentSnapshot<Map<String, dynamic>> transaction) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TransactionReceiptScreen2(
+          paymentType: transaction.data()['paymentType'] ?? 'Desconocido',
+          date: (transaction.data()['date'] as Timestamp).toDate(),
+          transactionId: transaction.id, // Usar el ID del documento aquí
+          concept: transaction.data()['concept'] ?? '',
+          recipientId: transaction.data()['recipientId'] ?? '',
+          recipientName: transaction.data()['recipientName'] ?? '',
+          amount: transaction.data()['amount'].toDouble(),
+          paymentMethod: transaction.data()['paymentMethod'] ?? {},
+          taskId: transaction.data()['taskId'] ?? '',
+          senderName: transaction.data()['senderName'] ?? '',
+          senderId: transaction.data()['senderId'] ?? '',
+        ),
+      ),
     );
   }
 
@@ -270,36 +278,35 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
               const SizedBox(height: 30),
               Row(
-  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  children: [
-    const Text(
-      'Tu actividad',
-      style: TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-      ),
-    ),
-    GestureDetector(
-      onTap: _navigateToTransactionHistoryScreen,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          border: Border.all(color: const Color(0xFF08143c), width: 1.5),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Text(
-          'Historial',
-          style: TextStyle(
-            color: Color(0xFF08143c),
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    ),
-  ],
-),
-
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Actividad reciente',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: _navigateToTransactionHistoryScreen,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(color: const Color(0xFF08143c), width: 1.5),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'Historial',
+                        style: TextStyle(
+                          color: Color(0xFF08143c),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 20),
               Expanded(
                 child: Container(
@@ -312,8 +319,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     itemCount: _transactions.length,
                     itemBuilder: (context, index) {
                       final transaction = _transactions[index].data();
-                      final isSentByUser =
-                          transaction['senderId'] == _userDocId;
+                      final isSentByUser = transaction['senderId'] == _userDocId;
                       final icon = isSentByUser
                           ? Icons.keyboard_arrow_down_rounded
                           : Icons.keyboard_arrow_up_rounded;
@@ -326,8 +332,11 @@ class _WalletScreenState extends State<WalletScreen> {
                           : (amount as double);
                       final paymentType = transaction['paymentType'];
 
-                      return _buildTransactionItem(
-                          name, paymentType, amountDouble, icon, isSentByUser);
+                      return GestureDetector(
+                        onTap: () => _navigateToTransactionReceiptScreen(_transactions[index]),
+                        child: _buildTransactionItem(
+                            name, paymentType, amountDouble, icon, isSentByUser),
+                      );
                     },
                   ),
                 ),
@@ -443,7 +452,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   bool _isLoading = true;
   Timer? _debounce;
   DateTime? _startDate;
-DateTime? _endDate;
+  DateTime? _endDate;
 
   @override
   void initState() {
@@ -481,7 +490,6 @@ DateTime? _endDate;
         .orderBy('date', descending: true)
         .limit(_transactionLimit);
 
-    // Filtro inicial basado en el usuario actual
     query = query.where(Filter.or(
       Filter('senderId', isEqualTo: _userId),
       Filter('recipientId', isEqualTo: _userId),
@@ -492,14 +500,12 @@ DateTime? _endDate;
     } else if (_selectedFilter == 'Recibidas') {
       query = query.where('recipientId', isEqualTo: _userId);
     }
-
-    // Filtro por fechas
-  if (_startDate != null) {
-    query = query.where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(_startDate!));
-  }
-  if (_endDate != null) {
-    query = query.where('date', isLessThanOrEqualTo: Timestamp.fromDate(_endDate!.add(const Duration(days: 1))));
-  }
+     if (_startDate != null) {
+      query = query.where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(_startDate!));
+    }
+    if (_endDate != null) {
+      query = query.where('date', isLessThanOrEqualTo: Timestamp.fromDate(_endDate!.add(const Duration(days: 1))));
+    }
 
     final QuerySnapshot<Map<String, dynamic>> snapshot = await query.get();
 
@@ -536,59 +542,57 @@ DateTime? _endDate;
   }
 
   Future<void> _showDateRangePicker() async {
-  DateTimeRange? pickedRange = await showDateRangePicker(
-    context: context,
-    firstDate: DateTime(2024, 1, 1),
-    lastDate: DateTime.now(),
-    initialDateRange: _startDate != null && _endDate != null
-        ? DateTimeRange(start: _startDate!, end: _endDate!)
-        : null,
-    locale: const Locale('es', ''),
-    builder: (BuildContext context, Widget? child) {
-      return Theme(
-        data: ThemeData.light().copyWith(
-          primaryColor: const Color(0xFF08143c),
-          colorScheme: const ColorScheme.light(
-            primary: Color(0xFF08143c),
-            onPrimary: Colors.white, // Asegura que el texto sea blanco en los elementos primarios
-            secondary: Color(0xFFE3F2FD), // Color azul claro para el rango seleccionado
-          ),
-          dialogBackgroundColor: Colors.white,
-          scaffoldBackgroundColor: Colors.white,
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              backgroundColor: Colors.green[200],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+    DateTimeRange? pickedRange = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2024, 1, 1),
+      lastDate: DateTime.now(),
+      initialDateRange: _startDate != null && _endDate != null
+          ? DateTimeRange(start: _startDate!, end: _endDate!)
+          : null,
+      locale: const Locale('es', ''),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            primaryColor: const Color(0xFF08143c),
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF08143c),
+              onPrimary: Colors.white,
+              secondary: Color(0xFFE3F2FD),
+            ),
+            dialogBackgroundColor: Colors.white,
+            scaffoldBackgroundColor: Colors.white,
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.green[200],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                foregroundColor: Colors.white,
               ),
-              // Forzar el color del texto a blanco
-              foregroundColor: Colors.white,
+            ),
+            textTheme: ThemeData.light().textTheme.apply(
+              bodyColor: const Color(0xFF08143c),
+              displayColor: const Color(0xFF08143c),
             ),
           ),
-          textTheme: ThemeData.light().textTheme.apply(
-            bodyColor: const Color(0xFF08143c),
-            displayColor: const Color(0xFF08143c),
-          ),
-        ),
-        child: child!,
-      );
-    },
-    cancelText: 'Cancelar',
-    confirmText: 'Buscar',
-    saveText: 'Buscar',
-    helpText: 'Seleccionar rango',
-  );
+          child: child!,
+        );
+      },
+      cancelText: 'Cancelar',
+      confirmText: 'Buscar',
+      saveText: 'Buscar',
+      helpText: 'Seleccionar rango',
+    );
 
-  if (pickedRange != null) {
-    setState(() {
-      _startDate = pickedRange.start;
-      _endDate = pickedRange.end;
-    });
-    _fetchTransactions();
+    if (pickedRange != null) {
+      setState(() {
+        _startDate = pickedRange.start;
+        _endDate = pickedRange.end;
+      });
+      _fetchTransactions();
+    }
   }
-}
 
-  // Función para obtener el nombre del usuario o la persona relacionada con la transacción
   Future<String> _getUserName(String userId) async {
     final DocumentSnapshot<Map<String, dynamic>> userDoc =
         await FirebaseFirestore.instance.collection('users').doc(userId).get();
@@ -599,15 +603,37 @@ DateTime? _endDate;
     }
   }
 
+  void _navigateToTransactionReceiptScreen(QueryDocumentSnapshot<Map<String, dynamic>> transactionDoc) {
+  final transaction = transactionDoc.data();
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => TransactionReceiptScreen2(
+        paymentType: transaction['paymentType'] ?? 'Desconocido',
+        date: (transaction['date'] as Timestamp).toDate(),
+        transactionId: transactionDoc.id, // Usar el ID del documento aquí
+        concept: transaction['concept'] ?? '',
+        recipientId: transaction['recipientId'] ?? '',
+        recipientName: transaction['recipientName'] ?? '',
+        amount: transaction['amount'].toDouble(),
+        paymentMethod: transaction['paymentMethod'] ?? {},
+        taskId: transaction['taskId'] ?? '',
+        senderName: transaction['senderName'] ?? '',
+        senderId: transaction['senderId'] ?? '',
+      ),
+    ),
+  );
+}
+
   Widget _buildTransactionItem(
       QueryDocumentSnapshot<Map<String, dynamic>> transaction) {
     final data = transaction.data();
     final bool isIncome = data['recipientId'] == _userId;
     final String amount = '\$${data['amount'].toStringAsFixed(2)}';
     final String description = data['concept'] ?? 'Sin descripción';
-    (data['date'] as Timestamp).toDate();
+    // ignore: unused_local_variable
+    final DateTime date = (data['date'] as Timestamp).toDate();
 
-    // Obtener el nombre del usuario o la persona relacionada
     Future<String> nameFuture =
         _getUserName(isIncome ? data['senderId'] : data['recipientId']);
 
@@ -616,61 +642,63 @@ DateTime? _endDate;
       builder: (context, snapshot) {
         if (snapshot.hasData) {
           final name = snapshot.data!;
-          final paymentType =
-              data['paymentType'] ?? 'Sin tipo'; // Obtener paymentType
+          final paymentType = data['paymentType'] ?? 'Sin tipo';
           final icon = isIncome
               ? Icons.keyboard_arrow_up_rounded
               : Icons.keyboard_arrow_down_rounded;
 
-          return Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            child: Row(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(
-                      color: Colors.grey,
-                      width: 0.7,
+          return GestureDetector(
+            onTap: () => _navigateToTransactionReceiptScreen(transaction),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: Colors.grey,
+                        width: 0.7,
+                      ),
+                    ),
+                    child: Icon(
+                      icon,
+                      size: 40,
+                      color: const Color(0xFF08143c),
                     ),
                   ),
-                  child: Icon(
-                    icon,
-                    size: 40,
-                    color: const Color(0xFF08143c),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          paymentType,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        Text(
+                          description,
+                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        paymentType,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      Text(
-                        description,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      ),
-                    ],
+                  Text(
+                    isIncome ? '+$amount' : '-$amount',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isIncome ? Colors.green : Colors.red,
+                    ),
                   ),
-                ),
-                Text(
-                  isIncome ? '+$amount' : '-$amount',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: isIncome ? Colors.green : Colors.red,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         } else if (snapshot.hasError) {
@@ -694,8 +722,7 @@ DateTime? _endDate;
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon:
-              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Center(
@@ -705,11 +732,11 @@ DateTime? _endDate;
           ),
         ),
         actions: [
-  IconButton(
-    icon: const Icon(Icons.calendar_month_rounded, color: Colors.black),
-    onPressed: _showDateRangePicker,
-  ),
-],
+          IconButton(
+            icon: const Icon(Icons.calendar_month_rounded, color: Colors.black),
+            onPressed: _showDateRangePicker,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -756,9 +783,7 @@ DateTime? _endDate;
                     });
                   },
                 ),
-                const SizedBox(
-                    height:
-                        8.0), // Espacio entre el TextField y el texto adicional
+                const SizedBox(height: 8.0),
                 const Center(
                   child: Text(
                     'Ingrese el ID del usuario, el nombre o la referencia de la transacción.',
@@ -792,7 +817,7 @@ DateTime? _endDate;
                   constraints: const BoxConstraints(maxWidth: 74.3),
                   child: DropdownButtonFormField<int>(
                     value: _transactionLimit,
-                    isDense: true, // Esto reduce el espacio vertical
+                    isDense: true,
                     decoration: InputDecoration(
                       filled: true,
                       fillColor: Colors.transparent,
@@ -809,9 +834,7 @@ DateTime? _endDate;
                       return DropdownMenuItem<int>(
                         value: value,
                         child: Padding(
-                          padding: const EdgeInsets.only(
-                              left:
-                                  15.0), // Ajusta el espacio entre el texto y la flecha
+                          padding: const EdgeInsets.only(left: 15.0),
                           child: Text(value.toString()),
                         ),
                       );
@@ -895,7 +918,6 @@ DateTime? _endDate;
                         },
                       ),
           ),
-          // Paginación
           if (!_isLoading && _transactions.isNotEmpty)
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -934,33 +956,33 @@ DateTime? _endDate;
   }
 
   Widget _buildDateRangeIndicator() {
-  if (_startDate == null || _endDate == null) return const SizedBox.shrink();
+    if (_startDate == null || _endDate == null) return const SizedBox.shrink();
 
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 0.0),
-    child: Row(
-      children: [
-        const Icon(Icons.date_range, size: 16, color: Colors.green),
-        const SizedBox(width: 8),
-        Text(
-          'Desde ${DateFormat('dd/MM/yyyy').format(_startDate!)} - Hasta ${DateFormat('dd/MM/yyyy').format(_endDate!)}',
-          style: const TextStyle(fontSize: 14),
-        ),
-        const Spacer(),
-        IconButton(
-          icon: const Icon(Icons.close, size: 16),
-          onPressed: () {
-            setState(() {
-              _startDate = null;
-              _endDate = null;
-            });
-            _fetchTransactions();
-          },
-        ),
-      ],
-    ),
-  );
-}
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 0.0),
+      child: Row(
+        children: [
+          const Icon(Icons.date_range, size: 16, color: Colors.green),
+          const SizedBox(width: 8),
+          Text(
+            'Desde ${DateFormat('dd/MM/yyyy').format(_startDate!)} - Hasta ${DateFormat('dd/MM/yyyy').format(_endDate!)}',
+            style: const TextStyle(fontSize: 14),
+          ),
+          const Spacer(),
+          IconButton(
+            icon: const Icon(Icons.close, size: 16),
+            onPressed: () {
+              setState(() {
+                _startDate = null;
+                _endDate = null;
+              });
+              _fetchTransactions();
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildFilterButton(String label) {
     return ElevatedButton(
@@ -973,7 +995,7 @@ DateTime? _endDate;
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
         ),
-        padding: const EdgeInsets.all(12.0), // Elimina el padding
+        padding: const EdgeInsets.all(12.0),
       ),
       onPressed: () {
         setState(() {
@@ -1639,9 +1661,9 @@ class _ConfirmTransferFundsScreenState
 
       // Navegar a la pantalla de recibo
       // ignore: use_build_context_synchronously
-      Navigator.of(context).pushAndRemoveUntil(
+      Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => TransactionReceiptScreen(
+          builder: (context) => TransactionReceiptScreen2(
             paymentType: 'Transferencia de fondos',
             date: DateTime.now(),
             transactionId: transactionRef.id,
@@ -1649,10 +1671,9 @@ class _ConfirmTransferFundsScreenState
             recipientId: widget.recipient['id'],
             recipientName:
                 '${widget.recipient['name']} ${widget.recipient['lastName']}',
-            amount: amount,
+            amount: amount, paymentMethod: const {}, taskId: '', senderName: _userName, senderId: widget.userId,
           ),
         ),
-        (Route<dynamic> route) => false,
       );
     } catch (e) {
       if (kDebugMode) {
@@ -2053,12 +2074,32 @@ class TransactionReceiptScreen extends StatelessWidget {
 }
 
 class TransactionReceiptScreen2 extends StatelessWidget {
-  final Map<String, dynamic> transactionData;
+  final String paymentType;
+  final DateTime date;
+  final String transactionId;
+  final String concept;
+  final String recipientId;
+  final String recipientName;
+  final double amount;
+  final Map<String, dynamic> paymentMethod;
+  final String taskId;
+  final String senderName;
+  final String senderId;
   final VoidCallback? onBackPressed;
 
   TransactionReceiptScreen2({
     super.key,
-    required this.transactionData,
+    required this.paymentType,
+    required this.date,
+    required this.transactionId,
+    required this.concept,
+    required this.recipientId,
+    required this.recipientName,
+    required this.amount,
+    required this.paymentMethod,
+    required this.taskId,
+    required this.senderName,
+    required this.senderId,
     this.onBackPressed,
   });
 
@@ -2074,7 +2115,8 @@ class TransactionReceiptScreen2 extends StatelessWidget {
           onBackPressed!();
         } else {
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const HomePage(selectedIndex: 3)),
+            MaterialPageRoute(
+                builder: (context) => const HomePage(selectedIndex: 3)),
             (Route<dynamic> route) => false,
           );
         }
@@ -2084,128 +2126,148 @@ class TransactionReceiptScreen2 extends StatelessWidget {
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
+          title: const Text('Detalle de Transacción', style: TextStyle(color: Colors.black)),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
-            onPressed: () {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const HomePage(selectedIndex: 3)),
-                (Route<dynamic> route) => false,
-              );
-            },
+            onPressed: () => Navigator.of(context).pop(),
           ),
-          title: const Text(
-            'Detalle de Transacción',
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-          ),
-          centerTitle: true,
         ),
-        body: Screenshot(
-          controller: screenshotController,
+        body: Center( // Center the content
           child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildTransactionStatus(),
-                  const SizedBox(height: 24),
-                  _buildTransactionDetails(context),
-                  const SizedBox(height: 24),
-                  _buildActionButtons(context),
-                ],
-              ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center, // Center vertically
+              children: [
+                Screenshot(
+                  controller: screenshotController,
+                  child: Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center, // Centra los elementos del encabezado
+                      children: [
+                        _buildHeader(),
+                        const SizedBox(height: 24),
+                        _buildTransactionStatus(),
+                        const SizedBox(height: 24),
+                        _buildInfoCard(context),
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(7.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildActionButton(
+                        icon: Icons.share,
+                        label: 'Compartir',
+                        onPressed: () => _shareScreenshot(context),
+                      ),
+                      _buildActionButton(
+                        icon: Icons.download,
+                        label: 'Descargar',
+                        onPressed: () => _saveScreenshot(context),
+                      ),
+                    ],
+                  ),
+                )
+              ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center, // Centra el encabezado horizontalmente
+      children: [
+        const Text(
+          'Mobile Services App',
+          textAlign: TextAlign.center, // Centra el texto
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF08143c)),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          DateFormat('dd/MM/yyyy HH:mm').format(date),
+          textAlign: TextAlign.center, // Centra el texto
+          style: const TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+      ],
     );
   }
 
   Widget _buildTransactionStatus() {
-    bool isSuccessful = transactionData['status'] == 'approved';
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isSuccessful ? Colors.green.shade50 : Colors.red.shade50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            isSuccessful ? Icons.check_circle : Icons.error,
-            color: isSuccessful ? Colors.green : Colors.red,
-            size: 48,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isSuccessful ? '¡Transacción aprobada!' : 'Transacción fallida',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isSuccessful ? Colors.green : Colors.red,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  DateFormat('dd/MM/yyyy HH:mm').format(transactionData['date'].toDate()),
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center, // Centra los elementos de la sección de estado
+      children: [
+        const Icon(
+          Icons.check_circle_outline_rounded,
+          color: Colors.green,
+          size: 80,
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          '¡Transacción aprobada!',
+          textAlign: TextAlign.center, // Centra el texto
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF08143c)),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Monto total: \$${amount.toStringAsFixed(2)}',
+          textAlign: TextAlign.center, // Centra el texto
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+        ),
+      ],
     );
   }
 
-  Widget _buildTransactionDetails(BuildContext context) {
+  Widget _buildInfoCard(BuildContext context) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildDetailRow('Tipo', transactionData['paymentType']),
-            _buildDetailRow('Referencia', transactionData['transactionId'], isCopiable: true),
-            _buildDetailRow('Concepto', transactionData['concept']),
-            _buildUserInfo(context),
-            if (transactionData['taskId'] != null) _buildTaskInfo(context),
-            const Divider(height: 32),
-            _buildPaymentMethods(),
-            _buildDetailRow('Total', '\$${transactionData['amount'].toStringAsFixed(2)}', isBold: true),
+            _buildInfoRow('Tipo de pago', paymentType, context: context),
+            _buildInfoRow('Referencia', transactionId, context: context, isCopiable: true),
+            _buildInfoRow('Concepto', concept, context: context),
+            _buildInfoRow('Emisor', '$senderName ($senderId)', context: context),
+            _buildInfoRow('Receptor', '$recipientName ($recipientId)', context: context),
+            _buildPaymentMethodsSection(),
+            if (taskId.isNotEmpty) _buildTaskIdSection(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {bool isCopiable = false, bool isBold = false}) {
+  Widget _buildInfoRow(String label, String value, {required BuildContext context, bool isCopiable = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF08143c))),
           Row(
             children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
+              Text(value, style: const TextStyle(color: Colors.black87)),
               if (isCopiable)
                 IconButton(
-                  icon: const Icon(Icons.copy, size: 16),
+                  icon: const Icon(Icons.copy, size: 20, color: Color(0xFF08143c)),
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: value));
-                    // Show snackbar
+                    _showCopiedSnackbar(context); // Pass the context to the function
                   },
                 ),
             ],
@@ -2215,67 +2277,60 @@ class TransactionReceiptScreen2 extends StatelessWidget {
     );
   }
 
-  Widget _buildUserInfo(BuildContext context) {
-    bool isRecipient = transactionData['recipientId'] == FirebaseAuth.instance.currentUser?.uid;
-    String userId = isRecipient ? transactionData['senderId'] : transactionData['recipientId'];
-    String userName = isRecipient ? transactionData['senderName'] : transactionData['recipientName'];
-    
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const CircularProgressIndicator();
-        }
-        if (snapshot.hasError) {
-          return Text('Error: ${snapshot.error}');
-        }
-        if (!snapshot.hasData || !snapshot.data!.exists) {
-          return const Text('Usuario no encontrado');
-        }
-
-        Map<String, dynamic> userData = snapshot.data!.data() as Map<String, dynamic>;
-        String profileImageUrl = userData['profileImageUrl'] ?? '';
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundImage: profileImageUrl.isNotEmpty ? NetworkImage(profileImageUrl) : null,
-                child: profileImageUrl.isEmpty ? const Icon(Icons.person) : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(isRecipient ? 'Enviado por' : 'Enviado a', style: const TextStyle(color: Colors.grey)),
-                    Text(userName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+  void _showCopiedSnackbar(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Copiado al portapapeles'), backgroundColor: Colors.green),
     );
   }
 
-  Widget _buildTaskInfo(BuildContext context) {
+  Widget _buildPaymentMethodsSection() {
+    if (paymentMethod.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8.0),
+            child: Text('Métodos de pago', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF08143c))),
+          ),
+          ...paymentMethod.entries.map((entry) {
+            final methodName = entry.key;
+            final methodDetails = entry.value as Map<String, dynamic>;
+            final methodAmount = methodDetails['amount'] as num;
+            return Padding(
+              padding: const EdgeInsets.only(left: 16.0, bottom: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(methodName, style: const TextStyle(color: Colors.black87)),
+                  Text('\$${methodAmount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.black87)),
+                ],
+              ),
+            );
+          // ignore: unnecessary_to_list_in_spreads
+          }).toList(),
+        ],
+      );
+    } else {
+      return const SizedBox.shrink(); // No mostrar nada si paymentMethod es nulo o vacío
+    }
+  }
+
+  Widget _buildTaskIdSection(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('Tarea ID', style: TextStyle(color: Colors.grey)),
+          const Text('Task ID', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF08143c))),
           Row(
             children: [
-              Text(transactionData['taskId']),
+              Text(taskId, style: const TextStyle(color: Colors.black87)),
               IconButton(
-                icon: const Icon(Icons.arrow_forward_ios, size: 16),
+                icon: const Icon(Icons.copy, size: 20, color: Color(0xFF08143c)),
                 onPressed: () {
-                  // Navegar a la pantalla de detalles de la tarea
+                  Clipboard.setData(ClipboardData(text: taskId));
+                  // Mostrar un SnackBar o alguna notificación de que se ha copiado
+                  _showCopiedSnackbar(context);
                 },
               ),
             ],
@@ -2285,61 +2340,14 @@ class TransactionReceiptScreen2 extends StatelessWidget {
     );
   }
 
-  Widget _buildPaymentMethods() {
-    Map<String, dynamic> paymentMethods = transactionData['paymentMethod'] ?? {};
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: paymentMethods.entries.map((entry) {
-        String method = entry.key;
-        double amount = entry.value['amount'].toDouble();
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(method, style: const TextStyle(color: Colors.grey)),
-              Text('\$${amount.toStringAsFixed(2)}'),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildActionButton(
-          context: context,
-          icon: Icons.share,
-          label: 'Compartir',
-          onPressed: () => _shareScreenshot(context),
-        ),
-        _buildActionButton(
-          context: context,
-          icon: Icons.download,
-          label: 'Descargar',
-          onPressed: () => _saveScreenshot(context),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButton({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required VoidCallback onPressed,
-  }) {
+  Widget _buildActionButton({required IconData icon, required String label, required VoidCallback onPressed}) {
     return ElevatedButton.icon(
       icon: Icon(icon, color: Colors.white),
       label: Text(label, style: const TextStyle(color: Colors.white)),
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF08143C),
+        backgroundColor: const Color(0xFF08143c),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
     );
   }
@@ -2361,7 +2369,9 @@ class TransactionReceiptScreen2 extends StatelessWidget {
       final Uint8List? image = await screenshotController.capture();
       if (image != null) {
         final directory = await getExternalStorageDirectory();
-        final imagePath = await File('${directory!.path}/comprobante_transaccion_${DateTime.now().millisecondsSinceEpoch}.png').create();
+        final imagePath = await File(
+          '${directory!.path}/comprobante_transaccion_${DateTime.now().millisecondsSinceEpoch}.png',
+        ).create();
         await imagePath.writeAsBytes(image);
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(

@@ -1346,6 +1346,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
               supplierName: taskData['supplierName'],
               supplierId: taskData['supplierID'],
               taskId: widget.task.id,
+              paymentMethod: transactionData['paymentMethod'],
               onBackPressed: () {
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
@@ -1487,7 +1488,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     final updatedTaskData = updatedTaskDoc.data() as Map<String, dynamic>;
 
     if (mounted) {
-      await _navigateToReceiptScreen(updatedTaskData, totalAmountUSD);
+      await _navigateToReceiptScreen(
+          updatedTaskData, totalAmountUSD, transactionData);
     }
 
     await _updateTaskWalletAndChat(taskData, totalAmountUSD);
@@ -1555,8 +1557,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     }
   }
 
-  Future<void> _navigateToReceiptScreen(
-      Map<String, dynamic> taskData, double totalAmountUSD) async {
+  Future<void> _navigateToReceiptScreen(Map<String, dynamic> taskData,
+      double totalAmountUSD, Map<String, dynamic> transactionData) async {
     await Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (context) => ServiceTransactionReceiptScreen(
@@ -1572,6 +1574,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
           supplierName: taskData['supplierName'],
           supplierId: taskData['supplierID'],
           taskId: widget.task.id,
+          paymentMethod: transactionData['paymentMethod'],
           onBackPressed: () {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
@@ -1948,6 +1951,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
             supplierName: transactionData['recipientName'] ?? '',
             supplierId: transactionData['recipientId'] ?? '',
             taskId: widget.task.id,
+            paymentMethod: transactionData['paymentMethod'],
             onBackPressed: () {
               OneContext().pop();
             },
@@ -3512,6 +3516,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                     ),
                                   ),
 
+                                
+
                                 const SizedBox(height: 10),
 
                                 // Reservado
@@ -3730,30 +3736,39 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                         Card(
                                           color: Colors.white,
                                           elevation: 2,
+                                          // Agrega borderRadius a la forma del Card
                                           shape: RoundedRectangleBorder(
                                               borderRadius:
                                                   BorderRadius.circular(15)),
                                           shadowColor: const Color(0xFF08143C),
                                           child: Container(
+                                            // Agrega borderRadius al contenedor del mapa
                                             decoration: BoxDecoration(
                                               borderRadius:
-                                                  BorderRadius.circular(10.0),
+                                                  BorderRadius.circular(15.0),
                                               border: Border.all(
                                                 color: const Color(0xFF08143C),
                                                 width: 1.0,
                                               ),
                                             ),
-                                            child: SizedBox(
-                                              height:
-                                                  200, // Ajusta la altura del mapa
-                                              child: ClientLocationMap(
-                                                clientLatLng: LatLng(
-                                                  widget.task
-                                                      .data()['clientLocation']
-                                                      .latitude,
-                                                  widget.task
-                                                      .data()['clientLocation']
-                                                      .longitude,
+                                            child: ClipRRect(
+                                              // Agrega ClipRRect para redondear los bordes del mapa
+                                              borderRadius:
+                                                  BorderRadius.circular(15.0),
+                                              child: SizedBox(
+                                                height:
+                                                    200, // Ajusta la altura del mapa
+                                                child: ClientLocationMap(
+                                                  clientLatLng: LatLng(
+                                                    widget.task
+                                                        .data()[
+                                                            'clientLocation']
+                                                        .latitude,
+                                                    widget.task
+                                                        .data()[
+                                                            'clientLocation']
+                                                        .longitude,
+                                                  ),
                                                 ),
                                               ),
                                             ),
@@ -3761,6 +3776,31 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                         ),
                                       ],
                                     ),
+                                    const SizedBox(height: 20),
+
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(4.0),
+                                      decoration: BoxDecoration(
+                                        borderRadius:
+                                            BorderRadius.circular(5.0),
+                                        color: Colors.blueGrey[600],
+                                      ),
+                                      child: const Icon(
+                                        Icons.qr_code_rounded,
+                                        size: 18.0,
+                                        color: Colors.yellow,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'Task ID: ${widget.task.id}', // Aquí obtienes el ID del documento
+                                      style: const TextStyle(fontSize: 15),
+                                    ),
+                                  ],
+                                ),
+                                 const SizedBox(height: 10),
                               ],
                             ),
                           ),
@@ -4185,6 +4225,7 @@ class ServiceTransactionReceiptScreen extends StatefulWidget {
   final String supplierName;
   final String supplierId;
   final String taskId;
+  final Map<String, dynamic> paymentMethod; // Agrega paymentMethod
 
   const ServiceTransactionReceiptScreen({
     super.key,
@@ -4200,6 +4241,7 @@ class ServiceTransactionReceiptScreen extends StatefulWidget {
     required this.supplierName,
     required this.supplierId,
     required this.taskId,
+    required this.paymentMethod, // Agrega paymentMethod al constructor
   });
 
   @override
@@ -4279,11 +4321,31 @@ class _ServiceTransactionReceiptScreenState
                               ),
                             ),
                             const SizedBox(height: 16),
-                            const Center(
-                              child: Text(
-                                '¡Transacción aprobada!',
-                                style: TextStyle(
-                                    fontSize: 20, fontWeight: FontWeight.bold),
+                            Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment
+                                    .center, // Centra los textos verticalmente
+                                children: [
+                                  const Text(
+                                    '¡Transacción aprobada!',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(
+                                      height: 10), // Espacio entre los textos
+                                  Text(
+                                    'Monto total: \$${widget.amount.toStringAsFixed(2)}', // Muestra el monto con 2 decimales
+                                    textAlign:
+                                        TextAlign.center, // Centra el texto
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -4418,13 +4480,13 @@ class _ServiceTransactionReceiptScreenState
 
   Widget _buildInfoCard() {
     return Card(
-      elevation: 4,
+      elevation: 6,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.blueGrey[50],
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Padding(
@@ -4447,10 +4509,43 @@ class _ServiceTransactionReceiptScreenState
               _buildInfoRow('Referencia', widget.transactionId,
                   isCopiable: true),
               _buildInfoRow('Servicio', widget.concept),
-              _buildInfoRow('Destinatario ID ', widget.recipientId),
-              _buildInfoRow('Destinatario', widget.recipientName),
-              _buildInfoRow(
-                  'Monto total', '\$ ${widget.amount.toStringAsFixed(2)}'),
+              _buildInfoRow('Receptor',
+                  '${widget.recipientName} (${widget.recipientId})'),
+              // Sección para mostrar los métodos de pago
+              if (widget.paymentMethod.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Métodos de pago',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF08143C),
+                        ),
+                      ),
+                      for (var entry in widget.paymentMethod.entries)
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(left: 16.0, bottom: 1.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(entry.key,
+                                  style:
+                                      const TextStyle(color: Colors.black87)),
+                              Text(
+                                  '\$${(entry.value['amount'] as num).toStringAsFixed(2)}',
+                                  style:
+                                      const TextStyle(color: Colors.black87)),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              _buildInfoRow('Task ID: ', widget.taskId),
             ],
           ),
         ),
@@ -4464,7 +4559,11 @@ class _ServiceTransactionReceiptScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(label,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF08143C),
+              )),
           Row(
             children: [
               Text(value),
