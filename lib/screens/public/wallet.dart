@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -32,6 +33,7 @@ class _WalletScreenState extends State<WalletScreen> {
   String _userName = '';
   String _userLastName = '';
   String _profileImageUrl = '';
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _transactions = [];
 
   @override
   void initState() {
@@ -82,6 +84,8 @@ class _WalletScreenState extends State<WalletScreen> {
               });
             }
           });
+
+          _fetchTransactions();
         }
       }
     } catch (e) {
@@ -94,7 +98,42 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
-  Future _loadUserData() async {
+  Future<void> _fetchTransactions() async {
+    final query = FirebaseFirestore.instance
+        .collection('transactions')
+        .where(Filter.or(
+          Filter('recipientId', isEqualTo: _userDocId),
+          Filter('senderId', isEqualTo: _userDocId),
+        ))
+        .orderBy('date', descending: true)
+        .limit(5);
+
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await query.get();
+
+    if (kDebugMode) {
+      print('Número de transacciones obtenidas: ${snapshot.docs.length}');
+    }
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      if (kDebugMode) {
+        print('Transacción: $data');
+        print('Tipo de amount: ${data['amount'].runtimeType}');
+      }
+    }
+
+    query.snapshots().listen((snapshot) {
+      setState(() {
+        _transactions = snapshot.docs
+            .where((doc) =>
+                doc['recipientId'] == _userDocId ||
+                doc['senderId'] == _userDocId)
+            .toList();
+      });
+    });
+  }
+
+  Future<void> _loadUserData() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       String combinedId = await _getCombinedIdFromFirestore(user.uid);
@@ -115,7 +154,7 @@ class _WalletScreenState extends State<WalletScreen> {
     }
   }
 
-  Future _getCombinedIdFromFirestore(String uid) async {
+  Future<String> _getCombinedIdFromFirestore(String uid) async {
     QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
         .instance
         .collection('users')
@@ -130,20 +169,19 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _navigateToTransferFundsScreen() {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-        builder: (context) => TransferFundsScreen(userId: _userDocId)),
-  );
-}
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (context) => TransferFundsScreen(userId: _userDocId)),
+    );
+  }
 
-void _navigateToTransactionHistoryScreen() {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-        builder: (context) => const TransactionHistoryScreen()),
-  );
-}
+  void _navigateToTransactionHistoryScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const TransactionHistoryScreen()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +216,8 @@ void _navigateToTransactionHistoryScreen() {
                             ),
                           ),
                           Text(
-                            DateFormat('dd/MM/yyyy HH:mm:ss').format(_currentTime),
+                            DateFormat('dd/MM/yyyy HH:mm:ss')
+                                .format(_currentTime),
                             style: const TextStyle(
                               fontSize: 11,
                               color: Colors.grey,
@@ -210,7 +249,9 @@ void _navigateToTransactionHistoryScreen() {
               ),
               const SizedBox(height: 10),
               Text(
-                _isLoading ? '\$--' : '\$ ${_walletBalance?.toStringAsFixed(2) ?? '0.00'}',
+                _isLoading
+                    ? '\$--'
+                    : '\$ ${_walletBalance?.toStringAsFixed(2) ?? '0.00'}',
                 style: const TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.bold,
@@ -229,27 +270,36 @@ void _navigateToTransactionHistoryScreen() {
               ),
               const SizedBox(height: 30),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Tu actividad',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: _navigateToTransactionHistoryScreen,
-                    child: const Text(
-                      'Historial',
-                      style: TextStyle(
-                        color: Color(0xFF08143c),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    const Text(
+      'Tu actividad',
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+    GestureDetector(
+      onTap: _navigateToTransactionHistoryScreen,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          border: Border.all(color: const Color(0xFF08143c), width: 1.5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text(
+          'Historial',
+          style: TextStyle(
+            color: Color(0xFF08143c),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    ),
+  ],
+),
+
               const SizedBox(height: 20),
               Expanded(
                 child: Container(
@@ -257,17 +307,31 @@ void _navigateToTransactionHistoryScreen() {
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: ListView(
+                  child: ListView.builder(
                     padding: const EdgeInsets.all(20),
-                    children: [
-                      _buildTransactionItem('Car loans', 'Chase', 5000),
-                      _buildTransactionItem('Bank Account', 'Transfer to bank', -2980),
-                      _buildTransactionItem('Grocery Store', 'Walmart', 550),
-                      _buildTransactionItem('Shopping', 'Nike', 1300),
-                    ],
+                    itemCount: _transactions.length,
+                    itemBuilder: (context, index) {
+                      final transaction = _transactions[index].data();
+                      final isSentByUser =
+                          transaction['senderId'] == _userDocId;
+                      final icon = isSentByUser
+                          ? Icons.keyboard_arrow_down_rounded
+                          : Icons.keyboard_arrow_up_rounded;
+                      final name = isSentByUser
+                          ? transaction['recipientName']
+                          : transaction['senderName'];
+                      final amount = transaction['amount'];
+                      final amountDouble = (amount is int)
+                          ? amount.toDouble()
+                          : (amount as double);
+                      final paymentType = transaction['paymentType'];
+
+                      return _buildTransactionItem(
+                          name, paymentType, amountDouble, icon, isSentByUser);
+                    },
                   ),
                 ),
-              ),
+              )
             ],
           ),
         ),
@@ -302,7 +366,8 @@ void _navigateToTransactionHistoryScreen() {
     );
   }
 
-  Widget _buildTransactionItem(String title, String subtitle, double amount) {
+  Widget _buildTransactionItem(String title, String subtitle, double amount,
+      IconData icon, bool isSentByUser) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 15),
       child: Row(
@@ -317,7 +382,11 @@ void _navigateToTransactionHistoryScreen() {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(15),
                 ),
-                child: const Icon(Icons.account_balance_wallet, color: Color(0xFF08143c)),
+                child: Icon(
+                  icon,
+                  size: 40,
+                  color: const Color(0xFF08143c),
+                ),
               ),
               const SizedBox(width: 15),
               Column(
@@ -342,16 +411,606 @@ void _navigateToTransactionHistoryScreen() {
             ],
           ),
           Text(
-            '${amount >= 0 ? '+' : ''}\$${amount.abs().toStringAsFixed(0)}',
+            '${isSentByUser ? '-' : '+'}\$${amount.abs().toStringAsFixed(2)}',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: amount >= 0 ? Colors.green : Colors.red,
+              fontSize: 14,
+              color: isSentByUser ? Colors.red : Colors.green,
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+class TransactionHistoryScreen extends StatefulWidget {
+  const TransactionHistoryScreen({super.key});
+
+  @override
+  // ignore: library_private_types_in_public_api
+  _TransactionHistoryScreenState createState() =>
+      _TransactionHistoryScreenState();
+}
+
+class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
+  String _userId = '';
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _transactions = [];
+  String _selectedFilter = 'Todas';
+  int _transactionLimit = 15;
+  String _searchQuery = '';
+  int _currentPage = 1;
+  bool _isLoading = true;
+  Timer? _debounce;
+  DateTime? _startDate;
+DateTime? _endDate;
+
+  @override
+  void initState() {
+    super.initState();
+    initializeDateFormatting('es_ES', null).then((_) {
+      _getUserId();
+    });
+  }
+
+  Future<void> _getUserId() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final QuerySnapshot<Map<String, dynamic>> querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .where('uid', isEqualTo: user.uid)
+              .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        setState(() {
+          _userId = querySnapshot.docs.first.id;
+        });
+        _fetchTransactions();
+      }
+    }
+  }
+
+  Future<void> _fetchTransactions() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
+        .collection('transactions')
+        .orderBy('date', descending: true)
+        .limit(_transactionLimit);
+
+    // Filtro inicial basado en el usuario actual
+    query = query.where(Filter.or(
+      Filter('senderId', isEqualTo: _userId),
+      Filter('recipientId', isEqualTo: _userId),
+    ));
+
+    if (_selectedFilter == 'Enviadas') {
+      query = query.where('senderId', isEqualTo: _userId);
+    } else if (_selectedFilter == 'Recibidas') {
+      query = query.where('recipientId', isEqualTo: _userId);
+    }
+
+    // Filtro por fechas
+  if (_startDate != null) {
+    query = query.where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(_startDate!));
+  }
+  if (_endDate != null) {
+    query = query.where('date', isLessThanOrEqualTo: Timestamp.fromDate(_endDate!.add(const Duration(days: 1))));
+  }
+
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await query.get();
+
+    if (_searchQuery.isNotEmpty) {
+      final List<QueryDocumentSnapshot<Map<String, dynamic>>>
+          filteredTransactions = [];
+      for (var doc in snapshot.docs) {
+        final senderId = doc['senderId'];
+        final recipientId = doc['recipientId'];
+        final transactionId = doc.id;
+
+        final senderName = await _getUserName(senderId);
+        final recipientName = await _getUserName(recipientId);
+
+        if (senderName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            recipientName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            senderId.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            recipientId.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            transactionId.toLowerCase().contains(_searchQuery.toLowerCase())) {
+          filteredTransactions.add(doc);
+        }
+      }
+
+      setState(() {
+        _transactions = filteredTransactions;
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _transactions = snapshot.docs;
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _showDateRangePicker() async {
+  DateTimeRange? pickedRange = await showDateRangePicker(
+    context: context,
+    firstDate: DateTime(2024, 1, 1),
+    lastDate: DateTime.now(),
+    initialDateRange: _startDate != null && _endDate != null
+        ? DateTimeRange(start: _startDate!, end: _endDate!)
+        : null,
+    locale: const Locale('es', ''),
+    builder: (BuildContext context, Widget? child) {
+      return Theme(
+        data: ThemeData.light().copyWith(
+          primaryColor: const Color(0xFF08143c),
+          colorScheme: const ColorScheme.light(
+            primary: Color(0xFF08143c),
+            onPrimary: Colors.white, // Asegura que el texto sea blanco en los elementos primarios
+            secondary: Color(0xFFE3F2FD), // Color azul claro para el rango seleccionado
+          ),
+          dialogBackgroundColor: Colors.white,
+          scaffoldBackgroundColor: Colors.white,
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.green[200],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              // Forzar el color del texto a blanco
+              foregroundColor: Colors.white,
+            ),
+          ),
+          textTheme: ThemeData.light().textTheme.apply(
+            bodyColor: const Color(0xFF08143c),
+            displayColor: const Color(0xFF08143c),
+          ),
+        ),
+        child: child!,
+      );
+    },
+    cancelText: 'Cancelar',
+    confirmText: 'Buscar',
+    saveText: 'Buscar',
+    helpText: 'Seleccionar rango',
+  );
+
+  if (pickedRange != null) {
+    setState(() {
+      _startDate = pickedRange.start;
+      _endDate = pickedRange.end;
+    });
+    _fetchTransactions();
+  }
+}
+
+  // Función para obtener el nombre del usuario o la persona relacionada con la transacción
+  Future<String> _getUserName(String userId) async {
+    final DocumentSnapshot<Map<String, dynamic>> userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    if (userDoc.exists) {
+      return '${userDoc.data()!['name']} ${userDoc.data()!['lastName']}';
+    } else {
+      return 'Usuario desconocido';
+    }
+  }
+
+  Widget _buildTransactionItem(
+      QueryDocumentSnapshot<Map<String, dynamic>> transaction) {
+    final data = transaction.data();
+    final bool isIncome = data['recipientId'] == _userId;
+    final String amount = '\$${data['amount'].toStringAsFixed(2)}';
+    final String description = data['concept'] ?? 'Sin descripción';
+    (data['date'] as Timestamp).toDate();
+
+    // Obtener el nombre del usuario o la persona relacionada
+    Future<String> nameFuture =
+        _getUserName(isIncome ? data['senderId'] : data['recipientId']);
+
+    return FutureBuilder<String>(
+      future: nameFuture,
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          final name = snapshot.data!;
+          final paymentType =
+              data['paymentType'] ?? 'Sin tipo'; // Obtener paymentType
+          final icon = isIncome
+              ? Icons.keyboard_arrow_up_rounded
+              : Icons.keyboard_arrow_down_rounded;
+
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            child: Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                      color: Colors.grey,
+                      width: 0.7,
+                    ),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 40,
+                    color: const Color(0xFF08143c),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        paymentType,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      Text(
+                        description,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  isIncome ? '+$amount' : '-$amount',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: isIncome ? Colors.green : Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          );
+        } else if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}');
+        } else {
+          return const Center(
+              child: CupertinoActivityIndicator(
+            radius: 16,
+            color: Colors.green,
+          ));
+        }
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Center(
+          child: Text(
+            'Historial de transacciones',
+            style: TextStyle(color: Colors.black),
+          ),
+        ),
+        actions: [
+  IconButton(
+    icon: const Icon(Icons.calendar_month_rounded, color: Colors.black),
+    onPressed: _showDateRangePicker,
+  ),
+],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(25.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Buscar',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF08143c),
+                        width: 1.0,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF08143c),
+                        width: 1.0,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF08143c),
+                        width: 1.0,
+                      ),
+                    ),
+                    filled: true,
+                    fillColor: Colors.transparent,
+                  ),
+                  onChanged: (value) {
+                    if (_debounce?.isActive ?? false) _debounce!.cancel();
+                    _debounce = Timer(const Duration(milliseconds: 500), () {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                      _fetchTransactions();
+                    });
+                  },
+                ),
+                const SizedBox(
+                    height:
+                        8.0), // Espacio entre el TextField y el texto adicional
+                const Center(
+                  child: Text(
+                    'Ingrese el ID del usuario, el nombre o la referencia de la transacción.',
+                    style: TextStyle(
+                      fontSize: 10.0,
+                      color: Colors.grey,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 25.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      _buildFilterButton('Todas'),
+                      const SizedBox(width: 8),
+                      _buildFilterButton('Enviadas'),
+                      const SizedBox(width: 8),
+                      _buildFilterButton('Recibidas'),
+                    ],
+                  ),
+                ),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 74.3),
+                  child: DropdownButtonFormField<int>(
+                    value: _transactionLimit,
+                    isDense: true, // Esto reduce el espacio vertical
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.transparent,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16.0),
+                        borderSide: const BorderSide(color: Colors.blue),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 4.0,
+                        vertical: 4.0,
+                      ),
+                    ),
+                    items: [5, 15, 30, 50, 100].map((int value) {
+                      return DropdownMenuItem<int>(
+                        value: value,
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                              left:
+                                  15.0), // Ajusta el espacio entre el texto y la flecha
+                          child: Text(value.toString()),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (int? newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _transactionLimit = newValue;
+                        });
+                        _fetchTransactions();
+                      }
+                    },
+                    dropdownColor: Colors.white,
+                    borderRadius: BorderRadius.circular(16.0),
+                  ),
+                )
+              ],
+            ),
+          ),
+          _buildDateRangeIndicator(),
+          const SizedBox(height: 16),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 25.0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Tu actividad',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CupertinoActivityIndicator(
+                    radius: 25,
+                    color: Colors.green,
+                  ))
+                : _transactions.isEmpty
+                    ? Center(
+                        child: Text(
+                          _getNoTransactionsMessage(),
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _transactions.length,
+                        itemBuilder: (context, index) {
+                          final transaction = _transactions[index];
+                          final date =
+                              (transaction['date'] as Timestamp).toDate();
+
+                          if (index == 0 ||
+                              !_isSameDay(
+                                  date,
+                                  ((_transactions[index - 1]['date']
+                                          as Timestamp)
+                                      .toDate()))) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Text(
+                                    _getDateHeader(date),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                                _buildTransactionItem(transaction),
+                              ],
+                            );
+                          }
+                          return _buildTransactionItem(transaction);
+                        },
+                      ),
+          ),
+          // Paginación
+          if (!_isLoading && _transactions.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: _currentPage > 1
+                        ? () {
+                            setState(() {
+                              _currentPage--;
+                            });
+                            _fetchTransactions();
+                          }
+                        : null,
+                  ),
+                  Text('Página $_currentPage'),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: _transactions.length == _transactionLimit
+                        ? () {
+                            setState(() {
+                              _currentPage++;
+                            });
+                            _fetchTransactions();
+                          }
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateRangeIndicator() {
+  if (_startDate == null || _endDate == null) return const SizedBox.shrink();
+
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 0.0),
+    child: Row(
+      children: [
+        const Icon(Icons.date_range, size: 16, color: Colors.green),
+        const SizedBox(width: 8),
+        Text(
+          'Desde ${DateFormat('dd/MM/yyyy').format(_startDate!)} - Hasta ${DateFormat('dd/MM/yyyy').format(_endDate!)}',
+          style: const TextStyle(fontSize: 14),
+        ),
+        const Spacer(),
+        IconButton(
+          icon: const Icon(Icons.close, size: 16),
+          onPressed: () {
+            setState(() {
+              _startDate = null;
+              _endDate = null;
+            });
+            _fetchTransactions();
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+  Widget _buildFilterButton(String label) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        foregroundColor:
+            _selectedFilter == label ? Colors.white : const Color(0xFF08143c),
+        backgroundColor: _selectedFilter == label
+            ? const Color(0xFF08143c)
+            : Colors.grey[100],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        padding: const EdgeInsets.all(12.0), // Elimina el padding
+      ),
+      onPressed: () {
+        setState(() {
+          _selectedFilter = label;
+        });
+        _fetchTransactions();
+      },
+      child: Text(label),
+    );
+  }
+
+  bool _isSameDay(DateTime date1, DateTime date2) {
+    return date1.year == date2.year &&
+        date1.month == date2.month &&
+        date1.day == date2.day;
+  }
+
+  String _getDateHeader(DateTime date) {
+    final now = DateTime.now();
+    if (_isSameDay(date, now)) {
+      return 'Hoy';
+    } else if (_isSameDay(date, now.subtract(const Duration(days: 1)))) {
+      return 'Ayer';
+    } else {
+      return DateFormat('EEEE, d MMMM', 'es_ES').format(date);
+    }
+  }
+
+  String _getNoTransactionsMessage() {
+    switch (_selectedFilter) {
+      case 'Enviadas':
+        return 'No hay transacciones enviadas';
+      case 'Recibidas':
+        return 'No hay transacciones recibidas';
+      default:
+        return 'No hay transacciones';
+    }
   }
 }
 
@@ -435,7 +1094,8 @@ class _TransferFundsScreenState extends State<TransferFundsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('Transferir fondos',
@@ -598,7 +1258,8 @@ class _UserSearch_TransferFundsScreenState
       appBar: AppBar(
         backgroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text('Seleccionar usuario',
@@ -1391,25 +2052,327 @@ class TransactionReceiptScreen extends StatelessWidget {
   }
 }
 
-class TransactionHistoryScreen extends StatelessWidget {
-  const TransactionHistoryScreen({super.key});
+class TransactionReceiptScreen2 extends StatelessWidget {
+  final Map<String, dynamic> transactionData;
+  final VoidCallback? onBackPressed;
+
+  TransactionReceiptScreen2({
+    super.key,
+    required this.transactionData,
+    this.onBackPressed,
+  });
+
+  final ScreenshotController screenshotController = ScreenshotController();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        if (onBackPressed != null) {
+          onBackPressed!();
+        } else {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomePage(selectedIndex: 3)),
+            (Route<dynamic> route) => false,
+          );
+        }
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+            onPressed: () {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => const HomePage(selectedIndex: 3)),
+                (Route<dynamic> route) => false,
+              );
+            },
+          ),
+          title: const Text(
+            'Detalle de Transacción',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          ),
+          centerTitle: true,
         ),
-        title: const Text('Historial de transacciones',
-            style: TextStyle(color: Colors.black)),
-      ),
-      body: const Center(
-        child: Text('Contenido del Historial de transacciones'),
+        body: Screenshot(
+          controller: screenshotController,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildTransactionStatus(),
+                  const SizedBox(height: 24),
+                  _buildTransactionDetails(context),
+                  const SizedBox(height: 24),
+                  _buildActionButtons(context),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
+  }
+
+  Widget _buildTransactionStatus() {
+    bool isSuccessful = transactionData['status'] == 'approved';
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isSuccessful ? Colors.green.shade50 : Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isSuccessful ? Icons.check_circle : Icons.error,
+            color: isSuccessful ? Colors.green : Colors.red,
+            size: 48,
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isSuccessful ? '¡Transacción aprobada!' : 'Transacción fallida',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isSuccessful ? Colors.green : Colors.red,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  DateFormat('dd/MM/yyyy HH:mm').format(transactionData['date'].toDate()),
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionDetails(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDetailRow('Tipo', transactionData['paymentType']),
+            _buildDetailRow('Referencia', transactionData['transactionId'], isCopiable: true),
+            _buildDetailRow('Concepto', transactionData['concept']),
+            _buildUserInfo(context),
+            if (transactionData['taskId'] != null) _buildTaskInfo(context),
+            const Divider(height: 32),
+            _buildPaymentMethods(),
+            _buildDetailRow('Total', '\$${transactionData['amount'].toStringAsFixed(2)}', isBold: true),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, {bool isCopiable = false, bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey)),
+          Row(
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+              if (isCopiable)
+                IconButton(
+                  icon: const Icon(Icons.copy, size: 16),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: value));
+                    // Show snackbar
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserInfo(BuildContext context) {
+    bool isRecipient = transactionData['recipientId'] == FirebaseAuth.instance.currentUser?.uid;
+    String userId = isRecipient ? transactionData['senderId'] : transactionData['recipientId'];
+    String userName = isRecipient ? transactionData['senderName'] : transactionData['recipientName'];
+    
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CircularProgressIndicator();
+        }
+        if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}');
+        }
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return const Text('Usuario no encontrado');
+        }
+
+        Map<String, dynamic> userData = snapshot.data!.data() as Map<String, dynamic>;
+        String profileImageUrl = userData['profileImageUrl'] ?? '';
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundImage: profileImageUrl.isNotEmpty ? NetworkImage(profileImageUrl) : null,
+                child: profileImageUrl.isEmpty ? const Icon(Icons.person) : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(isRecipient ? 'Enviado por' : 'Enviado a', style: const TextStyle(color: Colors.grey)),
+                    Text(userName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTaskInfo(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text('Tarea ID', style: TextStyle(color: Colors.grey)),
+          Row(
+            children: [
+              Text(transactionData['taskId']),
+              IconButton(
+                icon: const Icon(Icons.arrow_forward_ios, size: 16),
+                onPressed: () {
+                  // Navegar a la pantalla de detalles de la tarea
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentMethods() {
+    Map<String, dynamic> paymentMethods = transactionData['paymentMethod'] ?? {};
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: paymentMethods.entries.map((entry) {
+        String method = entry.key;
+        double amount = entry.value['amount'].toDouble();
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(method, style: const TextStyle(color: Colors.grey)),
+              Text('\$${amount.toStringAsFixed(2)}'),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildActionButton(
+          context: context,
+          icon: Icons.share,
+          label: 'Compartir',
+          onPressed: () => _shareScreenshot(context),
+        ),
+        _buildActionButton(
+          context: context,
+          icon: Icons.download,
+          label: 'Descargar',
+          onPressed: () => _saveScreenshot(context),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      icon: Icon(icon, color: Colors.white),
+      label: Text(label, style: const TextStyle(color: Colors.white)),
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF08143C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+    );
+  }
+
+  Future<void> _shareScreenshot(BuildContext context) async {
+    final Uint8List? image = await screenshotController.capture();
+    if (image != null) {
+      final directory = await getTemporaryDirectory();
+      final imagePath = await File('${directory.path}/comprobante_transaccion.png').create();
+      await imagePath.writeAsBytes(image);
+
+      final xFile = XFile(imagePath.path);
+      await Share.shareXFiles([xFile], text: 'Comprobante de transacción');
+    }
+  }
+
+  Future<void> _saveScreenshot(BuildContext context) async {
+    try {
+      final Uint8List? image = await screenshotController.capture();
+      if (image != null) {
+        final directory = await getExternalStorageDirectory();
+        final imagePath = await File('${directory!.path}/comprobante_transaccion_${DateTime.now().millisecondsSinceEpoch}.png').create();
+        await imagePath.writeAsBytes(image);
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Imagen guardada en ${imagePath.path}')),
+        );
+      }
+    } catch (e) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al guardar la imagen: $e')),
+      );
+    }
   }
 }

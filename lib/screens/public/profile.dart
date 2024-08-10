@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -637,7 +638,8 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
@@ -673,7 +675,8 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                     _currentProfileImageUrl.isNotEmpty
                         ? CircleAvatar(
                             radius: 45.0,
-                            backgroundImage: NetworkImage(_currentProfileImageUrl),
+                            backgroundImage:
+                                NetworkImage(_currentProfileImageUrl),
                           )
                         : const CircleAvatar(
                             radius: 45.0,
@@ -735,7 +738,8 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                     child: ElevatedButton(
                       onPressed: () {
                         if (_formKey.currentState!.validate()) {
-                          widget.onUpdateProfile(updatedUserBio: _bioController.text);
+                          widget.onUpdateProfile(
+                              updatedUserBio: _bioController.text);
                           Navigator.of(context).pop();
                         }
                       },
@@ -1427,7 +1431,11 @@ class SuppliersScreenState extends State<SuppliersScreen> {
                 const SizedBox(height: 25.0),
                 Expanded(
                   child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const Center(
+                          child: CupertinoActivityIndicator(
+                          radius: 16,
+                          color: Colors.green,
+                        ))
                       : _filteredUsers.isEmpty
                           ? const Center(
                               child: Text('No se encontraron usuarios'),
@@ -1795,7 +1803,10 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                                   return const Text(
                                       'Error al cargar los servicios');
                                 } else {
-                                  return const CircularProgressIndicator();
+                                  return const CupertinoActivityIndicator(
+                                    radius: 16,
+                                    color: Colors.green,
+                                  );
                                 }
                               },
                             ),
@@ -2050,7 +2061,11 @@ class _SearchUsersForSuppliersScreenState
             const SizedBox(height: 25.0),
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(
+                      child: CupertinoActivityIndicator(
+                      radius: 16,
+                      color: Colors.green,
+                    ))
                   : _filteredUsers.isEmpty
                       ? const Center(
                           child: Text('No se encontraron usuarios'),

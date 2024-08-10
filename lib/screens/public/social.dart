@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -204,7 +205,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         : Image.asset(
                                             'assets/images/ProfilePhoto_predetermined.png');
                                   } else {
-                                    return const CircularProgressIndicator();
+                                    return const CupertinoActivityIndicator(
+            radius: 16,
+            color: Colors.green,
+          );
                                   }
                                 },
                               ),
@@ -225,7 +229,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                       'assets/images/ProfilePhoto_predetermined.png'),
                             );
                           } else {
-                            return const CircularProgressIndicator();
+                            return const CupertinoActivityIndicator(
+            radius: 16,
+            color: Colors.green,
+          );
                           }
                         },
                       ),
@@ -300,7 +307,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
             );
           }
 
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CupertinoActivityIndicator(
+            radius: 16,
+            color: Colors.green,
+          ));
         },
       ),
     );
@@ -550,6 +560,7 @@ void _showFullScreenImage(String imageUrl) {
                     if (loadingProgress == null) return child;
                     return Center(
                       child: CircularProgressIndicator(
+            color: Colors.green,
                         value: loadingProgress.expectedTotalBytes != null
                             ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
                             : null,
@@ -834,7 +845,10 @@ Widget build(BuildContext context) {
                     },
                   );
                 }
-                return const Center(child: CircularProgressIndicator());
+                return const Center(child: CupertinoActivityIndicator(
+            radius: 16,
+            color: Colors.green,
+          ));
               },
             ),
           ),

@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'dart:math';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -164,7 +165,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 )
               else
-                const CircularProgressIndicator(color: Colors.green),
+                const CupertinoActivityIndicator(
+                  radius: 16,
+                  color: Colors.green,
+                ),
               const SizedBox(height: 24),
               GestureDetector(
                 onTap: () {
@@ -208,10 +212,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisSpacing: 16,
                   childAspectRatio: 1.07,
                   children: [
-                    _buildButton('assets/images/IconHome_Screen.jpg', 'Hogar', context),
-                    _buildButton('assets/images/IconWelfare_Screen.jpg', 'Personal', context),
-                    _buildButton('assets/images/IconProfessional_Screen.jpg', 'Profesional', context),
-                    _buildButton('assets/images/IconEntertainment_Screen.jpg', 'Entretenimiento', context),
+                    _buildButton(
+                        'assets/images/IconHome_Screen.jpg', 'Hogar', context),
+                    _buildButton('assets/images/IconWelfare_Screen.jpg',
+                        'Personal', context),
+                    _buildButton('assets/images/IconProfessional_Screen.jpg',
+                        'Profesional', context),
+                    _buildButton('assets/images/IconEntertainment_Screen.jpg',
+                        'Entretenimiento', context),
                   ],
                 ),
               )
@@ -344,9 +352,11 @@ class _SearchScreenState extends State {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: const Text('¿Que servicio necesitas hoy?', style: TextStyle(fontSize: 19)),
+        title: const Text('¿Que servicio necesitas hoy?',
+            style: TextStyle(fontSize: 19)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -389,7 +399,10 @@ class _SearchScreenState extends State {
             Expanded(
               child: _isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: Colors.green))
+                      child: CupertinoActivityIndicator(
+                      radius: 16,
+                      color: Colors.green,
+                    ))
                   : _filteredServices.isEmpty
                       ? const Center(
                           child: Text('No se encontraron servicios'),
@@ -412,59 +425,59 @@ class _SearchScreenState extends State {
   }
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
-  return InkWell(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LocationDetailsScreen(
-            serviceName: text,
-            id: serviceId,
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LocationDetailsScreen(
+              serviceName: text,
+              id: serviceId,
+            ),
+          ),
+        );
+      },
+      child: Card(
+        color: Colors.white,
+        elevation: 5.0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(
+            color: Color(0xFF08143C),
+            width: 1.0,
           ),
         ),
-      );
-    },
-    child: Card(
-      color: Colors.white,
-      elevation: 5.0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(
-          color: Color(0xFF08143C),
-          width: 1.0,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Center(
-                child: Image.network(
-                  imagePath,
-                  height: 90,
-                  width: 178,
-                  fit: BoxFit.cover,
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Center(
+                  child: Image.network(
+                    imagePath,
+                    height: 90,
+                    width: 178,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 8),
+              Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class NotificacionesScreen extends StatefulWidget {
@@ -475,7 +488,7 @@ class NotificacionesScreen extends StatefulWidget {
 }
 
 class _NotificacionesScreenState extends State {
-   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -508,22 +521,26 @@ class _NotificacionesScreenState extends State {
             Expanded(
               child: ListView.separated(
                 itemCount: 5, // Reemplaza con el número real de notificaciones
-                separatorBuilder: (context, index) => Divider(color: Colors.grey[300]),
+                separatorBuilder: (context, index) =>
+                    Divider(color: Colors.grey[300]),
                 itemBuilder: (context, index) {
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: Colors.green[100],
-                      child: const Icon(Icons.notifications, color: Colors.green),
+                      child:
+                          const Icon(Icons.notifications, color: Colors.green),
                     ),
                     title: Text(
                       'Título de la notificación',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[800]),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.grey[800]),
                     ),
                     subtitle: Text(
                       'Descripción de la notificación',
                       style: TextStyle(color: Colors.grey[600]),
                     ),
-                    trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
+                    trailing:
+                        Icon(Icons.chevron_right, color: Colors.grey[400]),
                   );
                 },
               ),
@@ -585,7 +602,8 @@ class _HogarScreenState extends State<HogarScreen> {
         backgroundColor: Colors.white,
         title: const Text('Servicios para el hogar'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -595,7 +613,8 @@ class _HogarScreenState extends State<HogarScreen> {
         padding: const EdgeInsets.all(16.0),
         child: _isLoading
             ? const Center(
-                child: CircularProgressIndicator(
+                child: CupertinoActivityIndicator(
+                radius: 16,
                 color: Colors.green,
               ))
             : _services.isEmpty
@@ -618,59 +637,59 @@ class _HogarScreenState extends State<HogarScreen> {
   }
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
-  return InkWell(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LocationDetailsScreen(
-            serviceName: text,
-            id: serviceId,
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LocationDetailsScreen(
+              serviceName: text,
+              id: serviceId,
+            ),
+          ),
+        );
+      },
+      child: Card(
+        color: Colors.white,
+        elevation: 5.0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(
+            color: Color(0xFF08143C),
+            width: 1.0,
           ),
         ),
-      );
-    },
-    child: Card(
-      color: Colors.white,
-      elevation: 5.0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(
-          color: Color(0xFF08143C),
-          width: 1.0,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Center(
-                child: Image.network(
-                  imagePath,
-                  height: 90,
-                  width: 178,
-                  fit: BoxFit.cover,
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Center(
+                  child: Image.network(
+                    imagePath,
+                    height: 90,
+                    width: 178,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 8),
+              Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class PersonalScreen extends StatefulWidget {
@@ -720,7 +739,8 @@ class _PersonalScreenState extends State<PersonalScreen> {
         backgroundColor: Colors.white,
         title: const Text('Servicios Personales'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -748,59 +768,59 @@ class _PersonalScreenState extends State<PersonalScreen> {
   }
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
-  return InkWell(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LocationDetailsScreen(
-            serviceName: text,
-            id: serviceId,
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LocationDetailsScreen(
+              serviceName: text,
+              id: serviceId,
+            ),
+          ),
+        );
+      },
+      child: Card(
+        color: Colors.white,
+        elevation: 5.0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(
+            color: Color(0xFF08143C),
+            width: 1.0,
           ),
         ),
-      );
-    },
-    child: Card(
-      color: Colors.white,
-      elevation: 5.0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(
-          color: Color(0xFF08143C),
-          width: 1.0,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Center(
-                child: Image.network(
-                  imagePath,
-                  height: 90,
-                  width: 178,
-                  fit: BoxFit.cover,
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Center(
+                  child: Image.network(
+                    imagePath,
+                    height: 90,
+                    width: 178,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 8),
+              Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class ProfesionalScreen extends StatefulWidget {
@@ -850,7 +870,8 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
         backgroundColor: Colors.white,
         title: const Text('Servicios Profesionales'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -878,59 +899,59 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
   }
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
-  return InkWell(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LocationDetailsScreen(
-            serviceName: text,
-            id: serviceId,
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LocationDetailsScreen(
+              serviceName: text,
+              id: serviceId,
+            ),
+          ),
+        );
+      },
+      child: Card(
+        color: Colors.white,
+        elevation: 5.0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(
+            color: Color(0xFF08143C),
+            width: 1.0,
           ),
         ),
-      );
-    },
-    child: Card(
-      color: Colors.white,
-      elevation: 5.0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(
-          color: Color(0xFF08143C),
-          width: 1.0,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Center(
-                child: Image.network(
-                  imagePath,
-                  height: 90,
-                  width: 178,
-                  fit: BoxFit.cover,
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Center(
+                  child: Image.network(
+                    imagePath,
+                    height: 90,
+                    width: 178,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 8),
+              Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class EntretenimientoScreen extends StatefulWidget {
@@ -980,7 +1001,8 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
         backgroundColor: Colors.white,
         title: const Text('Servicios de entretenimiento'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -1008,59 +1030,59 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
   }
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
-  return InkWell(
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => LocationDetailsScreen(
-            serviceName: text,
-            id: serviceId,
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => LocationDetailsScreen(
+              serviceName: text,
+              id: serviceId,
+            ),
+          ),
+        );
+      },
+      child: Card(
+        color: Colors.white,
+        elevation: 5.0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(
+            color: Color(0xFF08143C),
+            width: 1.0,
           ),
         ),
-      );
-    },
-    child: Card(
-      color: Colors.white,
-      elevation: 5.0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(
-          color: Color(0xFF08143C),
-          width: 1.0,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(2),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Center(
-                child: Image.network(
-                  imagePath,
-                  height: 90,
-                  width: 178,
-                  fit: BoxFit.cover,
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Center(
+                  child: Image.network(
+                    imagePath,
+                    height: 90,
+                    width: 178,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 8),
+              Text(
+                text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class LocationDetailsScreen extends StatefulWidget {
@@ -1180,248 +1202,263 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
   }
 
   @override
-Widget build(BuildContext context) {
-  String selectedServiceName = widget.serviceName;
-  if (selectedServiceName.length > 25) {
-    selectedServiceName = '${selectedServiceName.substring(0, 30)}...';
-  }
-  return Scaffold(
-    backgroundColor: Colors.white,
-    appBar: AppBar(
+  Widget build(BuildContext context) {
+    String selectedServiceName = widget.serviceName;
+    if (selectedServiceName.length > 25) {
+      selectedServiceName = '${selectedServiceName.substring(0, 30)}...';
+    }
+    return Scaffold(
       backgroundColor: Colors.white,
-      elevation: 0,
-      title: Text(
-        selectedServiceName,
-        style: TextStyle(color: Colors.grey[800], fontSize: 20),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          selectedServiceName,
+          style: TextStyle(color: Colors.grey[800], fontSize: 20),
+        ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: Colors.grey[800]),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      leading: IconButton(
-        icon: Icon(Icons.arrow_back_ios, color: Colors.grey[800]),
-        onPressed: () => Navigator.pop(context),
-      ),
-    ),
-    body: GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-      },
-      child: SingleChildScrollView(
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            return Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "¿Dónde requieres el servicio?",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Ingresa tu ubicación o selecciona en el mapa:",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: "Buscar ubicación",
-                        prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 15),
+      body: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: SingleChildScrollView(
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "¿Dónde requieres el servicio?",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey[800],
                       ),
-                      onChanged: (text) {
-                        if (text.isNotEmpty) {
-                          _getSuggestions(text);
-                        } else {
-                          setState(() {
-                            _suggestions = [];
-                          });
-                        }
-                      },
                     ),
-                  ),
-                  if (_isLoadingSuggestions)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8.0),
-                      child: Center(child: CircularProgressIndicator(color: Colors.green)),
-                    )
-                  else if (_suggestions.isNotEmpty)
+                    const SizedBox(height: 8),
+                    Text(
+                      "Ingresa tu ubicación o selecciona en el mapa:",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     Container(
-                      constraints: BoxConstraints(
-                        maxHeight: MediaQuery.of(context).size.height * 0.3,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(25),
                       ),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: _suggestions.length,
-                        itemBuilder: (context, index) {
-                          final suggestion = _suggestions[index];
-                          return ListTile(
-                            title: Text(
-                              suggestion['place_name'],
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                            subtitle: Text(
-                              suggestion['properties']['text'] ?? '',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            onTap: () {
-                              _searchController.text = suggestion['place_name'];
-                              _selectedLatLng = LatLng(
-                                suggestion['geometry']['coordinates'][1],
-                                suggestion['geometry']['coordinates'][0],
-                              );
-                              _markerLatLng = _selectedLatLng;
-                              mapController.move(_selectedLatLng!, 15);
-                              setState(() {
-                                _suggestions = [];
-                              });
-                              FocusScope.of(context).unfocus();
-                            },
-                          );
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: "Buscar ubicación",
+                          prefixIcon:
+                              Icon(Icons.search, color: Colors.grey[600]),
+                          border: InputBorder.none,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 15),
+                        ),
+                        onChanged: (text) {
+                          if (text.isNotEmpty) {
+                            _getSuggestions(text);
+                          } else {
+                            setState(() {
+                              _suggestions = [];
+                            });
+                          }
                         },
                       ),
                     ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.5,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(15),
-                      child: PopupScope(
-                        child: FlutterMap(
-                          mapController: mapController,
-                          options: MapOptions(
-                            center: _selectedLatLng ?? const LatLng(10.4806, -66.9036),
-                            zoom: _selectedLatLng != null ? 15 : 5,
-                            interactiveFlags: InteractiveFlag.all,
-                            onTap: (tapPosition, latLng) {
-                              setState(() {
-                                _selectedLatLng = latLng;
-                                _markerLatLng = latLng;
-                                if (kDebugMode) {
-                                  print('Latitud: ${_markerLatLng?.latitude}');
-                                }
-                                if (kDebugMode) {
-                                  print('Longitud: ${_markerLatLng?.longitude}');
-                                }
-                              });
-                            },
-                          ),
-                          children: [
-                            TileLayer(
-                              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              subdomains: const ['a', 'b', 'c'],
+                    if (_isLoadingSuggestions)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8.0),
+                        child: Center(
+                            child: CupertinoActivityIndicator(
+                          radius: 16,
+                          color: Colors.green,
+                        )),
+                      )
+                    else if (_suggestions.isNotEmpty)
+                      Container(
+                        constraints: BoxConstraints(
+                          maxHeight: MediaQuery.of(context).size.height * 0.3,
+                        ),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: _suggestions.length,
+                          itemBuilder: (context, index) {
+                            final suggestion = _suggestions[index];
+                            return ListTile(
+                              title: Text(
+                                suggestion['place_name'],
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              subtitle: Text(
+                                suggestion['properties']['text'] ?? '',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              onTap: () {
+                                _searchController.text =
+                                    suggestion['place_name'];
+                                _selectedLatLng = LatLng(
+                                  suggestion['geometry']['coordinates'][1],
+                                  suggestion['geometry']['coordinates'][0],
+                                );
+                                _markerLatLng = _selectedLatLng;
+                                mapController.move(_selectedLatLng!, 15);
+                                setState(() {
+                                  _suggestions = [];
+                                });
+                                FocusScope.of(context).unfocus();
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.5,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(15),
+                        child: PopupScope(
+                          child: FlutterMap(
+                            mapController: mapController,
+                            options: MapOptions(
+                              center: _selectedLatLng ??
+                                  const LatLng(10.4806, -66.9036),
+                              zoom: _selectedLatLng != null ? 15 : 5,
+                              interactiveFlags: InteractiveFlag.all,
+                              onTap: (tapPosition, latLng) {
+                                setState(() {
+                                  _selectedLatLng = latLng;
+                                  _markerLatLng = latLng;
+                                  if (kDebugMode) {
+                                    print(
+                                        'Latitud: ${_markerLatLng?.latitude}');
+                                  }
+                                  if (kDebugMode) {
+                                    print(
+                                        'Longitud: ${_markerLatLng?.longitude}');
+                                  }
+                                });
+                              },
                             ),
-                            MarkerClusterLayerWidget(
-                              options: MarkerClusterLayerOptions(
-                                maxClusterRadius: 20,
-                                disableClusteringAtZoom: 16,
-                                size: const Size(40, 40),
-                                builder: (context, markers) {
-                                  return Container(
-                                    alignment: Alignment.center,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.green,
-                                    ),
-                                    child: Text(
-                                      '${markers.length}',
-                                      style: const TextStyle(
-                                        color: Colors.white,
+                            children: [
+                              TileLayer(
+                                urlTemplate:
+                                    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                subdomains: const ['a', 'b', 'c'],
+                              ),
+                              MarkerClusterLayerWidget(
+                                options: MarkerClusterLayerOptions(
+                                  maxClusterRadius: 20,
+                                  disableClusteringAtZoom: 16,
+                                  size: const Size(40, 40),
+                                  builder: (context, markers) {
+                                    return Container(
+                                      alignment: Alignment.center,
+                                      decoration: const BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.green,
                                       ),
-                                    ),
-                                  );
-                                },
-                                polygonOptions: const PolygonOptions(
-                                  borderColor: Colors.black,
-                                  color: Colors.black12,
-                                  borderStrokeWidth: 3,
-                                ),
-                                markers: [
-                                  if (_markerLatLng != null)
-                                    Marker(
-                                      width: 80,
-                                      height: 80,
-                                      point: _markerLatLng!,
-                                      builder: (ctx) => const Icon(Icons.location_pin,
-                                          color: Colors.green, size: 40),
-                                    ),
-                                ],
-                                popupOptions: PopupOptions(
-                                  popupSnap: PopupSnap.markerTop,
-                                  popupBuilder: (_, marker) => Container(
-                                    width: 200,
-                                    height: 100,
-                                    color: Colors.white,
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Text(_searchController.text),
+                                      child: Text(
+                                        '${markers.length}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  polygonOptions: const PolygonOptions(
+                                    borderColor: Colors.black,
+                                    color: Colors.black12,
+                                    borderStrokeWidth: 3,
+                                  ),
+                                  markers: [
+                                    if (_markerLatLng != null)
+                                      Marker(
+                                        width: 80,
+                                        height: 80,
+                                        point: _markerLatLng!,
+                                        builder: (ctx) => const Icon(
+                                            Icons.location_pin,
+                                            color: Colors.green,
+                                            size: 40),
+                                      ),
+                                  ],
+                                  popupOptions: PopupOptions(
+                                    popupSnap: PopupSnap.markerTop,
+                                    popupBuilder: (_, marker) => Container(
+                                      width: 200,
+                                      height: 100,
+                                      color: Colors.white,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Text(_searchController.text),
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _referenceController,
-                    decoration: InputDecoration(
-                      labelText: 'Punto de referencia',
-                      hintText: 'Ej. Frente a la tienda, cerca del parque...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: const BorderSide(color: Colors.green),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Center(
-                    child: ElevatedButton(
-                      onPressed: _markerLatLng != null ? _saveLocationDetails : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _referenceController,
+                      decoration: InputDecoration(
+                        labelText: 'Punto de referencia',
+                        hintText: 'Ej. Frente a la tienda, cerca del parque...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                      ),
-                      child: const Text(
-                        'Continuar',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: const BorderSide(color: Colors.green),
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          },
+                    const SizedBox(height: 20),
+                    Center(
+                      child: ElevatedButton(
+                        onPressed:
+                            _markerLatLng != null ? _saveLocationDetails : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 40, vertical: 15),
+                        ),
+                        child: const Text(
+                          'Continuar',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 // Nueva pantalla SelectSuppliersScreen
@@ -1645,7 +1682,8 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
           onPressed: () {
             Navigator.pop(context);
           },
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
         ),
         title: const Text(
           'Selecciona a tu agente',
@@ -1683,7 +1721,10 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                 Expanded(
                   child: _isLoading
                       ? const Center(
-                          child: CircularProgressIndicator(color: Colors.green))
+                          child: CupertinoActivityIndicator(
+                          radius: 16,
+                          color: Colors.green,
+                        ))
                       : _filteredSuppliers.isEmpty
                           ? const Center(
                               child: Text('No se encontraron agentes'),
@@ -2147,7 +2188,10 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
-                child: CircularProgressIndicator(color: Colors.green));
+                child: CupertinoActivityIndicator(
+              radius: 16,
+              color: Colors.green,
+            ));
           }
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
@@ -2369,7 +2413,6 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                                   const SizedBox(height: 20),
                                   ElevatedButton(
                                     onPressed: () async {
-
                                       // Verificar la longitud del texto de la descripción del servicio
                                       if (_reservationTextController
                                               .text.length <
