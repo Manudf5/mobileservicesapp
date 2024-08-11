@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mobileservicesapp/screens/public/homepage.dart';
 import 'screens/intro_screen.dart';
@@ -6,12 +7,20 @@ import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:one_context/one_context.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Obtener el token de registro FCM
+  String? fcmToken = await FirebaseMessaging.instance.getToken();
+  if (kDebugMode) {
+    print('Token de registro FCM: $fcmToken');
+  }
+
   runApp(const MyApp());
 }
 

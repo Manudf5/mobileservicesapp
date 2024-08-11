@@ -2978,21 +2978,19 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
 
   String _getHourlyRate(
       DocumentSnapshot<Map<String, dynamic>> supplier, String id) {
-    double hourlyRate = 0.0;
+    String hourlyRate = '0.0';
     if (supplier.data()?['services'] != null) {
       for (var service in supplier.data()?['services']) {
         if (service['service'] == id) {
-          hourlyRate = service['hourlyRate'] != null
-              ? service['hourlyRate'].toDouble()
-              : 0.0;
+          hourlyRate = service['hourlyRate'] ?? '0.0';
           break;
         }
       }
     }
-    if (hourlyRate == 0.0) {
+    if (hourlyRate == 'Por servicio') {
       return 'Gratis';
     } else {
-      return '\$${hourlyRate.toStringAsFixed(2)}';
+      return '\$$hourlyRate.00';
     }
   }
 }
