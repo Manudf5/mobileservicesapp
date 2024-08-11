@@ -426,16 +426,51 @@ class _SearchScreenState extends State {
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
     return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(
-              serviceName: text,
-              id: serviceId,
+      onTap: () async {
+        bool hasPermission =
+            await LocationUtils.checkLocationPermission(context);
+        if (hasPermission) {
+          Navigator.push(
+            // ignore: use_build_context_synchronously
+            context,
+            MaterialPageRoute(
+              builder: (context) => LocationDetailsScreen(
+                serviceName: text,
+                id: serviceId,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Seleccione su ubicación manualmente.',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 15),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+
+          // Opcionalmente, puedes agregar un pequeño retraso antes de navegar
+          await Future.delayed(const Duration(seconds: 0));
+
+          Navigator.push(
+            // ignore: use_build_context_synchronously
+            context,
+            MaterialPageRoute(
+              builder: (context) => LocationDetailsScreen(
+                serviceName: text,
+                id: serviceId,
+              ),
+            ),
+          );
+        }
       },
       child: Card(
         color: Colors.white,
@@ -561,7 +596,7 @@ class HogarScreen extends StatefulWidget {
 
 class _HogarScreenState extends State<HogarScreen> {
   List<Map<String, dynamic>> _services = [];
-  bool _isLoading = true;
+  bool _isLoading = true; // Variable para controlar el estado de carga
 
   @override
   void initState() {
@@ -585,7 +620,7 @@ class _HogarScreenState extends State<HogarScreen> {
               .get();
       _services = querySnapshot.docs.map((doc) => doc.data()).toList();
       setState(() {
-        _isLoading = false;
+        _isLoading = false; // Establece el estado de carga a false cuando los datos están cargados
       });
     } catch (e) {
       // ignore: avoid_print
@@ -611,12 +646,13 @@ class _HogarScreenState extends State<HogarScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: _isLoading
+        child: _isLoading // Muestra el indicador de carga si _isLoading es true
             ? const Center(
                 child: CupertinoActivityIndicator(
-                radius: 16,
-                color: Colors.green,
-              ))
+                  radius: 16,
+                  color: Colors.green,
+                ),
+              )
             : _services.isEmpty
                 ? const Center(
                     child: Text(
@@ -638,16 +674,51 @@ class _HogarScreenState extends State<HogarScreen> {
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
     return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(
-              serviceName: text,
-              id: serviceId,
+      onTap: () async {
+        bool hasPermission =
+            await LocationUtils.checkLocationPermission(context);
+        if (hasPermission) {
+          Navigator.push(
+            // ignore: use_build_context_synchronously
+            context,
+            MaterialPageRoute(
+              builder: (context) => LocationDetailsScreen(
+                serviceName: text,
+                id: serviceId,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Seleccione su ubicación manualmente.',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 15),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+
+          // Opcionalmente, puedes agregar un pequeño retraso antes de navegar
+          await Future.delayed(const Duration(seconds: 0));
+
+          Navigator.push(
+            // ignore: use_build_context_synchronously
+            context,
+            MaterialPageRoute(
+              builder: (context) => LocationDetailsScreen(
+                serviceName: text,
+                id: serviceId,
+              ),
+            ),
+          );
+        }
       },
       child: Card(
         color: Colors.white,
@@ -701,6 +772,7 @@ class PersonalScreen extends StatefulWidget {
 
 class _PersonalScreenState extends State<PersonalScreen> {
   List<Map<String, dynamic>> _services = [];
+  bool _isLoading = true; // Variable para controlar el estado de carga
 
   @override
   void initState() {
@@ -723,7 +795,9 @@ class _PersonalScreenState extends State<PersonalScreen> {
               .where('id', isLessThan: 'PES')
               .get();
       _services = querySnapshot.docs.map((doc) => doc.data()).toList();
-      setState(() {});
+      setState(() {
+        _isLoading = false; // Establece el estado de carga a false cuando los datos están cargados
+      });
     } catch (e) {
       // ignore: avoid_print
       print('Error al obtener servicios: $e');
@@ -748,37 +822,79 @@ class _PersonalScreenState extends State<PersonalScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: _services.isEmpty
+        child: _isLoading // Muestra el indicador de carga si _isLoading es true
             ? const Center(
-                child: Text(
-                    'No hay servicios disponibles, inténtelo de nuevo más tarde'),
+                child: CupertinoActivityIndicator(
+                  radius: 16,
+                  color: Colors.green,
+                ),
               )
-            : GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 9 / 7.45,
-                children: _services.map((service) {
-                  return _buildServiceButton(service['imageUrl'],
-                      service['serviceName'], service['id']);
-                }).toList(),
-              ),
+            : _services.isEmpty
+                ? const Center(
+                    child: Text(
+                        'No hay servicios disponibles, inténtelo de nuevo más tarde'),
+                  )
+                : GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 9 / 7.45,
+                    children: _services.map((service) {
+                      return _buildServiceButton(service['imageUrl'],
+                          service['serviceName'], service['id']);
+                    }).toList(),
+                  ),
       ),
     );
   }
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
     return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(
-              serviceName: text,
-              id: serviceId,
+      onTap: () async {
+        bool hasPermission =
+            await LocationUtils.checkLocationPermission(context);
+        if (hasPermission) {
+          Navigator.push(
+            // ignore: use_build_context_synchronously
+            context,
+            MaterialPageRoute(
+              builder: (context) => LocationDetailsScreen(
+                serviceName: text,
+                id: serviceId,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Seleccione su ubicación manualmente.',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 15),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+
+          // Opcionalmente, puedes agregar un pequeño retraso antes de navegar
+          await Future.delayed(const Duration(seconds: 0));
+
+          Navigator.push(
+            // ignore: use_build_context_synchronously
+            context,
+            MaterialPageRoute(
+              builder: (context) => LocationDetailsScreen(
+                serviceName: text,
+                id: serviceId,
+              ),
+            ),
+          );
+        }
       },
       child: Card(
         color: Colors.white,
@@ -832,6 +948,7 @@ class ProfesionalScreen extends StatefulWidget {
 
 class _ProfesionalScreenState extends State<ProfesionalScreen> {
   List<Map<String, dynamic>> _services = [];
+  bool _isLoading = true; // Variable para controlar el estado de carga
 
   @override
   void initState() {
@@ -854,7 +971,9 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
               .where('id', isLessThan: 'PRP')
               .get();
       _services = querySnapshot.docs.map((doc) => doc.data()).toList();
-      setState(() {});
+      setState(() {
+        _isLoading = false; // Establece el estado de carga a false cuando los datos están cargados
+      });
     } catch (e) {
       // ignore: avoid_print
       print('Error al obtener servicios: $e');
@@ -879,37 +998,79 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: _services.isEmpty
+        child: _isLoading // Muestra el indicador de carga si _isLoading es true
             ? const Center(
-                child: Text(
-                    'No hay servicios disponibles, inténtelo de nuevo más tarde'),
+                child: CupertinoActivityIndicator(
+                  radius: 16,
+                  color: Colors.green,
+                ),
               )
-            : GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 9 / 7.45,
-                children: _services.map((service) {
-                  return _buildServiceButton(service['imageUrl'],
-                      service['serviceName'], service['id']);
-                }).toList(),
-              ),
+            : _services.isEmpty
+                ? const Center(
+                    child: Text(
+                        'No hay servicios disponibles, inténtelo de nuevo más tarde'),
+                  )
+                : GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 9 / 7.45,
+                    children: _services.map((service) {
+                      return _buildServiceButton(service['imageUrl'],
+                          service['serviceName'], service['id']);
+                    }).toList(),
+                  ),
       ),
     );
   }
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
     return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(
-              serviceName: text,
-              id: serviceId,
+      onTap: () async {
+        bool hasPermission =
+            await LocationUtils.checkLocationPermission(context);
+        if (hasPermission) {
+          Navigator.push(
+            // ignore: use_build_context_synchronously
+            context,
+            MaterialPageRoute(
+              builder: (context) => LocationDetailsScreen(
+                serviceName: text,
+                id: serviceId,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Seleccione su ubicación manualmente.',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 15),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+
+          // Opcionalmente, puedes agregar un pequeño retraso antes de navegar
+          await Future.delayed(const Duration(seconds: 0));
+
+          Navigator.push(
+            // ignore: use_build_context_synchronously
+            context,
+            MaterialPageRoute(
+              builder: (context) => LocationDetailsScreen(
+                serviceName: text,
+                id: serviceId,
+              ),
+            ),
+          );
+        }
       },
       child: Card(
         color: Colors.white,
@@ -963,6 +1124,7 @@ class EntretenimientoScreen extends StatefulWidget {
 
 class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
   List<Map<String, dynamic>> _services = [];
+  bool _isLoading = true; // Variable para controlar el estado de carga
 
   @override
   void initState() {
@@ -985,7 +1147,9 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
               .where('id', isLessThan: 'ENU')
               .get();
       _services = querySnapshot.docs.map((doc) => doc.data()).toList();
-      setState(() {});
+      setState(() {
+        _isLoading = false; // Establece el estado de carga a false cuando los datos están cargados
+      });
     } catch (e) {
       // ignore: avoid_print
       print('Error al obtener servicios: $e');
@@ -1010,37 +1174,79 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: _services.isEmpty
+        child: _isLoading // Muestra el indicador de carga si _isLoading es true
             ? const Center(
-                child: Text(
-                    'No hay servicios disponibles, inténtelo de nuevo más tarde'),
+                child: CupertinoActivityIndicator(
+                  radius: 16,
+                  color: Colors.green,
+                ),
               )
-            : GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 9 / 7.45,
-                children: _services.map((service) {
-                  return _buildServiceButton(service['imageUrl'],
-                      service['serviceName'], service['id']);
-                }).toList(),
-              ),
+            : _services.isEmpty
+                ? const Center(
+                    child: Text(
+                        'No hay servicios disponibles, inténtelo de nuevo más tarde'),
+                  )
+                : GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 9 / 7.45,
+                    children: _services.map((service) {
+                      return _buildServiceButton(service['imageUrl'],
+                          service['serviceName'], service['id']);
+                    }).toList(),
+                  ),
       ),
     );
   }
 
   Widget _buildServiceButton(String imagePath, String text, String serviceId) {
     return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => LocationDetailsScreen(
-              serviceName: text,
-              id: serviceId,
+      onTap: () async {
+        bool hasPermission =
+            await LocationUtils.checkLocationPermission(context);
+        if (hasPermission) {
+          Navigator.push(
+            // ignore: use_build_context_synchronously
+            context,
+            MaterialPageRoute(
+              builder: (context) => LocationDetailsScreen(
+                serviceName: text,
+                id: serviceId,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Seleccione su ubicación manualmente.',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 15),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+
+          // Opcionalmente, puedes agregar un pequeño retraso antes de navegar
+          await Future.delayed(const Duration(seconds: 0));
+
+          Navigator.push(
+            // ignore: use_build_context_synchronously
+            context,
+            MaterialPageRoute(
+              builder: (context) => LocationDetailsScreen(
+                serviceName: text,
+                id: serviceId,
+              ),
+            ),
+          );
+        }
       },
       child: Card(
         color: Colors.white,
@@ -1082,6 +1288,64 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
         ),
       ),
     );
+  }
+}
+
+class LocationUtils {
+  static Future<bool> checkLocationPermission(BuildContext context) async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return await showDialog(
+            // ignore: use_build_context_synchronously
+            context: context,
+            builder: (BuildContext context) {
+              return Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.location_on,
+                          size: 50, color: Colors.green),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Solicitud de acceso',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Para ofrecerle una experiencia óptima y resultados más precisos en la búsqueda de agentes disponibles, necesitamos acceder a su ubicación. Su comodidad es importante para nosotros.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () async {
+                          Navigator.of(context).pop(true);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: const Text('Permitir ubicación',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ) ??
+          false;
+    }
+    return true;
   }
 }
 
@@ -1234,7 +1498,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "¿Dónde requieres el servicio?",
+                      "¿Dónde requiere el servicio?",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -1243,7 +1507,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Ingresa tu ubicación o selecciona en el mapa:",
+                      "Ingrese su ubicación o seleccione en el mapa:",
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[600],
@@ -1461,7 +1725,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
   }
 }
 
-// Nueva pantalla SelectSuppliersScreen
+
 class SelectSuppliersScreen extends StatefulWidget {
   final String serviceName;
   final String id;
@@ -1483,17 +1747,24 @@ class SelectSuppliersScreen extends StatefulWidget {
 }
 
 class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
-  List<DocumentSnapshot<Map<String, dynamic>>> _suppliers = [];
+  // ignore: unused_field
+  final List<DocumentSnapshot<Map<String, dynamic>>> _suppliers = [];
   List<DocumentSnapshot<Map<String, dynamic>>> _filteredSuppliers = [];
   bool _isLoading = true;
   bool _showFilterDialog = false;
 
-  // Variables para controlar la selección de filtros
   String _selectedFilter = 'Recomendados';
   bool _preciosBajosSelected = false;
   bool _preciosAltosSelected = false;
   bool _mayorCantidadTareasSelected = false;
   bool _masCercanosSelected = false;
+  bool _mounted = true;
+
+  @override
+  void dispose() {
+    _mounted = false;
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -1506,55 +1777,56 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
   }
 
   Future _fetchSuppliers() async {
-    try {
-      QuerySnapshot<Map<String, dynamic>> querySnapshot =
-          await FirebaseFirestore.instance.collection('suppliers').get();
-      _suppliers = querySnapshot.docs;
+  try {
+    QuerySnapshot<Map<String, dynamic>> suppliersSnapshot =
+        await FirebaseFirestore.instance.collection('suppliers').get();
+    
+    _filteredSuppliers = [];
 
-      _filteredSuppliers = _suppliers.where((supplier) {
-        if (supplier.data()?['services'] != null &&
-            supplier.data()?['permissions'] == 1) {
-          bool offersService = supplier.data()?['services'].any((service) {
-            return service['service'] == widget.id;
-          });
-
-          double distance = calculateDistance(
-            widget.latitude,
-            widget.longitude,
-            supplier.data()?['location'].latitude,
-            supplier.data()?['location'].longitude,
-          );
-
-          bool withinRange = distance <= 25;
-
-          return offersService && withinRange;
-        }
-        return false;
-      }).toList();
-
-      for (var supplier in _filteredSuppliers) {
-        DocumentReference<Map<String, dynamic>> userDocRef =
-            FirebaseFirestore.instance.collection('users').doc(supplier.id);
-
-        userDocRef.snapshots().listen((userDoc) {
-          if (userDoc.exists) {
-            supplier.reference.update({
-              'profileImageUrl': userDoc.data()?['profileImageUrl'],
-              'assessment': userDoc.data()?['assessment']
-            }).then((_) {});
-          }
+    for (var supplierDoc in suppliersSnapshot.docs) {
+      DocumentSnapshot<Map<String, dynamic>> userDoc = 
+          await FirebaseFirestore.instance.collection('users').doc(supplierDoc.id).get();
+      
+      if (supplierDoc.data()['services'] != null &&
+          supplierDoc.data()['role'] == 1 &&
+          supplierDoc.data()['solvent'] == true &&
+          userDoc.data()?['status'] == 0 &&
+          userDoc.data()?['profileImageUrl'] != null &&
+          userDoc.data()!['profileImageUrl'].toString().isNotEmpty) {
+        
+        bool offersService = supplierDoc.data()['services'].any((service) {
+          return service['service'] == widget.id;
         });
-      }
 
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error al obtener proveedores: $e');
+        double distance = calculateDistance(
+          widget.latitude,
+          widget.longitude,
+          supplierDoc.data()['location'].latitude,
+          supplierDoc.data()['location'].longitude,
+        );
+
+        bool withinRange = distance <= 25;
+
+        if (offersService && withinRange) {
+          _filteredSuppliers.add(supplierDoc);
+          
+          supplierDoc.reference.update({
+            'profileImageUrl': userDoc.data()?['profileImageUrl'],
+            'assessment': userDoc.data()?['assessment']
+          });
+        }
       }
     }
+
+    setState(() {
+      _isLoading = false;
+    });
+  } catch (e) {
+    if (kDebugMode) {
+      print('Error al obtener proveedores: $e');
+    }
   }
+}
 
   double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     const earthRadius = 6371.0;
@@ -1631,10 +1903,11 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
     });
   }
 
-  void _applyFilter(String filter) {
+ void _applyFilter(String filter) {
+    if (!_mounted) return;
+    
     setState(() {
       _selectedFilter = filter;
-      _showFilterDialog = false;
     });
 
     switch (filter) {
@@ -1648,28 +1921,131 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
         _sortSuppliersByDistanceAscending();
         break;
       case 'Recomendados':
-        _filteredSuppliers = _suppliers.where((supplier) {
-          if (supplier.data()?['services'] != null &&
-              supplier.data()?['permissions'] == 1) {
-            bool offersService = supplier.data()?['services'].any((service) {
-              return service['service'] == widget.id;
-            });
-
-            double distance = calculateDistance(
-              widget.latitude,
-              widget.longitude,
-              supplier.data()?['location'].latitude,
-              supplier.data()?['location'].longitude,
-            );
-
-            bool withinRange = distance <= 25;
-
-            return offersService && withinRange;
-          }
-          return false;
-        }).toList();
+        _fetchRecommendedSuppliers();
+        break;
+      case 'Mayor cantidad de tareas completadas':
+        // Implementa esta función si es necesario
         break;
     }
+  }
+
+Future<void> _fetchRecommendedSuppliers() async {
+  try {
+    QuerySnapshot<Map<String, dynamic>> suppliersSnapshot =
+        await FirebaseFirestore.instance.collection('suppliers').get();
+    
+    List<DocumentSnapshot<Map<String, dynamic>>> recommendedSuppliers = [];
+
+    for (var supplierDoc in suppliersSnapshot.docs) {
+      DocumentSnapshot<Map<String, dynamic>> userDoc = 
+          await FirebaseFirestore.instance.collection('users').doc(supplierDoc.id).get();
+      
+      if (supplierDoc.data()['services'] != null &&
+          supplierDoc.data()['role'] == 1 &&
+          supplierDoc.data()['solvent'] == true &&
+          userDoc.data()?['status'] == 0 &&
+          userDoc.data()?['profileImageUrl'] != null &&
+          userDoc.data()!['profileImageUrl'].toString().isNotEmpty) {
+        
+        bool offersService = supplierDoc.data()['services'].any((service) {
+          return service['service'] == widget.id;
+        });
+
+        double distance = calculateDistance(
+          widget.latitude,
+          widget.longitude,
+          supplierDoc.data()['location'].latitude,
+          supplierDoc.data()['location'].longitude,
+        );
+
+        bool withinRange = distance <= 25;
+
+        if (offersService && withinRange) {
+          recommendedSuppliers.add(supplierDoc);
+          
+          supplierDoc.reference.update({
+            'profileImageUrl': userDoc.data()?['profileImageUrl'],
+            'assessment': userDoc.data()?['assessment']
+          });
+        }
+      }
+    }
+
+    setState(() {
+      _filteredSuppliers = recommendedSuppliers;
+    });
+  } catch (e) {
+    if (kDebugMode) {
+      print('Error al obtener proveedores recomendados: $e');
+    }
+  }
+}
+
+void _showFilterOptions() {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.filter_list, size: 50, color: Colors.green),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Filtros de búsqueda',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Selecciona un filtro para organizar los resultados de tu búsqueda.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    _buildFilterOption('Recomendados', setDialogState, dialogContext),
+                    _buildFilterOption('Precios bajos', setDialogState, dialogContext),
+                    _buildFilterOption('Precios altos', setDialogState, dialogContext),
+                    _buildFilterOption('Mayor cantidad de tareas completadas', setDialogState, dialogContext),
+                    _buildFilterOption('Más cercanos', setDialogState, dialogContext),
+                  ],
+                ),
+              ),
+            );
+          }
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterOption(String filterName, StateSetter setDialogState, BuildContext dialogContext) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: ElevatedButton(
+        onPressed: () {
+          setDialogState(() {
+            _selectedFilter = filterName;
+          });
+          Navigator.of(dialogContext).pop();
+          if (_mounted) {
+            _applyFilter(filterName);
+          }
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _selectedFilter == filterName ? Colors.green : Colors.grey[300],
+          foregroundColor: _selectedFilter == filterName ? Colors.white : Colors.black,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+        child: Text(filterName, style: const TextStyle(fontWeight: FontWeight.bold)),
+      ),
+    );
   }
 
   @override
@@ -1689,13 +2065,9 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
           'Selecciona a tu agente',
           style: TextStyle(color: Colors.black),
         ),
-        actions: [
+       actions: [
           IconButton(
-            onPressed: () {
-              setState(() {
-                _showFilterDialog = true;
-              });
-            },
+            onPressed: _showFilterOptions,
             icon: const Icon(Icons.filter_list, color: Colors.black),
           ),
         ],
@@ -1712,7 +2084,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                       ? 'Recomendados'
                       : 'Resultados por $_selectedFilter',
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
                   ),
                   textAlign: TextAlign.center,
@@ -2419,12 +2791,23 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                                           10) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                                'Por favor, escribe al menos 10 caracteres describiendo por qué requiere del servicio.'),
+                                          SnackBar(
+                                            content: const Text(
+                                              'Por favor, escribe al menos 10 caracteres describiendo por qué requiere del servicio.',
+                                              style: TextStyle(
+                                                  color: Colors.white),
+                                            ),
                                             backgroundColor: Colors.red,
+                                            duration:
+                                                const Duration(seconds: 5),
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
                                           ),
                                         );
+
                                         return;
                                       }
 
@@ -2481,10 +2864,20 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                                         );
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                                '¡Servicio reservado con éxito!'),
+                                          SnackBar(
+                                            content: const Text(
+                                              '¡Servicio reservado con éxito!',
+                                              style: TextStyle(
+                                                  color: Colors.white),
+                                            ),
                                             backgroundColor: Colors.green,
+                                            duration:
+                                                const Duration(seconds: 5),
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
                                           ),
                                         );
                                       }).catchError((error) {
@@ -2494,10 +2887,20 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                                         }
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                                'Error al reservar el servicio.'),
+                                          SnackBar(
+                                            content: const Text(
+                                              'Reserva fallida.',
+                                              style: TextStyle(
+                                                  color: Colors.white),
+                                            ),
                                             backgroundColor: Colors.red,
+                                            duration:
+                                                const Duration(seconds: 5),
+                                            behavior: SnackBarBehavior.floating,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
                                           ),
                                         );
                                       });

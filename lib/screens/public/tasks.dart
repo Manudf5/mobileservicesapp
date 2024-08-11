@@ -1093,9 +1093,16 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                   if (_selectedReason == 'Otro motivo' &&
                       _otherReasonController.text.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
+                      SnackBar(
+                        content: const Text(
                           'Por favor, describe el motivo de la cancelación.',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 5),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                     );
@@ -1105,9 +1112,16 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                   }
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Por favor, selecciona un motivo para la cancelación.',
+                    SnackBar(
+                      content: const Text(
+                        'Por favor, seleccione el método de la cancelación.',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 5),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   );
@@ -1269,10 +1283,17 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     } else {
       // Saldo insuficiente
       OneContext().showSnackBar(
-        builder: (_) => const SnackBar(
-          content:
-              Text('Saldo insuficiente. Por favor, use otros métodos de pago.'),
+        builder: (_) => SnackBar(
+          content: const Text(
+            'Saldo insuficiente. Por favor, selecciono otro método de pago.',
+            style: TextStyle(color: Colors.white),
+          ),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     }
@@ -1323,9 +1344,17 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
       // Mostrar snackbar
       OneContext().showSnackBar(
-        builder: (_) => const SnackBar(
-          content: Text('Transacción aprobada'),
+        builder: (_) => SnackBar(
+          content: const Text(
+            '¡Transacción aprobada!',
+            style: TextStyle(color: Colors.white),
+          ),
           backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
 
@@ -1365,8 +1394,16 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     } catch (e) {
       OneContext().showSnackBar(
         builder: (_) => SnackBar(
-          content: Text('Error al procesar el pago: $e'),
+          content: const Text(
+            'Trasancción fallida',
+            style: TextStyle(color: Colors.white),
+          ),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     }
@@ -1380,10 +1417,19 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     final amountToPayWithPayPal = totalAmountUSD - _walletBalance;
 
     if (amountToPayWithPayPal <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'El saldo del monedero es suficiente para cubrir el costo total.')),
+      OneContext().showSnackBar(
+        builder: (_) => SnackBar(
+          content: const Text(
+            'El saldo del monedero es suficiente para cubrir la totalidad del pago',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
       return;
     }
@@ -1865,12 +1911,34 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Comprobante subido exitosamente')),
+        SnackBar(
+          content: const Text(
+            '¡Comprobante subido exitosamente!',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
     } catch (e) {
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al subir el comprobante')),
+        SnackBar(
+          content: const Text(
+            'Error al subir el comprobante.',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
     }
   }
@@ -1898,12 +1966,34 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Comprobante eliminado exitosamente')),
+        SnackBar(
+          content: const Text(
+            '¡Comprobante eliminado exitosamente!',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
     } catch (e) {
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al eliminar el comprobante')),
+        SnackBar(
+          content: const Text(
+            'Error al eliminar el comprobante.',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
     }
   }
@@ -1914,8 +2004,18 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
     if (transactionID == null) {
       OneContext().showSnackBar(
-        builder: (_) => const SnackBar(
-            content: Text('No se encontró el ID de la transacción')),
+        builder: (_) => SnackBar(
+          content: const Text(
+            'Transacción no encontrada',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
       return;
     }
@@ -1928,8 +2028,18 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
       if (!transactionDoc.exists) {
         OneContext().showSnackBar(
-          builder: (_) =>
-              const SnackBar(content: Text('No se encontró la transacción')),
+          builder: (_) => SnackBar(
+            content: const Text(
+              'Transacción no encontrada',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
         );
         return;
       }
@@ -1960,8 +2070,18 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
       );
     } catch (e) {
       OneContext().showSnackBar(
-        builder: (_) =>
-            SnackBar(content: Text('Error al obtener el comprobante: $e')),
+        builder: (_) => SnackBar(
+          content: const Text(
+            'Error al obtener el comprobante.',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
     }
   }
@@ -3516,8 +3636,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                     ),
                                   ),
 
-                                
-
                                 const SizedBox(height: 10),
 
                                 // Reservado
@@ -3776,7 +3894,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                         ),
                                       ],
                                     ),
-                                    const SizedBox(height: 20),
+                                const SizedBox(height: 20),
 
                                 Row(
                                   children: [
@@ -3800,7 +3918,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                     ),
                                   ],
                                 ),
-                                 const SizedBox(height: 10),
+                                const SizedBox(height: 10),
                               ],
                             ),
                           ),
@@ -4573,8 +4691,17 @@ class _ServiceTransactionReceiptScreenState
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: value));
                     OneContext().showSnackBar(
-                      builder: (_) => const SnackBar(
-                        content: Text('Referencia copiada al portapapeles'),
+                      builder: (_) => SnackBar(
+                        content: const Text(
+                          '¡Referencia copia al portapeles con éxito!',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 3),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     );
                   },
@@ -4630,8 +4757,18 @@ class _ServiceTransactionReceiptScreenState
   void _submitEvaluationAndExit() async {
     if (_rating == 0) {
       OneContext().showSnackBar(
-        builder: (_) => const SnackBar(
-            content: Text('Por favor, evalúe al proveedor antes de salir')),
+        builder: (_) => SnackBar(
+          content: const Text(
+            'Por favor, evalúe al agente antes de salir.',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
       return;
     }
@@ -4645,10 +4782,17 @@ class _ServiceTransactionReceiptScreenState
     });
 
     OneContext().showSnackBar(
-      builder: (_) => const SnackBar(
-        content: Text('Muchas gracias por usar nuestros servicios',
-            style: TextStyle(color: Colors.white)),
+      builder: (_) => SnackBar(
+        content: const Text(
+          'Muchas gracias por hacer uso de nuestros servicios.',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.green,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
       ),
     );
 

@@ -624,7 +624,18 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
         // Handle error (e.g., show a snackbar with the error message)
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al actualizar la imagen: $e')),
+          SnackBar(
+            content: const Text(
+              'Error al actualizar la foto.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
         );
       }
     }
@@ -938,8 +949,17 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
         // La contraseña se actualizó correctamente
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Contraseña actualizada correctamente'),
+          SnackBar(
+            content: const Text(
+              '¡Contraseña actualizada exitosamente!.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
 
@@ -951,8 +971,17 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
         // La contraseña actual es incorrecta
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('La contraseña actual es incorrecta'),
+          SnackBar(
+            content: const Text(
+              'La contraseña actual es incorrecta.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
@@ -1334,7 +1363,7 @@ class SuppliersScreenState extends State<SuppliersScreen> {
       QuerySnapshot<Map<String, dynamic>> querySnapshot =
           await FirebaseFirestore.instance.collection('users').get();
       _users = querySnapshot.docs
-          .where((doc) => doc.data()['permissions'] == 1)
+          .where((doc) => doc.data()['role'] == 1)
           .map((doc) => doc.data())
           .toList();
       _filteredUsers = _users;
@@ -1652,10 +1681,9 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                                   .toString(); // Actualiza el controlador
                               _nameController.text =
                                   '${_selectedUser!['name']} ${_selectedUser!['lastName']}'; // Actualiza el controlador
-                              _selectedStatus =
-                                  _selectedUser!['permissions'] == 1
-                                      ? 'SI'
-                                      : 'NO'; // Actualiza el status
+                              _selectedStatus = _selectedUser!['role'] == 1
+                                  ? 'SI'
+                                  : 'NO'; // Actualiza el status
                               _loadSupplierData(_selectedUser!['id']
                                   .toString()); // Carga los datos del proveedor si existen
                             });
@@ -1895,9 +1923,8 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                         Map<String, dynamic> userData = {
                           'name': _nameController.text,
                           'services': _addedServices,
-                          'permissions': _selectedStatus == 'SI'
-                              ? 1
-                              : 0, // Agrega permissions
+                          'role':
+                              _selectedStatus == 'SI' ? 1 : 0, // Agrega role
                         };
 
                         // Guarda los datos del usuario en una nueva colección
@@ -1910,9 +1937,7 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                         await FirebaseFirestore.instance
                             .collection('users')
                             .doc(userId)
-                            .update({
-                          'permissions': _selectedStatus == 'SI' ? 1 : 0
-                        });
+                            .update({'role': _selectedStatus == 'SI' ? 1 : 0});
 
                         // Navega a la pantalla anterior o muestra un mensaje de éxito
                         // ignore: use_build_context_synchronously
@@ -1920,8 +1945,17 @@ class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
                         // Muestra un mensaje de éxito
                         // ignore: use_build_context_synchronously
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Proveedor guardado correctamente'),
+                          SnackBar(
+                            content: const Text(
+                              '¡Proveedor guardado con éxito!.',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                            backgroundColor: Colors.green,
+                            duration: const Duration(seconds: 5),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         );
                       } else {
@@ -2120,12 +2154,12 @@ class _SearchUsersForSuppliersScreenState
               style: const TextStyle(fontSize: 12),
             ),
             Text(
-              'Permisos: ${user['permissions']}',
+              'Rol: ${user['role']}',
               style: const TextStyle(fontSize: 12),
             ),
             Text(
               'Correo: ${user['email']}',
-              style: const TextStyle(fontSize: 9),
+              style: const TextStyle(fontSize: 8),
             ),
           ],
         ),

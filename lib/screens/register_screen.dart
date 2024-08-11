@@ -60,8 +60,17 @@ class _RegisterScreenState extends State<RegisterScreen>
       if (!_acceptTerms) {
         // Mostrar un mensaje de error
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Debes aceptar los términos y condiciones'),
+          SnackBar(
+            content: const Text(
+              'Debes aceptar los términos y condiciones.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
         return;
@@ -91,8 +100,17 @@ class _RegisterScreenState extends State<RegisterScreen>
       if (emailExists || idExists || phoneExists) {
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('El correo electrónico, ID o número de teléfono ya está registrado'),
+          SnackBar(
+            content: const Text(
+              'EL email, ID o número de telefono ya se encuentran registrados.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
         return;
@@ -132,7 +150,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           'password': _passwordController.text.trim(), // Almacena la contraseña
           'gender': _selectedGender, // Almacena el género seleccionado
           'acceptTerms': _acceptTerms, // Almacena si el usuario aceptó los términos
-          'permissions': 0, // Añade el campo de permisos con valor 0
+          'role': 0, // Añade el campo de rol con valor 0
           'status': 0 // Añade el campo de permisos con valor 0
         });
 
@@ -146,7 +164,18 @@ class _RegisterScreenState extends State<RegisterScreen>
         // 6. Registro exitoso, navega a LoginScreen y muestra un mensaje
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('¡Registro exitoso!')),
+          SnackBar(
+            content: const Text(
+              '¡Registro exitoso! Inicie sesión.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
         );
         Navigator.pushReplacement(
           // ignore: use_build_context_synchronously

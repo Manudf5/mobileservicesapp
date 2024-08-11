@@ -49,26 +49,70 @@ class _LoginScreenState extends State<LoginScreen> {
           // Usuario no encontrado
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Correo o contraseña incorrectos')),
-          );
+          SnackBar(
+            content: const Text(
+              'Correo o contraseña incorrectos.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
         }
       } on FirebaseAuthException catch (e) {
         if (e.code == 'user-not-found') {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No se encontró ningún usuario con ese correo electrónico.')),
-          );
+          SnackBar(
+            content: const Text(
+              'No se encontró ningun usuario con ese correo electrónico.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
         } else if (e.code == 'wrong-password') {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Contraseña incorrecta.')),
-          );
+          SnackBar(
+            content: const Text(
+              'Contraseña incorrecta.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
         }
         // ... other error codes ...
       } catch (e) {
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al iniciar sesión.')),
+          SnackBar(
+            content: const Text(
+              'Error al iniciar sesión.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
         );
       }
     }
@@ -87,13 +131,35 @@ class _LoginScreenState extends State<LoginScreen> {
           await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Email de recuperación enviado')),
-          );
+          SnackBar(
+            content: const Text(
+              'Email de recuperación enviado.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
         } else {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('El correo electrónico no está asociado a una cuenta')),
-          );
+          SnackBar(
+            content: const Text(
+              'El correo electrónico no esta asociado a una cuenta.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
         }
       } catch (e) {
         // ignore: avoid_print
@@ -105,8 +171,19 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, ingresa un correo electrónico')),
-      );
+          SnackBar(
+            content: const Text(
+              'Por favor, ingrese un correo electrónico.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
     }
   }
 

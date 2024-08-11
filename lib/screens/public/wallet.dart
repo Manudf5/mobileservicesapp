@@ -155,12 +155,12 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   void _navigateToTransferFundsScreen() {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-        builder: (context) => TransferFundsScreen(userId: _userDocId)),
-  );
-}
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (context) => TransferFundsScreen(userId: _userDocId)),
+    );
+  }
 
   void _navigateToTransactionHistoryScreen() {
     Navigator.push(
@@ -290,10 +290,12 @@ class _WalletScreenState extends State<WalletScreen> {
                   GestureDetector(
                     onTap: _navigateToTransactionHistoryScreen,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.transparent,
-                        border: Border.all(color: const Color(0xFF08143c), width: 1.5),
+                        border: Border.all(
+                            color: const Color(0xFF08143c), width: 1.5),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Text(
@@ -319,7 +321,8 @@ class _WalletScreenState extends State<WalletScreen> {
                     itemCount: _transactions.length,
                     itemBuilder: (context, index) {
                       final transaction = _transactions[index].data();
-                      final isSentByUser = transaction['senderId'] == _userDocId;
+                      final isSentByUser =
+                          transaction['senderId'] == _userDocId;
                       final icon = isSentByUser
                           ? Icons.keyboard_arrow_down_rounded
                           : Icons.keyboard_arrow_up_rounded;
@@ -333,9 +336,10 @@ class _WalletScreenState extends State<WalletScreen> {
                       final paymentType = transaction['paymentType'];
 
                       return GestureDetector(
-                        onTap: () => _navigateToTransactionReceiptScreen(_transactions[index]),
-                        child: _buildTransactionItem(
-                            name, paymentType, amountDouble, icon, isSentByUser),
+                        onTap: () => _navigateToTransactionReceiptScreen(
+                            _transactions[index]),
+                        child: _buildTransactionItem(name, paymentType,
+                            amountDouble, icon, isSentByUser),
                       );
                     },
                   ),
@@ -453,6 +457,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
   Timer? _debounce;
   DateTime? _startDate;
   DateTime? _endDate;
+  int _totalTransactions = 0;
+  DocumentSnapshot? _lastDocument;
 
   @override
   void initState() {
@@ -487,8 +493,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
     Query<Map<String, dynamic>> query = FirebaseFirestore.instance
         .collection('transactions')
-        .orderBy('date', descending: true)
-        .limit(_transactionLimit);
+        .orderBy('date', descending: true);
 
     query = query.where(Filter.or(
       Filter('senderId', isEqualTo: _userId),
@@ -500,11 +505,25 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     } else if (_selectedFilter == 'Recibidas') {
       query = query.where('recipientId', isEqualTo: _userId);
     }
-     if (_startDate != null) {
-      query = query.where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(_startDate!));
+
+    if (_startDate != null) {
+      query = query.where('date',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(_startDate!));
     }
     if (_endDate != null) {
-      query = query.where('date', isLessThanOrEqualTo: Timestamp.fromDate(_endDate!.add(const Duration(days: 1))));
+      query = query.where('date',
+          isLessThanOrEqualTo:
+              Timestamp.fromDate(_endDate!.add(const Duration(days: 1))));
+    }
+
+    // Obtener el total de transacciones
+    final totalSnapshot = await query.count().get();
+    _totalTransactions = totalSnapshot.count!;
+
+    // Aplicar paginación
+    query = query.limit(_transactionLimit);
+    if (_currentPage > 1 && _lastDocument != null) {
+      query = query.startAfterDocument(_lastDocument!);
     }
 
     final QuerySnapshot<Map<String, dynamic>> snapshot = await query.get();
@@ -532,11 +551,17 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       setState(() {
         _transactions = filteredTransactions;
         _isLoading = false;
+        if (snapshot.docs.isNotEmpty) {
+          _lastDocument = snapshot.docs.last;
+        }
       });
     } else {
       setState(() {
         _transactions = snapshot.docs;
         _isLoading = false;
+        if (snapshot.docs.isNotEmpty) {
+          _lastDocument = snapshot.docs.last;
+        }
       });
     }
   }
@@ -571,9 +596,9 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
               ),
             ),
             textTheme: ThemeData.light().textTheme.apply(
-              bodyColor: const Color(0xFF08143c),
-              displayColor: const Color(0xFF08143c),
-            ),
+                  bodyColor: const Color(0xFF08143c),
+                  displayColor: const Color(0xFF08143c),
+                ),
           ),
           child: child!,
         );
@@ -603,27 +628,28 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     }
   }
 
-  void _navigateToTransactionReceiptScreen(QueryDocumentSnapshot<Map<String, dynamic>> transactionDoc) {
-  final transaction = transactionDoc.data();
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => TransactionReceiptScreen2(
-        paymentType: transaction['paymentType'] ?? 'Desconocido',
-        date: (transaction['date'] as Timestamp).toDate(),
-        transactionId: transactionDoc.id, // Usar el ID del documento aquí
-        concept: transaction['concept'] ?? '',
-        recipientId: transaction['recipientId'] ?? '',
-        recipientName: transaction['recipientName'] ?? '',
-        amount: transaction['amount'].toDouble(),
-        paymentMethod: transaction['paymentMethod'] ?? {},
-        taskId: transaction['taskId'] ?? '',
-        senderName: transaction['senderName'] ?? '',
-        senderId: transaction['senderId'] ?? '',
+  void _navigateToTransactionReceiptScreen(
+      QueryDocumentSnapshot<Map<String, dynamic>> transactionDoc) {
+    final transaction = transactionDoc.data();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TransactionReceiptScreen2(
+          paymentType: transaction['paymentType'] ?? 'Desconocido',
+          date: (transaction['date'] as Timestamp).toDate(),
+          transactionId: transactionDoc.id, // Usar el ID del documento aquí
+          concept: transaction['concept'] ?? '',
+          recipientId: transaction['recipientId'] ?? '',
+          recipientName: transaction['recipientName'] ?? '',
+          amount: transaction['amount'].toDouble(),
+          paymentMethod: transaction['paymentMethod'] ?? {},
+          taskId: transaction['taskId'] ?? '',
+          senderName: transaction['senderName'] ?? '',
+          senderId: transaction['senderId'] ?? '',
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildTransactionItem(
       QueryDocumentSnapshot<Map<String, dynamic>> transaction) {
@@ -685,7 +711,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                         ),
                         Text(
                           description,
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          style:
+                              TextStyle(color: Colors.grey[600], fontSize: 12),
                         ),
                       ],
                     ),
@@ -722,7 +749,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Center(
@@ -930,15 +958,19 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                         ? () {
                             setState(() {
                               _currentPage--;
+                              _lastDocument =
+                                  null; // Resetear el último documento
                             });
                             _fetchTransactions();
                           }
                         : null,
                   ),
-                  Text('Página $_currentPage'),
+                  Text(
+                      'Página $_currentPage de ${(_totalTransactions / _transactionLimit).ceil()}'),
                   IconButton(
                     icon: const Icon(Icons.chevron_right),
-                    onPressed: _transactions.length == _transactionLimit
+                    onPressed: _currentPage <
+                            (_totalTransactions / _transactionLimit).ceil()
                         ? () {
                             setState(() {
                               _currentPage++;
@@ -1077,9 +1109,17 @@ class _TransferFundsScreenState extends State<TransferFundsScreen> {
 
     if (enteredAmount < 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('El monto mínimo a transferir es de USD 1.'),
+        SnackBar(
+          content: const Text(
+            'El monto mínimo a transferir es de USD 1.',
+            style: TextStyle(color: Colors.white),
+          ),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
       return;
@@ -1092,9 +1132,17 @@ class _TransferFundsScreenState extends State<TransferFundsScreen> {
     if (enteredAmount > walletBalance) {
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Saldo insuficiente para realizar la transferencia.'),
+        SnackBar(
+          content: const Text(
+            'Saldo insuficiente para realizar la transferencia.',
+            style: TextStyle(color: Colors.white),
+          ),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     } else {
@@ -1436,10 +1484,18 @@ class _ConfirmTransferFundsScreenState
   void _showPinDialog() {
     if (_commentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('Por favor, ingrese un concepto para la transferencia.'),
-            backgroundColor: Colors.red),
+        SnackBar(
+          content: const Text(
+            'Por favor, ingrese un concepto de transferencia.',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
       return;
     }
@@ -1507,8 +1563,18 @@ class _ConfirmTransferFundsScreenState
                   _processPayment();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('El PIN debe tener 4 dígitos')),
+                    SnackBar(
+                      content: const Text(
+                        'El PIN debe tener 4 dígitos.',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 5),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                   );
                 }
               },
@@ -1582,9 +1648,17 @@ class _ConfirmTransferFundsScreenState
                   _processPayment();
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('PIN incorrecto'),
+                    SnackBar(
+                      content: const Text(
+                        'PIN incorrecto.',
+                        style: TextStyle(color: Colors.white),
+                      ),
                       backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 5),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   );
                 }
@@ -1671,7 +1745,11 @@ class _ConfirmTransferFundsScreenState
             recipientId: widget.recipient['id'],
             recipientName:
                 '${widget.recipient['name']} ${widget.recipient['lastName']}',
-            amount: amount, paymentMethod: const {}, taskId: '', senderName: _userName, senderId: widget.userId,
+            amount: amount,
+            paymentMethod: const {},
+            taskId: '',
+            senderName: _userName,
+            senderId: widget.userId,
           ),
         ),
       );
@@ -1682,8 +1760,17 @@ class _ConfirmTransferFundsScreenState
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red),
+          content: const Text(
+            'Transacción fallida.',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
     }
   }
@@ -2025,8 +2112,18 @@ class TransactionReceiptScreen extends StatelessWidget {
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: value));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Referencia copiada al portapapeles')),
+                      SnackBar(
+                        content: const Text(
+                          '¡Referencia copiada al portapapeles con éxito!',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 5),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -2061,13 +2158,29 @@ class TransactionReceiptScreen extends StatelessWidget {
         await imagePath.writeAsBytes(image);
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Imagen guardada en ${imagePath.path}')),
+          SnackBar(
+            content: Text('Imagen guardada en ${imagePath.path}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
         );
       }
     } catch (e) {
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al guardar la imagen: $e')),
+        SnackBar(
+          content: Text('Error al guardar la imagen: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
     }
   }
@@ -2126,13 +2239,16 @@ class TransactionReceiptScreen2 extends StatelessWidget {
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
-          title: const Text('Detalle de Transacción', style: TextStyle(color: Colors.black)),
+          title: const Text('Detalle de Transacción',
+              style: TextStyle(color: Colors.black)),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                color: Colors.black),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
-        body: Center( // Center the content
+        body: Center(
+          // Center the content
           child: SingleChildScrollView(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center, // Center vertically
@@ -2143,7 +2259,8 @@ class TransactionReceiptScreen2 extends StatelessWidget {
                     color: Colors.white,
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center, // Centra los elementos del encabezado
+                      mainAxisAlignment: MainAxisAlignment
+                          .center, // Centra los elementos del encabezado
                       children: [
                         _buildHeader(),
                         const SizedBox(height: 24),
@@ -2182,12 +2299,16 @@ class TransactionReceiptScreen2 extends StatelessWidget {
 
   Widget _buildHeader() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center, // Centra el encabezado horizontalmente
+      crossAxisAlignment:
+          CrossAxisAlignment.center, // Centra el encabezado horizontalmente
       children: [
         const Text(
           'Mobile Services App',
           textAlign: TextAlign.center, // Centra el texto
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF08143c)),
+          style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF08143c)),
         ),
         const SizedBox(height: 8),
         Text(
@@ -2201,7 +2322,8 @@ class TransactionReceiptScreen2 extends StatelessWidget {
 
   Widget _buildTransactionStatus() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center, // Centra los elementos de la sección de estado
+      crossAxisAlignment: CrossAxisAlignment
+          .center, // Centra los elementos de la sección de estado
       children: [
         const Icon(
           Icons.check_circle_outline_rounded,
@@ -2212,13 +2334,17 @@ class TransactionReceiptScreen2 extends StatelessWidget {
         const Text(
           '¡Transacción aprobada!',
           textAlign: TextAlign.center, // Centra el texto
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF08143c)),
+          style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF08143c)),
         ),
         const SizedBox(height: 8),
         Text(
           'Monto total: \$${amount.toStringAsFixed(2)}',
           textAlign: TextAlign.center, // Centra el texto
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+          style: const TextStyle(
+              fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
         ),
       ],
     );
@@ -2240,10 +2366,13 @@ class TransactionReceiptScreen2 extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildInfoRow('Tipo de pago', paymentType, context: context),
-            _buildInfoRow('Referencia', transactionId, context: context, isCopiable: true),
+            _buildInfoRow('Referencia', transactionId,
+                context: context, isCopiable: true),
             _buildInfoRow('Concepto', concept, context: context),
-            _buildInfoRow('Emisor', '$senderName ($senderId)', context: context),
-            _buildInfoRow('Receptor', '$recipientName ($recipientId)', context: context),
+            _buildInfoRow('Emisor', '$senderName ($senderId)',
+                context: context),
+            _buildInfoRow('Receptor', '$recipientName ($recipientId)',
+                context: context),
             _buildPaymentMethodsSection(),
             if (taskId.isNotEmpty) _buildTaskIdSection(context),
           ],
@@ -2252,22 +2381,27 @@ class TransactionReceiptScreen2 extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {required BuildContext context, bool isCopiable = false}) {
+  Widget _buildInfoRow(String label, String value,
+      {required BuildContext context, bool isCopiable = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF08143c))),
+          Text(label,
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Color(0xFF08143c))),
           Row(
             children: [
               Text(value, style: const TextStyle(color: Colors.black87)),
               if (isCopiable)
                 IconButton(
-                  icon: const Icon(Icons.copy, size: 20, color: Color(0xFF08143c)),
+                  icon: const Icon(Icons.copy,
+                      size: 20, color: Color(0xFF08143c)),
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: value));
-                    _showCopiedSnackbar(context); // Pass the context to the function
+                    _showCopiedSnackbar(
+                        context); // Pass the context to the function
                   },
                 ),
             ],
@@ -2279,7 +2413,18 @@ class TransactionReceiptScreen2 extends StatelessWidget {
 
   void _showCopiedSnackbar(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Copiado al portapapeles'), backgroundColor: Colors.green),
+      SnackBar(
+        content: const Text(
+          '¡Copiado al portapeles con éxito!',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
     );
   }
 
@@ -2290,7 +2435,9 @@ class TransactionReceiptScreen2 extends StatelessWidget {
         children: [
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8.0),
-            child: Text('Métodos de pago', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF08143c))),
+            child: Text('Métodos de pago',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: Color(0xFF08143c))),
           ),
           ...paymentMethod.entries.map((entry) {
             final methodName = entry.key;
@@ -2301,17 +2448,20 @@ class TransactionReceiptScreen2 extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(methodName, style: const TextStyle(color: Colors.black87)),
-                  Text('\$${methodAmount.toStringAsFixed(2)}', style: const TextStyle(color: Colors.black87)),
+                  Text(methodName,
+                      style: const TextStyle(color: Colors.black87)),
+                  Text('\$${methodAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(color: Colors.black87)),
                 ],
               ),
             );
-          // ignore: unnecessary_to_list_in_spreads
+            // ignore: unnecessary_to_list_in_spreads
           }).toList(),
         ],
       );
     } else {
-      return const SizedBox.shrink(); // No mostrar nada si paymentMethod es nulo o vacío
+      return const SizedBox
+          .shrink(); // No mostrar nada si paymentMethod es nulo o vacío
     }
   }
 
@@ -2321,12 +2471,15 @@ class TransactionReceiptScreen2 extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('Task ID', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF08143c))),
+          const Text('Task ID',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: Color(0xFF08143c))),
           Row(
             children: [
               Text(taskId, style: const TextStyle(color: Colors.black87)),
               IconButton(
-                icon: const Icon(Icons.copy, size: 20, color: Color(0xFF08143c)),
+                icon:
+                    const Icon(Icons.copy, size: 20, color: Color(0xFF08143c)),
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: taskId));
                   // Mostrar un SnackBar o alguna notificación de que se ha copiado
@@ -2340,7 +2493,10 @@ class TransactionReceiptScreen2 extends StatelessWidget {
     );
   }
 
-  Widget _buildActionButton({required IconData icon, required String label, required VoidCallback onPressed}) {
+  Widget _buildActionButton(
+      {required IconData icon,
+      required String label,
+      required VoidCallback onPressed}) {
     return ElevatedButton.icon(
       icon: Icon(icon, color: Colors.white),
       label: Text(label, style: const TextStyle(color: Colors.white)),
@@ -2356,7 +2512,8 @@ class TransactionReceiptScreen2 extends StatelessWidget {
     final Uint8List? image = await screenshotController.capture();
     if (image != null) {
       final directory = await getTemporaryDirectory();
-      final imagePath = await File('${directory.path}/comprobante_transaccion.png').create();
+      final imagePath =
+          await File('${directory.path}/comprobante_transaccion.png').create();
       await imagePath.writeAsBytes(image);
 
       final xFile = XFile(imagePath.path);
@@ -2375,13 +2532,29 @@ class TransactionReceiptScreen2 extends StatelessWidget {
         await imagePath.writeAsBytes(image);
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Imagen guardada en ${imagePath.path}')),
+          SnackBar(
+            content: Text('Imagen guardada en ${imagePath.path}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
         );
       }
     } catch (e) {
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al guardar la imagen: $e')),
+        SnackBar(
+          content: Text('Error al guardar la imagen: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
       );
     }
   }
