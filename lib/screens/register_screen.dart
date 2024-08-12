@@ -44,8 +44,10 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  final _idLetterController = TextEditingController(); // Letra de identificación
-  final _idNumberController = TextEditingController(); // Número de identificación
+  final _idLetterController =
+      TextEditingController(); // Letra de identificación
+  final _idNumberController =
+      TextEditingController(); // Número de identificación
   final _birthDateController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneCountryCodeController =
@@ -85,15 +87,17 @@ class _RegisterScreenState extends State<RegisterScreen>
 
       final idExists = await FirebaseFirestore.instance
           .collection('users')
-          .where('id', isEqualTo:
-              '${_idLetterController.text.trim()}${_idNumberController.text.trim()}')
+          .where('id',
+              isEqualTo:
+                  '${_idLetterController.text.trim()}${_idNumberController.text.trim()}')
           .get()
           .then((value) => value.docs.isNotEmpty);
 
       final phoneExists = await FirebaseFirestore.instance
           .collection('users')
-          .where('phone', isEqualTo:
-              '${_phoneCountryCodeController.text.trim()}${_phoneNumberController.text.trim()}')
+          .where('phone',
+              isEqualTo:
+                  '${_phoneCountryCodeController.text.trim()}${_phoneNumberController.text.trim()}')
           .get()
           .then((value) => value.docs.isNotEmpty);
 
@@ -117,8 +121,8 @@ class _RegisterScreenState extends State<RegisterScreen>
       }
 
       // 3. Crea usuario con email y contraseña usando Firebase Authentication
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
+      UserCredential userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
@@ -145,13 +149,16 @@ class _RegisterScreenState extends State<RegisterScreen>
               ? DateFormat('dd/MM/yyyy').format(_selectedDate!)
               : '', // Almacena la fecha seleccionada en formato DD/MM/YYYY
           'email': _emailController.text.trim(),
-          'phone': combinedPhoneNumber, // Almacena el número de teléfono combinado
+          'phone':
+              combinedPhoneNumber, // Almacena el número de teléfono combinado
           'uid': user.uid, // Almacena el UID del usuario para referencia futura
           'password': _passwordController.text.trim(), // Almacena la contraseña
           'gender': _selectedGender, // Almacena el género seleccionado
-          'acceptTerms': _acceptTerms, // Almacena si el usuario aceptó los términos
+          'acceptTerms':
+              _acceptTerms, // Almacena si el usuario aceptó los términos
           'role': 0, // Añade el campo de rol con valor 0
-          'status': 0 // Añade el campo de permisos con valor 0
+          'status': 0, // Añade el campo de permisos con valor 0
+          'registrationDate': DateTime.now(), // Almacena la fecha de registro
         });
 
         await FirebaseFirestore.instance
@@ -254,7 +261,8 @@ class _RegisterScreenState extends State<RegisterScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white, // Set the background color to white
-      body: Center( // Centra el formulario vertical y horizontalmente
+      body: Center(
+        // Centra el formulario vertical y horizontalmente
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: SingleChildScrollView(
@@ -280,14 +288,21 @@ class _RegisterScreenState extends State<RegisterScreen>
                       controller: _nameController,
                       decoration: InputDecoration(
                         labelText: 'Nombre',
-                        labelStyle: const TextStyle(color: Colors.black), // Set the label text color to black
+                        labelStyle: const TextStyle(
+                            color: Colors
+                                .black), // Set the label text color to black
                         hintText: 'Ingresa tu primer nombre',
-                        hintStyle: const TextStyle(color: Colors.grey), // Set the hint text color to grey
+                        hintStyle: const TextStyle(
+                            color:
+                                Colors.grey), // Set the hint text color to grey
                         filled: true,
-                        fillColor: Colors.transparent, // Set the fill color to transparent
+                        fillColor: Colors
+                            .transparent, // Set the fill color to transparent
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16.0),
-                          borderSide: const BorderSide(color: Colors.blue), // Set the border color to blue
+                          borderSide: const BorderSide(
+                              color:
+                                  Colors.blue), // Set the border color to blue
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16.0,
@@ -310,14 +325,21 @@ class _RegisterScreenState extends State<RegisterScreen>
                       controller: _lastNameController,
                       decoration: InputDecoration(
                         labelText: 'Apellido',
-                        labelStyle: const TextStyle(color: Colors.black), // Set the label text color to black
+                        labelStyle: const TextStyle(
+                            color: Colors
+                                .black), // Set the label text color to black
                         hintText: 'Ingresa tu primer apellido',
-                        hintStyle: const TextStyle(color: Colors.grey), // Set the hint text color to grey
+                        hintStyle: const TextStyle(
+                            color:
+                                Colors.grey), // Set the hint text color to grey
                         filled: true,
-                        fillColor: Colors.transparent, // Set the fill color to transparent
+                        fillColor: Colors
+                            .transparent, // Set the fill color to transparent
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16.0),
-                          borderSide: const BorderSide(color: Colors.blue), // Set the border color to blue
+                          borderSide: const BorderSide(
+                              color:
+                                  Colors.blue), // Set the border color to blue
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16.0,
@@ -343,7 +365,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                           child: DropdownButtonFormField<String>(
                             decoration: const InputDecoration(
                               labelText: 'Tipo',
-                              labelStyle: TextStyle(color: Colors.black), // Set the label text color to black
+                              labelStyle: TextStyle(
+                                  color: Colors
+                                      .black), // Set the label text color to black
                               hintText: 'Tipo',
                               contentPadding: EdgeInsets.symmetric(
                                   horizontal: 16.0, vertical: 16.0),
@@ -393,14 +417,21 @@ class _RegisterScreenState extends State<RegisterScreen>
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
                               labelText: 'ID',
-                              labelStyle: const TextStyle(color: Colors.black), // Set the label text color to black
+                              labelStyle: const TextStyle(
+                                  color: Colors
+                                      .black), // Set the label text color to black
                               hintText: 'ID',
-                              hintStyle: const TextStyle(color: Colors.grey), // Set the hint text color to grey
+                              hintStyle: const TextStyle(
+                                  color: Colors
+                                      .grey), // Set the hint text color to grey
                               filled: true,
-                              fillColor: Colors.transparent, // Set the fill color to transparent
+                              fillColor: Colors
+                                  .transparent, // Set the fill color to transparent
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16.0),
-                                borderSide: const BorderSide(color: Colors.blue), // Set the border color to blue
+                                borderSide: const BorderSide(
+                                    color: Colors
+                                        .blue), // Set the border color to blue
                               ),
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16.0,
@@ -428,14 +459,21 @@ class _RegisterScreenState extends State<RegisterScreen>
                       onTap: _presentDatePicker,
                       decoration: InputDecoration(
                         labelText: 'Fecha de nacimiento',
-                        labelStyle: const TextStyle(color: Colors.black), // Set the label text color to black
+                        labelStyle: const TextStyle(
+                            color: Colors
+                                .black), // Set the label text color to black
                         hintText: 'Selecciona tu fecha de nacimiento',
-                        hintStyle: const TextStyle(color: Colors.grey), // Set the hint text color to grey
+                        hintStyle: const TextStyle(
+                            color:
+                                Colors.grey), // Set the hint text color to grey
                         filled: true,
-                        fillColor: Colors.transparent, // Set the fill color to transparent
+                        fillColor: Colors
+                            .transparent, // Set the fill color to transparent
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16.0),
-                          borderSide: const BorderSide(color: Colors.blue), // Set the border color to blue
+                          borderSide: const BorderSide(
+                              color:
+                                  Colors.blue), // Set the border color to blue
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16.0,
@@ -457,7 +495,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                     child: DropdownButtonFormField<String>(
                       decoration: const InputDecoration(
                         labelText: 'Género',
-                        labelStyle: TextStyle(color: Colors.black), // Set the label text color to black
+                        labelStyle: TextStyle(
+                            color: Colors
+                                .black), // Set the label text color to black
                         hintText: 'Género',
                         contentPadding: EdgeInsets.symmetric(
                             horizontal: 16.0, vertical: 16.0),
@@ -502,14 +542,21 @@ class _RegisterScreenState extends State<RegisterScreen>
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         labelText: 'Correo electrónico',
-                        labelStyle: const TextStyle(color: Colors.black), // Set the label text color to black
+                        labelStyle: const TextStyle(
+                            color: Colors
+                                .black), // Set the label text color to black
                         hintText: 'Ingresa tu correo electrónico',
-                        hintStyle: const TextStyle(color: Colors.grey), // Set the hint text color to grey
+                        hintStyle: const TextStyle(
+                            color:
+                                Colors.grey), // Set the hint text color to grey
                         filled: true,
-                        fillColor: Colors.transparent, // Set the fill color to transparent
+                        fillColor: Colors
+                            .transparent, // Set the fill color to transparent
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16.0),
-                          borderSide: const BorderSide(color: Colors.blue), // Set the border color to blue
+                          borderSide: const BorderSide(
+                              color:
+                                  Colors.blue), // Set the border color to blue
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16.0,
@@ -538,7 +585,9 @@ class _RegisterScreenState extends State<RegisterScreen>
                           child: DropdownButtonFormField<String>(
                             decoration: const InputDecoration(
                               labelText: 'País',
-                              labelStyle: TextStyle(color: Colors.black), // Set the label text color to black
+                              labelStyle: TextStyle(
+                                  color: Colors
+                                      .black), // Set the label text color to black
                               hintText: 'País',
                               contentPadding: EdgeInsets.symmetric(
                                   horizontal: 16.0, vertical: 16.0),
@@ -575,14 +624,21 @@ class _RegisterScreenState extends State<RegisterScreen>
                             keyboardType: TextInputType.phone,
                             decoration: InputDecoration(
                               labelText: 'N° Teléfono',
-                              labelStyle: const TextStyle(color: Colors.black), // Set the label text color to black
+                              labelStyle: const TextStyle(
+                                  color: Colors
+                                      .black), // Set the label text color to black
                               hintText: 'N° Teléfono',
-                              hintStyle: const TextStyle(color: Colors.grey), // Set the hint text color to grey
+                              hintStyle: const TextStyle(
+                                  color: Colors
+                                      .grey), // Set the hint text color to grey
                               filled: true,
-                              fillColor: Colors.transparent, // Set the fill color to transparent
+                              fillColor: Colors
+                                  .transparent, // Set the fill color to transparent
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(16.0),
-                                borderSide: const BorderSide(color: Colors.blue), // Set the border color to blue
+                                borderSide: const BorderSide(
+                                    color: Colors
+                                        .blue), // Set the border color to blue
                               ),
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: 16.0,
@@ -609,14 +665,21 @@ class _RegisterScreenState extends State<RegisterScreen>
                       obscureText: true,
                       decoration: InputDecoration(
                         labelText: 'Contraseña',
-                        labelStyle: const TextStyle(color: Colors.black), // Set the label text color to black
+                        labelStyle: const TextStyle(
+                            color: Colors
+                                .black), // Set the label text color to black
                         hintText: 'Ingresa una contraseña mayor a 8 dígitos',
-                        hintStyle: const TextStyle(color: Colors.grey), // Set the hint text color to grey
+                        hintStyle: const TextStyle(
+                            color:
+                                Colors.grey), // Set the hint text color to grey
                         filled: true,
-                        fillColor: Colors.transparent, // Set the fill color to transparent
+                        fillColor: Colors
+                            .transparent, // Set the fill color to transparent
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16.0),
-                          borderSide: const BorderSide(color: Colors.blue), // Set the border color to blue
+                          borderSide: const BorderSide(
+                              color:
+                                  Colors.blue), // Set the border color to blue
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16.0,
@@ -643,14 +706,21 @@ class _RegisterScreenState extends State<RegisterScreen>
                       obscureText: true,
                       decoration: InputDecoration(
                         labelText: 'Confirmar contraseña',
-                        labelStyle: const TextStyle(color: Colors.black), // Set the label text color to black
+                        labelStyle: const TextStyle(
+                            color: Colors
+                                .black), // Set the label text color to black
                         hintText: 'Repite tu contraseña ingresada',
-                        hintStyle: const TextStyle(color: Colors.grey), // Set the hint text color to grey
+                        hintStyle: const TextStyle(
+                            color:
+                                Colors.grey), // Set the hint text color to grey
                         filled: true,
-                        fillColor: Colors.transparent, // Set the fill color to transparent
+                        fillColor: Colors
+                            .transparent, // Set the fill color to transparent
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16.0),
-                          borderSide: const BorderSide(color: Colors.blue), // Set the border color to blue
+                          borderSide: const BorderSide(
+                              color:
+                                  Colors.blue), // Set the border color to blue
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16.0,
@@ -671,25 +741,30 @@ class _RegisterScreenState extends State<RegisterScreen>
                   const SizedBox(height: 24.0),
                   // Casilla de verificación centrada horizontalmente
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0), // Añade padding a la fila
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0), // Añade padding a la fila
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center, // Centrar horizontalmente
+                      mainAxisAlignment:
+                          MainAxisAlignment.center, // Centrar horizontalmente
                       children: [
                         Checkbox(
-                          value: _acceptTerms, // Se utiliza la variable para el checkbox
+                          value:
+                              _acceptTerms, // Se utiliza la variable para el checkbox
                           onChanged: (value) {
                             setState(() {
                               _acceptTerms = value!;
                             });
                           },
                         ),
-                        const SizedBox(width: 4.0), // Espacio entre el checkbox y el texto
+                        const SizedBox(
+                            width: 4.0), // Espacio entre el checkbox y el texto
                         Expanded(
                           child: RichText(
                             text: TextSpan(
                               style: const TextStyle(
-                                color: Colors.black, fontSize: 13.0 // Reduce el tamaño del texto
-                              ),
+                                  color: Colors.black,
+                                  fontSize: 13.0 // Reduce el tamaño del texto
+                                  ),
                               children: [
                                 const TextSpan(
                                   text: 'Acepto los ',
@@ -697,8 +772,10 @@ class _RegisterScreenState extends State<RegisterScreen>
                                 TextSpan(
                                   text: 'términos y condiciones',
                                   style: const TextStyle(
-                                    color: Colors.blue, // Color azul para el enlace
-                                    decoration: TextDecoration.underline, // Subrayado
+                                    color: Colors
+                                        .blue, // Color azul para el enlace
+                                    decoration:
+                                        TextDecoration.underline, // Subrayado
                                   ),
                                   recognizer: TapGestureRecognizer()
                                     ..onTap = _showTermsAndConditionsDialog,
@@ -746,7 +823,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                     },
                     child: const Text(
                       '¿Ya tengo cuenta?',
-                      style: TextStyle(color: Colors.black), // Set the text color to black
+                      style: TextStyle(
+                          color: Colors.black), // Set the text color to black
                     ),
                   ),
                 ],

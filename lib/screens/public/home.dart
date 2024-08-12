@@ -620,7 +620,8 @@ class _HogarScreenState extends State<HogarScreen> {
               .get();
       _services = querySnapshot.docs.map((doc) => doc.data()).toList();
       setState(() {
-        _isLoading = false; // Establece el estado de carga a false cuando los datos están cargados
+        _isLoading =
+            false; // Establece el estado de carga a false cuando los datos están cargados
       });
     } catch (e) {
       // ignore: avoid_print
@@ -796,7 +797,8 @@ class _PersonalScreenState extends State<PersonalScreen> {
               .get();
       _services = querySnapshot.docs.map((doc) => doc.data()).toList();
       setState(() {
-        _isLoading = false; // Establece el estado de carga a false cuando los datos están cargados
+        _isLoading =
+            false; // Establece el estado de carga a false cuando los datos están cargados
       });
     } catch (e) {
       // ignore: avoid_print
@@ -972,7 +974,8 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
               .get();
       _services = querySnapshot.docs.map((doc) => doc.data()).toList();
       setState(() {
-        _isLoading = false; // Establece el estado de carga a false cuando los datos están cargados
+        _isLoading =
+            false; // Establece el estado de carga a false cuando los datos están cargados
       });
     } catch (e) {
       // ignore: avoid_print
@@ -1148,7 +1151,8 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
               .get();
       _services = querySnapshot.docs.map((doc) => doc.data()).toList();
       setState(() {
-        _isLoading = false; // Establece el estado de carga a false cuando los datos están cargados
+        _isLoading =
+            false; // Establece el estado de carga a false cuando los datos están cargados
       });
     } catch (e) {
       // ignore: avoid_print
@@ -1725,7 +1729,6 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
   }
 }
 
-
 class SelectSuppliersScreen extends StatefulWidget {
   final String serviceName;
   final String id;
@@ -1777,56 +1780,61 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
   }
 
   Future _fetchSuppliers() async {
-  try {
-    QuerySnapshot<Map<String, dynamic>> suppliersSnapshot =
-        await FirebaseFirestore.instance.collection('suppliers').get();
-    
-    _filteredSuppliers = [];
+    try {
+      QuerySnapshot<Map<String, dynamic>> suppliersSnapshot =
+          await FirebaseFirestore.instance.collection('suppliers').get();
 
-    for (var supplierDoc in suppliersSnapshot.docs) {
-      DocumentSnapshot<Map<String, dynamic>> userDoc = 
-          await FirebaseFirestore.instance.collection('users').doc(supplierDoc.id).get();
-      
-      if (supplierDoc.data()['services'] != null &&
-          supplierDoc.data()['role'] == 1 &&
-          supplierDoc.data()['solvent'] == true &&
-          userDoc.data()?['status'] == 0 &&
-          userDoc.data()?['profileImageUrl'] != null &&
-          userDoc.data()!['profileImageUrl'].toString().isNotEmpty) {
-        
-        bool offersService = supplierDoc.data()['services'].any((service) {
-          return service['service'] == widget.id;
-        });
+      _filteredSuppliers = [];
 
-        double distance = calculateDistance(
-          widget.latitude,
-          widget.longitude,
-          supplierDoc.data()['location'].latitude,
-          supplierDoc.data()['location'].longitude,
-        );
+      for (var supplierDoc in suppliersSnapshot.docs) {
+        DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+            .instance
+            .collection('users')
+            .doc(supplierDoc.id)
+            .get();
 
-        bool withinRange = distance <= 25;
-
-        if (offersService && withinRange) {
-          _filteredSuppliers.add(supplierDoc);
-          
-          supplierDoc.reference.update({
-            'profileImageUrl': userDoc.data()?['profileImageUrl'],
-            'assessment': userDoc.data()?['assessment']
+        if (supplierDoc.data()['services'] != null &&
+            supplierDoc.data()['solvent'] == true &&
+            userDoc.data()?['role'] == 1 &&
+            userDoc.data()?['status'] == 0 &&
+            userDoc.data()?['profileImageUrl'] != null &&
+            userDoc.data()!['profileImageUrl'].toString().isNotEmpty) {
+          bool offersService = supplierDoc.data()['services'].any((service) {
+            return service['service'] == widget.id;
           });
+
+          double distance = calculateDistance(
+            widget.latitude,
+            widget.longitude,
+            supplierDoc.data()['location'].latitude,
+            supplierDoc.data()['location'].longitude,
+          );
+
+          bool withinRange = distance <= 25;
+
+          if (offersService && withinRange) {
+            _filteredSuppliers.add(supplierDoc);
+
+            supplierDoc.reference.update({
+              'profileImageUrl': userDoc.data()?['profileImageUrl'],
+              // 'assessment': userDoc.data()?['assessment'] // Ya no se necesita
+            });
+          }
         }
       }
-    }
 
-    setState(() {
-      _isLoading = false;
-    });
-  } catch (e) {
-    if (kDebugMode) {
-      print('Error al obtener proveedores: $e');
+      // Mezclar la lista de proveedores aleatoriamente
+      _filteredSuppliers.shuffle(Random());
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al obtener proveedores: $e');
+      }
     }
   }
-}
 
   double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     const earthRadius = 6371.0;
@@ -1903,9 +1911,9 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
     });
   }
 
- void _applyFilter(String filter) {
+  void _applyFilter(String filter) {
     if (!_mounted) return;
-    
+
     setState(() {
       _selectedFilter = filter;
     });
@@ -1929,59 +1937,64 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
     }
   }
 
-Future<void> _fetchRecommendedSuppliers() async {
-  try {
-    QuerySnapshot<Map<String, dynamic>> suppliersSnapshot =
-        await FirebaseFirestore.instance.collection('suppliers').get();
-    
-    List<DocumentSnapshot<Map<String, dynamic>>> recommendedSuppliers = [];
+  Future<void> _fetchRecommendedSuppliers() async {
+    try {
+      QuerySnapshot<Map<String, dynamic>> suppliersSnapshot =
+          await FirebaseFirestore.instance.collection('suppliers').get();
 
-    for (var supplierDoc in suppliersSnapshot.docs) {
-      DocumentSnapshot<Map<String, dynamic>> userDoc = 
-          await FirebaseFirestore.instance.collection('users').doc(supplierDoc.id).get();
-      
-      if (supplierDoc.data()['services'] != null &&
-          supplierDoc.data()['role'] == 1 &&
-          supplierDoc.data()['solvent'] == true &&
-          userDoc.data()?['status'] == 0 &&
-          userDoc.data()?['profileImageUrl'] != null &&
-          userDoc.data()!['profileImageUrl'].toString().isNotEmpty) {
-        
-        bool offersService = supplierDoc.data()['services'].any((service) {
-          return service['service'] == widget.id;
-        });
+      List<DocumentSnapshot<Map<String, dynamic>>> recommendedSuppliers = [];
 
-        double distance = calculateDistance(
-          widget.latitude,
-          widget.longitude,
-          supplierDoc.data()['location'].latitude,
-          supplierDoc.data()['location'].longitude,
-        );
+      for (var supplierDoc in suppliersSnapshot.docs) {
+        DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+            .instance
+            .collection('users')
+            .doc(supplierDoc.id)
+            .get();
 
-        bool withinRange = distance <= 25;
-
-        if (offersService && withinRange) {
-          recommendedSuppliers.add(supplierDoc);
-          
-          supplierDoc.reference.update({
-            'profileImageUrl': userDoc.data()?['profileImageUrl'],
-            'assessment': userDoc.data()?['assessment']
+        if (supplierDoc.data()['services'] != null &&
+            supplierDoc.data()['solvent'] == true &&
+            userDoc.data()?['role'] == 1 &&
+            userDoc.data()?['status'] == 0 &&
+            userDoc.data()?['profileImageUrl'] != null &&
+            userDoc.data()!['profileImageUrl'].toString().isNotEmpty) {
+          bool offersService = supplierDoc.data()['services'].any((service) {
+            return service['service'] == widget.id;
           });
+
+          double distance = calculateDistance(
+            widget.latitude,
+            widget.longitude,
+            supplierDoc.data()['location'].latitude,
+            supplierDoc.data()['location'].longitude,
+          );
+
+          bool withinRange = distance <= 25;
+
+          if (offersService && withinRange) {
+            recommendedSuppliers.add(supplierDoc);
+
+            supplierDoc.reference.update({
+              'profileImageUrl': userDoc.data()?['profileImageUrl'],
+              // 'assessment': userDoc.data()?['assessment'] // Ya no se necesita
+            });
+          }
         }
       }
-    }
 
-    setState(() {
-      _filteredSuppliers = recommendedSuppliers;
-    });
-  } catch (e) {
-    if (kDebugMode) {
-      print('Error al obtener proveedores recomendados: $e');
+      // Mezclar la lista de proveedores recomendados aleatoriamente
+      recommendedSuppliers.shuffle(Random());
+
+      setState(() {
+        _filteredSuppliers = recommendedSuppliers;
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al obtener proveedores recomendados: $e');
+      }
     }
   }
-}
 
-void _showFilterOptions() {
+  void _showFilterOptions() {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -1996,11 +2009,13 @@ void _showFilterOptions() {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.filter_list, size: 50, color: Colors.green),
+                    const Icon(Icons.filter_list,
+                        size: 50, color: Colors.green),
                     const SizedBox(height: 20),
                     const Text(
                       'Filtros de búsqueda',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 10),
                     const Text(
@@ -2008,22 +2023,28 @@ void _showFilterOptions() {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
-                    _buildFilterOption('Recomendados', setDialogState, dialogContext),
-                    _buildFilterOption('Precios bajos', setDialogState, dialogContext),
-                    _buildFilterOption('Precios altos', setDialogState, dialogContext),
-                    _buildFilterOption('Mayor cantidad de tareas completadas', setDialogState, dialogContext),
-                    _buildFilterOption('Más cercanos', setDialogState, dialogContext),
+                    _buildFilterOption(
+                        'Recomendados', setDialogState, dialogContext),
+                    _buildFilterOption(
+                        'Precios bajos', setDialogState, dialogContext),
+                    _buildFilterOption(
+                        'Precios altos', setDialogState, dialogContext),
+                    _buildFilterOption('Mayor cantidad de tareas completadas',
+                        setDialogState, dialogContext),
+                    _buildFilterOption(
+                        'Más cercanos', setDialogState, dialogContext),
                   ],
                 ),
               ),
             );
-          }
+          },
         );
       },
     );
   }
 
-  Widget _buildFilterOption(String filterName, StateSetter setDialogState, BuildContext dialogContext) {
+  Widget _buildFilterOption(String filterName, StateSetter setDialogState,
+      BuildContext dialogContext) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: ElevatedButton(
@@ -2037,13 +2058,16 @@ void _showFilterOptions() {
           }
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor: _selectedFilter == filterName ? Colors.green : Colors.grey[300],
-          foregroundColor: _selectedFilter == filterName ? Colors.white : Colors.black,
+          backgroundColor:
+              _selectedFilter == filterName ? Colors.green : Colors.grey[300],
+          foregroundColor:
+              _selectedFilter == filterName ? Colors.white : Colors.black,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30),
           ),
         ),
-        child: Text(filterName, style: const TextStyle(fontWeight: FontWeight.bold)),
+        child: Text(filterName,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -2058,14 +2082,16 @@ void _showFilterOptions() {
           onPressed: () {
             Navigator.pop(context);
           },
-          icon:
-              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Colors.black,
+          ),
         ),
         title: const Text(
           'Selecciona a tu agente',
           style: TextStyle(color: Colors.black),
         ),
-       actions: [
+        actions: [
           IconButton(
             onPressed: _showFilterOptions,
             icon: const Icon(Icons.filter_list, color: Colors.black),
@@ -2080,9 +2106,7 @@ void _showFilterOptions() {
               children: [
                 const SizedBox(height: 25.0),
                 Text(
-                  _selectedFilter == 'Recomendados'
-                      ? 'Recomendados'
-                      : 'Resultados por $_selectedFilter',
+                  'Ordenado por $_selectedFilter',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -2092,11 +2116,25 @@ void _showFilterOptions() {
                 const SizedBox(height: 16.0),
                 Expanded(
                   child: _isLoading
-                      ? const Center(
-                          child: CupertinoActivityIndicator(
-                          radius: 16,
-                          color: Colors.green,
-                        ))
+                      ? const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Center(
+                              child: CupertinoActivityIndicator(
+                                radius: 16,
+                                color: Colors.green,
+                              ),
+                            ),
+                            SizedBox(height: 8.0),
+                            Text(
+                              'Buscando agentes',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        )
                       : _filteredSuppliers.isEmpty
                           ? const Center(
                               child: Text('No se encontraron agentes'),
@@ -2240,105 +2278,279 @@ void _showFilterOptions() {
       formattedDistance = '${distance.toStringAsFixed(1)} km';
     }
 
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SelectedSuppliersScreen(
-              selectedSupplier: supplier,
-              serviceName: widget.serviceName,
-              id: widget.id,
-              latitude: widget.latitude,
-              longitude: widget.longitude,
-              reference: widget.reference, // Pasa la referencia del proveedor
-            ),
-          ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: const Color(0xFF08143C),
-            width: 1.0,
-          ),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundImage: supplier.data()?['profileImageUrl'] != null
-                  ? NetworkImage(supplier.data()?['profileImageUrl'])
-                  : const AssetImage(
-                      'assets/images/ProfilePhoto_predetermined.png'),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
+    Future<List<int>> getTaskCounts() async {
+      QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
+          await FirebaseFirestore.instance.collection('tasks').get();
+
+      int completedTasks = 0;
+      int pendingTasks = 0;
+
+      for (var taskDoc in tasksSnapshot.docs) {
+        if (taskDoc.data()['supplierID'] == supplier.id) {
+          if (taskDoc.data()['state'] == 'Finalizada') {
+            completedTasks++;
+          } else if (taskDoc.data()['state'] != 'Finalizada' &&
+              taskDoc.data()['state'] != 'Cancelada') {
+            pendingTasks++;
+          }
+        }
+      }
+
+      return [completedTasks, pendingTasks];
+    }
+
+    Future<List<dynamic>> getAverageClientEvaluation() async {
+      QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
+          await FirebaseFirestore.instance.collection('tasks').get();
+
+      double totalEvaluation = 0;
+      int evaluationCount = 0;
+
+      for (var taskDoc in tasksSnapshot.docs) {
+        if (taskDoc.data()['supplierID'] == supplier.id &&
+            taskDoc.data()['clientEvaluation'] != null) {
+          totalEvaluation +=
+              double.tryParse(taskDoc.data()['clientEvaluation'].toString()) ??
+                  0.0;
+          evaluationCount++;
+        }
+      }
+
+      if (evaluationCount == 0) {
+        return ['No disponible', 0];
+      } else {
+        double averageEvaluation = totalEvaluation / evaluationCount;
+        return [averageEvaluation.toStringAsFixed(1), evaluationCount];
+      }
+    }
+
+    return FutureBuilder<List<dynamic>>(
+      future: Future.wait([
+        getTaskCounts(),
+        getAverageClientEvaluation(),
+        FirebaseFirestore.instance.collection('users').doc(supplier.id).get(),
+      ]),
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          List<int> taskCounts = snapshot.data![0] as List<int>;
+          int completedTasks = taskCounts[0];
+          int pendingTasks = taskCounts[1];
+
+          List<dynamic> evaluationData = snapshot.data![1] as List<dynamic>;
+          String averageEvaluation = evaluationData[0] as String;
+          int evaluationCount = evaluationData[1] as int;
+
+          DocumentSnapshot<Map<String, dynamic>> userDoc =
+              snapshot.data![2] as DocumentSnapshot<Map<String, dynamic>>;
+          String? bio = userDoc.data()?['bio'];
+
+          return InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SelectedSuppliersScreen(
+                    selectedSupplier: supplier,
+                    serviceName: widget.serviceName,
+                    id: widget.id,
+                    latitude: widget.latitude,
+                    longitude: widget.longitude,
+                    reference: widget.reference,
+                  ),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: const Color(0xFF08143C),
+                  width: 1.0,
+                ),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'ID: ${supplier.id}',
-                    style: const TextStyle(fontSize: 8.0),
-                  ),
-                  Text(
-                    '${supplier.data()?['name']}',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  Text(
-                    widget.serviceName,
-                    style: const TextStyle(
-                        fontSize: 12.0, fontStyle: FontStyle.italic),
-                  ),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.social_distance_outlined,
-                        size: 16.0,
-                        color: Colors.red,
+                      CircleAvatar(
+                        radius: 35,
+                        backgroundImage: supplier.data()?['profileImageUrl'] !=
+                                null
+                            ? NetworkImage(supplier.data()?['profileImageUrl'])
+                            : const AssetImage(
+                                'assets/images/ProfilePhoto_predetermined.png'),
                       ),
-                      const SizedBox(width: 4.0),
-                      Text(
-                        formattedDistance,
-                        style: const TextStyle(fontSize: 12.0),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                if (completedTasks < 5)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8.0),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green[800],
+                                        borderRadius: BorderRadius.circular(5),
+                                      ),
+                                      child: const Text(
+                                        'NUEVO',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                Text(
+                                  'ID: ${supplier.id}',
+                                  style: const TextStyle(fontSize: 9.0),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4.0),
+                            Text(
+                              '${supplier.data()?['name']}',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            Text(
+                              widget.serviceName,
+                              style: const TextStyle(
+                                  fontSize: 12.0, fontStyle: FontStyle.italic),
+                            ),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.social_distance_outlined,
+                                  size: 16.0,
+                                  color: Colors.red,
+                                ),
+                                const SizedBox(width: 4.0),
+                                Text(
+                                  formattedDistance,
+                                  style: const TextStyle(fontSize: 12.0),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.star,
+                                  size: 16.0,
+                                  color: Colors.blue,
+                                ),
+                                const SizedBox(width: 4.0),
+                                Text(
+                                  averageEvaluation,
+                                  style: const TextStyle(fontSize: 12.0),
+                                ),
+                                const SizedBox(width: 8.0),
+                                Text(
+                                  '($evaluationCount ${evaluationCount == 1 ? 'opinión' : 'opiniones'})',
+                                  style: const TextStyle(fontSize: 12.0),
+                                ),
+                              ],
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle,
+                                    size: 16.0,
+                                    color: Colors.green,
+                                  ),
+                                  const SizedBox(width: 4.0),
+                                  Text(
+                                    '$completedTasks ${completedTasks == 1 ? 'tarea completada' : 'tareas completadas'}',
+                                    style: const TextStyle(fontSize: 12.0),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Row(
+                                children: [
+                                  if (pendingTasks > 0)
+                                    const Icon(
+                                      Icons.hourglass_empty,
+                                      size: 16.0,
+                                      color: Colors.orange,
+                                    ),
+                                  const SizedBox(width: 4.0),
+                                  if (pendingTasks > 0)
+                                    Text(
+                                      '$pendingTasks ${pendingTasks == 1 ? 'cliente' : 'clientes'} en espera',
+                                      style: const TextStyle(fontSize: 12.0),
+                                    )
+                                  else
+                                    const Text(
+                                      'DISPONIBLE',
+                                      style: TextStyle(
+                                        fontSize: 12.0,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16.0),
+                        child: Text(
+                          hourlyRate == 0.0
+                              ? 'Gratis'
+                              : '\$${hourlyRate.toStringAsFixed(2)}/hr',
+                          style: const TextStyle(
+                              fontSize: 16.0,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF08143C)),
+                        ),
                       ),
                     ],
                   ),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.star,
-                        size: 16.0,
-                        color: Color(0xFF1ca424),
+                  if (bio != null && bio.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(width: 4.0),
-                      Text(
-                        '${supplier.data()?['assessment'] ?? 'Sin calificación'}',
-                        style: const TextStyle(fontSize: 12.0),
+                      child: Text(
+                        bio,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11),
                       ),
-                    ],
-                  ),
+                    ),
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.only(left: 16.0),
-              child: Text(
-                hourlyRate == 0.0
-                    ? 'Gratis'
-                    : '\$${hourlyRate.toStringAsFixed(2)}/hr',
-                style: const TextStyle(
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF08143C)),
-              ),
-            ),
-          ],
-        ),
-      ),
+          );
+        } else if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}');
+        } else {
+          return const Center(
+              child: CupertinoActivityIndicator(
+            radius: 16,
+            color: Colors.green,
+          ));
+        }
+      },
     );
   }
 }
@@ -2495,6 +2707,10 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   String clientIDString = "";
   String clientName = "";
 
+  bool _hasZinli = false;
+  bool _hasBinance = false;
+  bool _hasZelle = false;
+
   late Future<void> _initFuture;
 
   @override
@@ -2517,6 +2733,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
 
   Future<void> _initializeData() async {
     await _getUserInfo();
+    await _checkPaymentMethods();
   }
 
   Future<void> _getUserInfo() async {
@@ -2537,6 +2754,28 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
     }
   }
 
+  Future<void> _checkPaymentMethods() async {
+    final walletDoc = await FirebaseFirestore.instance
+        .collection('wallets')
+        .doc(widget.selectedSupplier.id)
+        .get();
+
+    if (walletDoc.exists) {
+      final paymentMethodsCollection =
+          walletDoc.reference.collection('paymentMethods');
+
+      final zinliDoc = await paymentMethodsCollection.doc('zinli').get();
+      final binanceDoc = await paymentMethodsCollection.doc('binancePay').get();
+      final zelleDoc = await paymentMethodsCollection.doc('zelle').get();
+
+      setState(() {
+        _hasZinli = zinliDoc.exists;
+        _hasBinance = binanceDoc.exists;
+        _hasZelle = zelleDoc.exists;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
@@ -2554,6 +2793,15 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
           'Agente seleccionado',
           style: TextStyle(color: Colors.black),
         ),
+        // Cambiar la flecha de retroceso
+        leading: IconButton(
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          onPressed: () {
+            // Acción a realizar al presionar la flecha de retroceso
+            Navigator.pop(context); // Regresar a la pantalla anterior
+          },
+        ),
       ),
       body: FutureBuilder<void>(
         future: _initFuture,
@@ -2561,7 +2809,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
                 child: CupertinoActivityIndicator(
-              radius: 16,
+              radius: 20,
               color: Colors.green,
             ));
           }
@@ -2571,113 +2819,306 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
 
           return Stack(
             children: [
-              // Contenido principal
               Padding(
                 padding: const EdgeInsets.all(23.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Imagen de perfil
-                    Center(
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _showProfileImage = true;
-                          });
-                        },
-                        child: Hero(
-                          tag: 'profileImage',
-                          child: Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: const Color(0xFF08143C),
-                                width: 3.0,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _showProfileImage = true;
+                            });
+                          },
+                          child: Hero(
+                            tag: 'profileImage',
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: const Color(0xFF08143C),
+                                  width: 3.0,
+                                ),
                               ),
-                            ),
-                            child: CircleAvatar(
-                              radius: 60,
-                              backgroundImage: widget.selectedSupplier
-                                          .data()?['profileImageUrl'] !=
-                                      null
-                                  ? NetworkImage(widget.selectedSupplier
-                                      .data()?['profileImageUrl'])
-                                  : const AssetImage(
-                                          'assets/images/ProfilePhoto_predetermined.png')
-                                      as ImageProvider,
+                              child: CircleAvatar(
+                                radius: 60,
+                                backgroundImage: widget.selectedSupplier
+                                            .data()?['profileImageUrl'] !=
+                                        null
+                                    ? NetworkImage(widget.selectedSupplier
+                                        .data()?['profileImageUrl'])
+                                    : const AssetImage(
+                                            'assets/images/ProfilePhoto_predetermined.png')
+                                        as ImageProvider,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    // Nombre del agente y calificación
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '${widget.selectedSupplier.data()?['name']}',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 5.0,
-                            horizontal: 10.0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10.0),
-                            border: Border.all(
-                              color: const Color(0xFF08143C),
-                              width: 1.0,
-                            ),
-                          ),
-                          child: Row(
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(
-                                Icons.star,
-                                size: 18.0,
-                                color: Color(0xFF1ca424),
-                              ),
-                              const SizedBox(width: 4.0),
                               Text(
-                                '${widget.selectedSupplier.data()?['assessment'] ?? 'Sin calificación'}',
-                                style: const TextStyle(fontSize: 16),
+                                '${widget.selectedSupplier.data()?['name']}',
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Row(
+                                children: [
+                                  FutureBuilder<List<int>>(
+                                    future: _getTaskCounts(
+                                        widget.selectedSupplier.id),
+                                    builder: (context, snapshot) {
+                                      if (snapshot.hasData &&
+                                          snapshot.data![0] < 5) {
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.green[800],
+                                            borderRadius:
+                                                BorderRadius.circular(5),
+                                          ),
+                                          child: const Text(
+                                            'NUEVO',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      return const SizedBox.shrink();
+                                    },
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'ID: ${widget.selectedSupplier.id}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    // ID del agente
-                    Text(
-                      'ID: ${widget.selectedSupplier.id}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.normal,
+                          FutureBuilder<List<dynamic>>(
+                            future: _getAverageClientEvaluation(
+                                widget.selectedSupplier.id),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const CupertinoActivityIndicator(
+                                  radius: 16,
+                                  color: Colors.green,
+                                );
+                              }
+                              if (snapshot.hasData) {
+                                String averageEvaluation = snapshot.data![0];
+                                // ignore: unused_local_variable
+                                int evaluationCount = snapshot.data![1];
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 5.0,
+                                    horizontal: 10.0,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(10.0),
+                                    border: Border.all(
+                                      color: const Color(0xFF08143C),
+                                      width: 1.0,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.star,
+                                        size: 18.0,
+                                        color: Colors.blue,
+                                      ),
+                                      const SizedBox(width: 4.0),
+                                      Text(
+                                        averageEvaluation,
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 10),
+                      // Agregar la biografía aquí
+                    FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(widget.selectedSupplier.id)
+                          .get(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const CupertinoActivityIndicator(
+                            radius: 16,
+                            color: Colors.green,
+                          );
+                        }
+                        if (snapshot.hasData && snapshot.data!.exists) {
+                          String? bio = snapshot.data!.get('bio') as String?;
+                          if (bio != null && bio.isNotEmpty) {
+                            return Container(
+                              margin: const EdgeInsets.only(top: 10, bottom: 20),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                bio,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                        return const SizedBox.shrink();
+                      },
                     ),
-                    const SizedBox(height: 10),
-                    // Servicio seleccionado
-                    Text(
-                      'Servicio: ${widget.serviceName}',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 10),
-                    // Tarifa por hora
-                    Text(
-                      'Tarifa por hora: ${_getHourlyRate(widget.selectedSupplier, widget.id)}',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
+                      Text(
+                        'Servicio: ${widget.serviceName}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Tarifa por hora: ${_getHourlyRate(widget.selectedSupplier, widget.id)}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 20),
+                      // Mostrar conteo de tareas completadas y clientes en fila
+                      FutureBuilder<List<int>>(
+                        future: _getTaskCounts(widget.selectedSupplier.id),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const CupertinoActivityIndicator(
+                              radius: 16,
+                              color: Colors.green,
+                            );
+                          }
+                          if (snapshot.hasError) {
+                            return Text('Error: ${snapshot.error}');
+                          }
+                          if (snapshot.hasData) {
+                            List<int> taskCounts = snapshot.data!;
+                            int completedTasks = taskCounts[0];
+                            int pendingTasks = taskCounts[1];
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Mostrar conteo de tareas completadas
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4.0),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.check_circle,
+                                        size: 16.0,
+                                        color: Colors.green,
+                                      ),
+                                      const SizedBox(width: 4.0),
+                                      Text(
+                                        '$completedTasks ${completedTasks == 1 ? 'tarea completada' : 'tareas completadas'}',
+                                        style: const TextStyle(fontSize: 12.0),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // Mostrar conteo de clientes en fila o "DISPONIBLE"
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4.0),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.hourglass_empty,
+                                        size: 16.0,
+                                        color: Colors.orange,
+                                      ),
+                                      const SizedBox(width: 4.0),
+                                      if (pendingTasks > 0)
+                                        Text(
+                                          '$pendingTasks ${pendingTasks == 1 ? 'cliente' : 'clientes'} en espera',
+                                          style:
+                                              const TextStyle(fontSize: 12.0),
+                                        )
+                                      else
+                                        const Text(
+                                          'DISPONIBLE',
+                                          style: TextStyle(
+                                              fontSize: 12.0,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.green),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+                          return const CupertinoActivityIndicator(
+                            radius: 16,
+                            color: Colors.green,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Métodos de pago aceptados:',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          _buildPaymentMethod(
+                              Icons.account_balance_wallet, 'Monedero'),
+                          _buildPaymentMethod(
+                              Icons.phone_android, 'Pago Móvil'),
+                          _buildPaymentMethod(Icons.attach_money, 'Efectivo'),
+                          _buildPaymentMethodImage(
+                              'assets/images/Paypal_Logo.png'),
+                          if (_hasBinance)
+                            _buildPaymentMethodImage(
+                                'assets/images/Binance_Logo.png'),
+                          if (_hasZinli)
+                            _buildPaymentMethodImage(
+                                'assets/images/Zinli_Logo.png'),
+                          if (_hasZelle)
+                            _buildPaymentMethodImage(
+                                'assets/images/Zelle_Logo.png'),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-
-              // Modal de ampliación de imagen
               if (_showProfileImage)
                 GestureDetector(
                   onTap: () {
@@ -2705,12 +3146,9 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                     ),
                   ),
                 ),
-
-              // Fondo desenfocado cuando se muestra el modal de reserva
               if (_showReservationModal)
                 GestureDetector(
                   onTap: () {
-                    // Cerrar el modal al tocar fuera de él
                     setState(() {
                       _showReservationModal = false;
                       _animationController.reverse();
@@ -2720,222 +3158,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                     color: Colors.black.withOpacity(0.5),
                   ),
                 ),
-
-              // Modal de reserva
-              if (_showReservationModal)
-                DraggableScrollableSheet(
-                  initialChildSize: 0.8,
-                  minChildSize: 0.2,
-                  maxChildSize: 0.95,
-                  builder: (context, scrollController) {
-                    return Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius:
-                            BorderRadius.vertical(top: Radius.circular(25.0)),
-                      ),
-                      child: Stack(
-                        children: [
-                          SingleChildScrollView(
-                            controller: scrollController,
-                            child: Padding(
-                              padding: const EdgeInsets.all(20.0),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text(
-                                    'CONFIRMAR RESERVA',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF08143C),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  const Text(
-                                    '¿Por qué requiere del servicio?',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF08143C),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[300],
-                                      borderRadius: BorderRadius.circular(15),
-                                    ),
-                                    child: TextField(
-                                      controller: _reservationTextController,
-                                      maxLines: 4,
-                                      style: const TextStyle(
-                                          color: Color(0xFF08143C)),
-                                      decoration: const InputDecoration(
-                                        hintText:
-                                            'Indica brevemente qué problema o situación le lleva a solicitar del servicio. Esta información ayudará al agente a entender tus necesidades y ofrecerle una solución óptima.',
-                                        hintStyle: TextStyle(
-                                            color:
-                                                Color.fromARGB(129, 0, 0, 0)),
-                                        border: InputBorder.none,
-                                        contentPadding: EdgeInsets.all(15),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 20),
-                                  ElevatedButton(
-                                    onPressed: () async {
-                                      // Verificar la longitud del texto de la descripción del servicio
-                                      if (_reservationTextController
-                                              .text.length <
-                                          10) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content: const Text(
-                                              'Por favor, escribe al menos 10 caracteres describiendo por qué requiere del servicio.',
-                                              style: TextStyle(
-                                                  color: Colors.white),
-                                            ),
-                                            backgroundColor: Colors.red,
-                                            duration:
-                                                const Duration(seconds: 5),
-                                            behavior: SnackBarBehavior.floating,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                          ),
-                                        );
-
-                                        return;
-                                      }
-
-                                      // Obtener la tarifa por hora del agente
-                                      final hourlyRate = _getHourlyRate(
-                                              widget.selectedSupplier,
-                                              widget.id)
-                                          .replaceAll('\$', '')
-                                          .trim();
-
-                                      // Obtener los métodos de pago seleccionados
-                                      List<String> selectedPaymentMethods = [
-                                        'Monedero'
-                                      ];
-
-                                      // Guardar la reserva en la colección "tasks"
-                                      final taskData = {
-                                        'clientID': clientIDString,
-                                        'clientLocation': GeoPoint(
-                                            widget.latitude, widget.longitude),
-                                        'clientName': clientName,
-                                        'hourlyRate':
-                                            double.tryParse(hourlyRate) ?? 0.0,
-                                        'referencePoint':
-                                            widget.reference.isEmpty
-                                                ? null
-                                                : widget.reference,
-                                        'reservation': Timestamp.now(),
-                                        'service': widget.serviceName,
-                                        'serviceDetails':
-                                            _reservationTextController.text,
-                                        'serviceID': widget.id,
-                                        'state': 'Pendiente',
-                                        'supplierID':
-                                            widget.selectedSupplier.id,
-                                        'supplierName': widget.selectedSupplier
-                                            .data()?['name'],
-                                        'paymentMethods':
-                                            selectedPaymentMethods,
-                                      };
-
-                                      await FirebaseFirestore.instance
-                                          .collection('tasks')
-                                          .add(taskData)
-                                          .then((_) {
-                                        Navigator.pushAndRemoveUntil(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                const HomePage(
-                                                    selectedIndex: 2),
-                                          ),
-                                          (route) => false,
-                                        );
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content: const Text(
-                                              '¡Servicio reservado con éxito!',
-                                              style: TextStyle(
-                                                  color: Colors.white),
-                                            ),
-                                            backgroundColor: Colors.green,
-                                            duration:
-                                                const Duration(seconds: 5),
-                                            behavior: SnackBarBehavior.floating,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                          ),
-                                        );
-                                      }).catchError((error) {
-                                        if (kDebugMode) {
-                                          print(
-                                              'Error al guardar la tarea: $error');
-                                        }
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content: const Text(
-                                              'Reserva fallida.',
-                                              style: TextStyle(
-                                                  color: Colors.white),
-                                            ),
-                                            backgroundColor: Colors.red,
-                                            duration:
-                                                const Duration(seconds: 5),
-                                            behavior: SnackBarBehavior.floating,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                          ),
-                                        );
-                                      });
-
-                                      setState(() {
-                                        _showReservationModal = false;
-                                        _animationController.reverse();
-                                      });
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF1ca424),
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 40,
-                                        vertical: 15,
-                                      ),
-                                      textStyle: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                    ),
-                                    child: const Text('Confirmar reserva'),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+              if (_showReservationModal) _buildReservationModal(),
             ],
           );
         },
@@ -2976,21 +3199,282 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
     );
   }
 
+  Widget _buildPaymentMethod(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 20),
+          const SizedBox(width: 5),
+          Text(label, style: const TextStyle(fontSize: 14)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentMethodImage(String imagePath) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Image.asset(imagePath, height: 18.2),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReservationModal() {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.8,
+      minChildSize: 0.2,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+          ),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'CONFIRMAR RESERVA',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF08143C),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    '¿Por qué requiere del servicio?',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF08143C),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: TextField(
+                      controller: _reservationTextController,
+                      maxLines: 4,
+                      style: const TextStyle(color: Color(0xFF08143C)),
+                      decoration: const InputDecoration(
+                        hintText:
+                            'Indica brevemente qué problema o situación le lleva a solicitar del servicio. Esta información ayudará al agente a entender tus necesidades y ofrecerle una solución óptima.',
+                        hintStyle:
+                            TextStyle(color: Color.fromARGB(129, 0, 0, 0)),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(15),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () => _confirmReservation(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1ca424),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 15,
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text('Confirmar reserva'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmReservation() async {
+    if (_reservationTextController.text.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Por favor, escribe al menos 10 caracteres describiendo por qué requiere del servicio.',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final hourlyRate = _getHourlyRate(widget.selectedSupplier, widget.id)
+        .replaceAll('\$', '')
+        .trim();
+
+    List<String> selectedPaymentMethods = ['Monedero'];
+
+    final taskData = {
+      'clientID': clientIDString,
+      'clientLocation': GeoPoint(widget.latitude, widget.longitude),
+      'clientName': clientName,
+      'hourlyRate': double.tryParse(hourlyRate) ?? 0.0,
+      'referencePoint': widget.reference.isEmpty ? null : widget.reference,
+      'reservation': Timestamp.now(),
+      'service': widget.serviceName,
+      'serviceDetails': _reservationTextController.text,
+      'serviceID': widget.id,
+      'state': 'Pendiente',
+      'supplierID': widget.selectedSupplier.id,
+      'supplierName': widget.selectedSupplier.data()?['name'],
+      'paymentMethods': selectedPaymentMethods,
+    };
+
+    try {
+      await FirebaseFirestore.instance.collection('tasks').add(taskData);
+      Navigator.pushAndRemoveUntil(
+        // ignore: use_build_context_synchronously
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HomePage(selectedIndex: 2),
+        ),
+        (route) => false,
+      );
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            '¡Servicio reservado con éxito!',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (kDebugMode) {
+        print('Error al guardar la tarea: $error');
+      }
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Reserva fallida.',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
+
+    setState(() {
+      _showReservationModal = false;
+      _animationController.reverse();
+    });
+  }
+
   String _getHourlyRate(
       DocumentSnapshot<Map<String, dynamic>> supplier, String id) {
-    String hourlyRate = '0.0';
+    double hourlyRate = 0.0;
     if (supplier.data()?['services'] != null) {
       for (var service in supplier.data()?['services']) {
         if (service['service'] == id) {
-          hourlyRate = service['hourlyRate'] ?? '0.0';
+          hourlyRate = service['hourlyRate'] != null
+              ? service['hourlyRate'].toDouble()
+              : 0.0;
           break;
         }
       }
     }
-    if (hourlyRate == 'Por servicio') {
+    if (hourlyRate == 0.0) {
       return 'Gratis';
     } else {
-      return '\$$hourlyRate.00';
+      return '\$${hourlyRate.toStringAsFixed(2)}';
+    }
+  }
+
+  // Función para obtener el conteo de tareas completadas y clientes en fila
+  Future<List<int>> _getTaskCounts(String supplierID) async {
+    QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
+        await FirebaseFirestore.instance.collection('tasks').get();
+
+    int completedTasks = 0;
+    int pendingTasks = 0;
+
+    for (var taskDoc in tasksSnapshot.docs) {
+      if (taskDoc.data()['supplierID'] == supplierID) {
+        if (taskDoc.data()['state'] == 'Finalizada') {
+          completedTasks++;
+        } else if (taskDoc.data()['state'] != 'Finalizada' &&
+            taskDoc.data()['state'] != 'Cancelada') {
+          pendingTasks++;
+        }
+      }
+    }
+
+    return [completedTasks, pendingTasks];
+  }
+
+  // Función para obtener el promedio de evaluaciones del cliente
+  Future<List<dynamic>> _getAverageClientEvaluation(String supplierID) async {
+    QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
+        await FirebaseFirestore.instance.collection('tasks').get();
+
+    double totalEvaluation = 0;
+    int evaluationCount = 0;
+
+    for (var taskDoc in tasksSnapshot.docs) {
+      if (taskDoc.data()['supplierID'] == supplierID &&
+          taskDoc.data()['clientEvaluation'] != null) {
+        totalEvaluation +=
+            double.tryParse(taskDoc.data()['clientEvaluation'].toString()) ??
+                0.0;
+        evaluationCount++;
+      }
+    }
+
+    if (evaluationCount == 0) {
+      return ['No disponible', 0];
+    } else {
+      double averageEvaluation = totalEvaluation / evaluationCount;
+      return [averageEvaluation.toStringAsFixed(1), evaluationCount];
     }
   }
 }
