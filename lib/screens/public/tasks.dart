@@ -968,6 +968,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
   File? _comprobante;
 
+  bool _isFollowing = false;
+  double _averageEvaluation = 0.0;
+  int _evaluationCount = 0;
+
   String formatDateTime(Timestamp? dateTime) {
     if (dateTime == null) {
       return 'No disponible';
@@ -981,159 +985,224 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   }
 
   Future _showCancelConfirmationDialog() async {
-    return showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirmar cancelación'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('¿Por qué deseas cancelar la reservación?'),
-                const SizedBox(height: 16),
-                RadioListTile(
-                  title: const Text('No deseo el servicio'),
-                  value: 'No deseo el servicio',
-                  groupValue: _selectedReason,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedReason = value;
-                    });
-                  },
-                ),
-                RadioListTile(
-                  title: const Text('Demora en responder los mensajes'),
-                  value: 'Demora en responder los mensajes',
-                  groupValue: _selectedReason,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedReason = value;
-                    });
-                  },
-                ),
-                RadioListTile(
-                  title: const Text('Muy costoso'),
-                  value: 'Muy costoso',
-                  groupValue: _selectedReason,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedReason = value;
-                    });
-                  },
-                ),
-                RadioListTile(
-                  title: const Text('Fecha asignada muy lejana'),
-                  value: 'Fecha asignada muy lejana',
-                  groupValue: _selectedReason,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedReason = value;
-                    });
-                  },
-                ),
-                RadioListTile(
-                  title:
-                      const Text('No he recibido ninguna respuesta del agente'),
-                  value: 'No he recibido ninguna respuesta del agente',
-                  groupValue: _selectedReason,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedReason = value;
-                    });
-                  },
-                ),
-                RadioListTile(
-                  title: const Text('El agente solicitó cancelar la reserva'),
-                  value: 'El agente solicitó cancelar la reserva',
-                  groupValue: _selectedReason,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedReason = value;
-                    });
-                  },
-                ),
-                RadioListTile(
-                  title: const Text('Otro motivo'),
-                  value: 'Otro motivo',
-                  groupValue: _selectedReason,
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedReason = value;
-                    });
-                  },
-                ),
-                if (_selectedReason == 'Otro motivo')
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: TextFormField(
-                      controller: _otherReasonController,
-                      decoration: const InputDecoration(
-                        hintText: 'Describe el motivo de la cancelación',
-                        border: OutlineInputBorder(),
-                        hintMaxLines: 2,
-                      ),
-                    ),
+  return showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Confirmar cancelación'),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('¿Por qué deseas cancelar la reservación?'),
+                  const SizedBox(height: 16),
+                  RadioListTile(
+                    title: const Text('No deseo el servicio'),
+                    value: 'No deseo el servicio',
+                    groupValue: _selectedReason,
+                    activeColor: Colors.green,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedReason = value;
+                      });
+                    },
                   ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (_selectedReason != null) {
-                  if (_selectedReason == 'Otro motivo' &&
-                      _otherReasonController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text(
-                          'Por favor, describe el motivo de la cancelación.',
-                          style: TextStyle(color: Colors.white),
+                  RadioListTile(
+                    title: const Text('Demora en responder los mensajes'),
+                    value: 'Demora en responder los mensajes',
+                    groupValue: _selectedReason,
+                    activeColor: Colors.green,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedReason = value;
+                      });
+                    },
+                  ),
+                  RadioListTile(
+                    title: const Text('Muy costoso'),
+                    value: 'Muy costoso',
+                    groupValue: _selectedReason,
+                    activeColor: Colors.green,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedReason = value;
+                      });
+                    },
+                  ),
+                  RadioListTile(
+                    title: const Text('Tiempo exagerado de espera'),
+                    value: 'Tiempo exagerado de espera',
+                    groupValue: _selectedReason,
+                    activeColor: Colors.green,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedReason = value;
+                      });
+                    },
+                  ),
+                  RadioListTile(
+                    title: const Text('No he recibido ninguna respuesta del agente'),
+                    value: 'No he recibido ninguna respuesta del agente',
+                    groupValue: _selectedReason,
+                    activeColor: Colors.green,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedReason = value;
+                      });
+                    },
+                  ),
+                  RadioListTile(
+                    title: const Text('El agente solicitó cancelar la reserva'),
+                    value: 'El agente solicitó cancelar la reserva',
+                    groupValue: _selectedReason,
+                    activeColor: Colors.green,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedReason = value;
+                      });
+                    },
+                  ),
+                  RadioListTile(
+                    title: const Text('Otro motivo'),
+                    value: 'Otro motivo',
+                    groupValue: _selectedReason,
+                    activeColor: Colors.green,
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedReason = value;
+                      });
+                    },
+                  ),
+                  if (_selectedReason == 'Otro motivo')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: TextField(
+                        controller: _otherReasonController,
+                        decoration: InputDecoration(
+                          labelText: 'Describe el motivo',
+                          hintText: 'Ej. Cambio de planes, emergencia...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: const BorderSide(color: Colors.green),
+                          ),
                         ),
-                        backgroundColor: Colors.red,
-                        duration: const Duration(seconds: 5),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                    );
-                  } else {
-                    _cancelReservation();
-                    Navigator.of(context).pop();
-                  }
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                        'Por favor, seleccione el método de la cancelación.',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      backgroundColor: Colors.red,
-                      duration: const Duration(seconds: 5),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                  );
-                }
-              },
-              child: const Text('Confirmar'),
+                ],
+              ),
             ),
-          ],
-        );
-      },
-    );
-  }
+            actionsPadding: EdgeInsets.zero,
+            actions: [
+              Container(
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: Colors.grey)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.only(
+                              bottomLeft: Radius.circular(15),
+                              bottomRight: Radius.zero,
+                              topLeft: Radius.zero,
+                              topRight: Radius.zero,
+                            ),
+                          ),
+                        ),
+                        child: const Text(
+                          'Cancelar',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF08143C)),
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 48,
+                      color: Colors.grey,
+                    ),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () {
+                          if (_selectedReason != null) {
+                            if (_selectedReason == 'Otro motivo' &&
+                                _otherReasonController.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text(
+                                    'Por favor, describe el motivo de la cancelación.',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  backgroundColor: Colors.red,
+                                  duration: const Duration(seconds: 5),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              );
+                            } else {
+                              _cancelReservation();
+                              Navigator.of(context).pop();
+                            }
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text(
+                                  'Por favor, seleccione el motivo de la cancelación.',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 5),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.only(
+                              bottomLeft: Radius.zero,
+                              bottomRight: Radius.circular(15),
+                              topLeft: Radius.zero,
+                              topRight: Radius.zero,
+                            ),
+                          ),
+                        ),
+                        child: const Text(
+                          'Confirmar',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF08143C)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
 
   void _cancelReservation() async {
     try {
@@ -1254,6 +1323,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     _startTimer();
     _initializeStartTime();
     _selectedReason = null;
+    _checkFollowStatus();
+    _getUserInfo();
+    _getAverageSupplierEvaluation();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -1270,6 +1342,187 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     _animationController?.dispose();
     _messageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkFollowStatus() async {
+    if (clientIDString.isNotEmpty && widget.supplier != null) {
+      final followDoc = await FirebaseFirestore.instance
+          .collection('suppliers')
+          .doc(widget.supplier!.id)
+          .collection('followers')
+          .doc(clientIDString)
+          .get();
+
+      setState(() {
+        _isFollowing = followDoc.exists;
+      });
+    }
+  }
+
+  Future<void> _toggleFollow() async {
+    if (clientIDString.isEmpty || widget.supplier == null) return;
+
+    final followersRef = FirebaseFirestore.instance
+        .collection('suppliers')
+        .doc(widget.supplier!.id)
+        .collection('followers');
+
+    setState(() {
+      _isFollowing = !_isFollowing;
+    });
+
+    if (_isFollowing) {
+      // Seguir al supplier
+      await followersRef.doc(clientIDString).set({
+        'followedAt': FieldValue.serverTimestamp(),
+        'firstTaskID': widget.task.id,
+      });
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Empezaste a seguir a ${widget.supplier!.data()?['name'] ?? 'este proveedor'}'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } else {
+      // Dejar de seguir
+      await followersRef.doc(clientIDString).delete();
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Has dejado de seguir a ${widget.supplier!.data()?['name'] ?? 'este proveedor'}'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+  }
+
+  Future<void> _showUnfollowDialog() async {
+  return showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text(
+          '¿Dejar de seguir a ${widget.supplier!.data()?['name'] ?? 'este proveedor'}?',
+          style: const TextStyle(
+            fontSize: 20, 
+            fontWeight: FontWeight.bold
+          ),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        content: const Text(
+          'Ya no podrás visualizar sus publicaciones en el apartado de Social',
+        ),
+        actionsPadding: EdgeInsets.zero,
+        actions: [
+          Container(
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Colors.grey)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(20),
+                          bottomRight: Radius.zero,
+                          topLeft: Radius.zero,
+                          topRight: Radius.zero,
+                        ),
+                      ),
+                    ),
+                    child: const Text(
+                      'Cancelar',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        color: Color(0xFF08143C),
+                      ),
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 48,
+                  color: Colors.grey,
+                ),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _toggleFollow();
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.zero,
+                          bottomRight: Radius.circular(20),
+                          topLeft: Radius.zero,
+                          topRight: Radius.zero,
+                        ),
+                      ),
+                    ),
+                    child: const Text(
+                      'Confirmar',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold, 
+                        color: Color(0xFF08143C),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+
+  Future<void> _getAverageSupplierEvaluation() async {
+    if (widget.supplier != null) {
+      QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
+          await FirebaseFirestore.instance.collection('tasks').get();
+
+      double totalEvaluation = 0;
+      int evaluationCount = 0;
+
+      for (var taskDoc in tasksSnapshot.docs) {
+        if (taskDoc.data()['supplierID'] == widget.supplier!.id &&
+            taskDoc.data()['clientEvaluation'] != null) {
+          totalEvaluation +=
+              double.tryParse(taskDoc.data()['clientEvaluation'].toString()) ??
+                  0.0;
+          evaluationCount++;
+        }
+      }
+
+      setState(() {
+        if (evaluationCount == 0) {
+          _averageEvaluation = 0.0;
+          _evaluationCount = 0;
+        } else {
+          _averageEvaluation = totalEvaluation / evaluationCount;
+          _evaluationCount = evaluationCount;
+        }
+      });
+    }
   }
 
   void _handleWalletPayment() async {
@@ -2263,7 +2516,10 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                             ),
                                             const SizedBox(width: 4.0),
                                             Text(
-                                              '${widget.supplierInfo?.data()?['assessment'] ?? 'Sin calificación'}',
+                                              _evaluationCount > 0
+                                                  ? _averageEvaluation
+                                                      .toStringAsFixed(1)
+                                                  : 'Sin calificación',
                                               style: const TextStyle(
                                                   fontSize: 12,
                                                   color: Colors.white),
@@ -2321,20 +2577,18 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                               Align(
                                 alignment: Alignment.bottomRight,
                                 child: SizedBox(
-                                  height: 35, // Define la altura del botón
+                                  height: 35,
                                   child: ElevatedButton(
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(0xFF08143C),
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 16,
-                                        vertical:
-                                            4, // Reduce el padding vertical
+                                        vertical: 4,
                                       ),
                                       textStyle: const TextStyle(
                                         color: Colors.white,
-                                        fontSize:
-                                            12, // Reduce el tamaño de la fuente
+                                        fontSize: 12,
                                         fontWeight: FontWeight.bold,
                                       ),
                                       shape: RoundedRectangleBorder(
@@ -2342,23 +2596,27 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                             BorderRadius.circular(10.0),
                                       ),
                                     ),
-                                    onPressed: () {
-                                      // Implementar acción del botón "Seguir"
-                                    },
-                                    child: const Row(
+                                    onPressed: _isFollowing
+                                        ? _showUnfollowDialog
+                                        : _toggleFollow,
+                                    child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
+                                        _isFollowing
+                                            ? const Icon(Icons.check,
+                                                size: 20,
+                                                color: Color(0xFF00C853))
+                                            : const Text(
+                                                "+",
+                                                style: TextStyle(
+                                                    fontSize: 20.0,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFF00C853)),
+                                              ),
+                                        const SizedBox(width: 8),
                                         Text(
-                                          "+",
-                                          style: TextStyle(
-                                              fontSize: 20.0,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF00C853)),
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          'Seguir',
-                                          style: TextStyle(
+                                          _isFollowing ? 'Siguiendo' : 'Seguir',
+                                          style: const TextStyle(
                                               fontSize: 14.0,
                                               fontWeight: FontWeight.bold,
                                               color: Color(0xFF00C853)),

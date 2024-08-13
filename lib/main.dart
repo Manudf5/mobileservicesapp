@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:one_context/one_context.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Añadido
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +22,37 @@ Future<void> main() async {
     print('Token de registro FCM: $fcmToken');
   }
 
+  // Actualizar el token FCM en Firestore
+  await updateFCMToken(fcmToken);
+
   runApp(const MyApp());
+}
+
+Future<void> updateFCMToken(String? fcmToken) async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user != null && fcmToken != null) {
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .where('uid', isEqualTo: user.uid)
+          .get()
+          .then((querySnapshot) {
+        if (querySnapshot.docs.isNotEmpty) {
+          querySnapshot.docs.first.reference.update({'tokenFCM': fcmToken});
+        } else {
+          // Si no existe el documento, lo creamos
+          FirebaseFirestore.instance.collection('users').add({
+            'uid': user.uid,
+            'tokenFCM': fcmToken,
+          });
+        }
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al actualizar el token FCM: $e');
+      }
+    }
+  }
 }
 
 class MyApp extends StatelessWidget {

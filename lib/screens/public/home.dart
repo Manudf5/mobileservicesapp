@@ -1836,6 +1836,28 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
     }
   }
 
+  Future<int?> getFollowersCount(String supplierId) async {
+  try {
+    var followersCollection = FirebaseFirestore.instance
+        .collection('suppliers')
+        .doc(supplierId)
+        .collection('followers');
+    
+    var snapshot = await followersCollection.get();
+    
+    if (snapshot.docs.isNotEmpty) {
+      return snapshot.docs.length;
+    } else {
+      return null;
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('Error al obtener seguidores: $e');
+    }
+    return null;
+  }
+}
+
   double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     const earthRadius = 6371.0;
     double dLat = (lat2 - lat1) * (pi / 180);
@@ -2329,6 +2351,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
         getTaskCounts(),
         getAverageClientEvaluation(),
         FirebaseFirestore.instance.collection('users').doc(supplier.id).get(),
+        getFollowersCount(supplier.id),
       ]),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
@@ -2343,6 +2366,8 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
           DocumentSnapshot<Map<String, dynamic>> userDoc =
               snapshot.data![2] as DocumentSnapshot<Map<String, dynamic>>;
           String? bio = userDoc.data()?['bio'];
+
+          int? followersCount = snapshot.data![3] as int?;
 
           return InkWell(
             onTap: () {
@@ -2374,14 +2399,47 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 35,
-                        backgroundImage: supplier.data()?['profileImageUrl'] !=
-                                null
-                            ? NetworkImage(supplier.data()?['profileImageUrl'])
-                            : const AssetImage(
-                                'assets/images/ProfilePhoto_predetermined.png'),
-                      ),
+                      Stack(
+                      alignment: Alignment.bottomCenter,
+                      children: [
+                        CircleAvatar(
+                          radius: 35,
+                          backgroundImage: supplier.data()?['profileImageUrl'] != null
+                              ? NetworkImage(supplier.data()?['profileImageUrl'])
+                              : const AssetImage('assets/images/ProfilePhoto_predetermined.png') as ImageProvider,
+                        ),
+                        if (followersCount != null)
+                          Positioned(
+                            bottom: -1,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.person,
+                                    size: 09,
+                                    color: Color.fromARGB(255, 15, 37, 112),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '$followersCount',
+                                    style: const TextStyle(
+                                      color: Color.fromARGB(255, 15, 37, 112),
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(
@@ -3318,97 +3376,123 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   }
 
   void _confirmReservation() async {
-    if (_reservationTextController.text.length < 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Por favor, escribe al menos 10 caracteres describiendo por qué requiere del servicio.',
-            style: TextStyle(color: Colors.white),
-          ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-      return;
-    }
+  // Primero, obtenemos el ID del usuario actual
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser == null) {
+    // Si no hay usuario actual, mostramos un error
+    _showErrorSnackBar('Error de autenticación. Por favor, inicie sesión nuevamente.');
+    return;
+  }
 
-    final hourlyRate = _getHourlyRate(widget.selectedSupplier, widget.id)
-        .replaceAll('\$', '')
-        .trim();
+  // Buscamos el documento del usuario actual en la colección 'users'
+  final userDoc = await FirebaseFirestore.instance
+      .collection('users')
+      .where('uid', isEqualTo: currentUser.uid)
+      .get();
 
-    List<String> selectedPaymentMethods = ['Monedero'];
+  if (userDoc.docs.isEmpty) {
+    _showErrorSnackBar('Error al obtener información del usuario.');
+    return;
+  }
 
-    final taskData = {
-      'clientID': clientIDString,
-      'clientLocation': GeoPoint(widget.latitude, widget.longitude),
-      'clientName': clientName,
-      'hourlyRate': double.tryParse(hourlyRate) ?? 0.0,
-      'referencePoint': widget.reference.isEmpty ? null : widget.reference,
-      'reservation': Timestamp.now(),
-      'service': widget.serviceName,
-      'serviceDetails': _reservationTextController.text,
-      'serviceID': widget.id,
-      'state': 'Pendiente',
-      'supplierID': widget.selectedSupplier.id,
-      'supplierName': widget.selectedSupplier.data()?['name'],
-      'paymentMethods': selectedPaymentMethods,
-    };
+  final currentUserID = userDoc.docs.first.id;
 
-    try {
-      await FirebaseFirestore.instance.collection('tasks').add(taskData);
-      Navigator.pushAndRemoveUntil(
-        // ignore: use_build_context_synchronously
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HomePage(selectedIndex: 2),
-        ),
-        (route) => false,
-      );
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            '¡Servicio reservado con éxito!',
-            style: TextStyle(color: Colors.white),
-          ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-    } catch (error) {
-      if (kDebugMode) {
-        print('Error al guardar la tarea: $error');
-      }
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Reserva fallida.',
-            style: TextStyle(color: Colors.white),
-          ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-    }
-
+  // Verificamos si el ID del proveedor es el mismo que el del usuario actual
+  if (currentUserID == widget.selectedSupplier.id) {
     setState(() {
       _showReservationModal = false;
       _animationController.reverse();
     });
+
+    _showErrorSnackBar('No es posible reservar sus propios servicios. Por favor, seleccione otro proveedor.');
+    return;
   }
+
+  // Continuamos con la verificación de la longitud del texto de reserva
+  if (_reservationTextController.text.length < 10) {
+    _showErrorSnackBar('Por favor, escriba al menos 10 caracteres describiendo por qué requiere del servicio.');
+    return;
+  }
+
+  // El resto del código de _confirmReservation() sigue igual...
+
+  final hourlyRate = _getHourlyRate(widget.selectedSupplier, widget.id)
+      .replaceAll('\$', '')
+      .trim();
+
+  List<String> selectedPaymentMethods = ['Monedero'];
+
+  final taskData = {
+    'clientID': clientIDString,
+    'clientLocation': GeoPoint(widget.latitude, widget.longitude),
+    'clientName': clientName,
+    'hourlyRate': double.tryParse(hourlyRate) ?? 0.0,
+    'referencePoint': widget.reference.isEmpty ? null : widget.reference,
+    'reservation': Timestamp.now(),
+    'service': widget.serviceName,
+    'serviceDetails': _reservationTextController.text,
+    'serviceID': widget.id,
+    'state': 'Pendiente',
+    'supplierID': widget.selectedSupplier.id,
+    'supplierName': widget.selectedSupplier.data()?['name'],
+    'paymentMethods': selectedPaymentMethods,
+  };
+
+  try {
+    await FirebaseFirestore.instance.collection('tasks').add(taskData);
+    Navigator.pushAndRemoveUntil(
+      // ignore: use_build_context_synchronously
+      context,
+      MaterialPageRoute(
+        builder: (context) => const HomePage(selectedIndex: 2),
+      ),
+      (route) => false,
+    );
+    // ignore: use_build_context_synchronously
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          '¡Servicio reservado con éxito!',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  } catch (error) {
+    if (kDebugMode) {
+      print('Error al guardar la tarea: $error');
+    }
+    _showErrorSnackBar('Reserva fallida. Por favor, intente nuevamente.');
+  }
+
+  setState(() {
+    _showReservationModal = false;
+    _animationController.reverse();
+  });
+}
+
+// Función auxiliar para mostrar SnackBars de error
+void _showErrorSnackBar(String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        message,
+        style: const TextStyle(color: Colors.white, fontSize: 13),
+      ),
+      backgroundColor: Colors.red,
+      duration: const Duration(seconds: 5),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+    ),
+  );
+}
 
   String _getHourlyRate(
       DocumentSnapshot<Map<String, dynamic>> supplier, String id) {

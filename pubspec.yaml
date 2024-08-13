@@ -63,6 +63,7 @@ dependencies:
   flutter_rating_bar: ^4.0.1
   icons_plus: ^5.0.0
   firebase_messaging: ^15.0.4
+  flutter_local_notifications: ^17.2.2
 
 dev_dependencies:
   flutter_test:
