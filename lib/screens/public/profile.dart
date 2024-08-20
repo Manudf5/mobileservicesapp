@@ -1,15 +1,14 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:io'; // Importar la clase 'File'
-import '../intro_screen.dart'; // Importa intro_screen.dart
-import 'package:image_picker/image_picker.dart'; // Importa image_picker
-import 'package:url_launcher/url_launcher.dart'; // Importa url_launcher
+import 'dart:io';
+import '../intro_screen.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:one_context/one_context.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -22,9 +21,11 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   String _userName = '';
   String _userLastName = '';
+  String _userID = '';
   String _userBio = '';
   String _profileImageUrl = '';
-  String _userAssessment = ''; // Variable para la calificación
+  String _userAssessment = '0';
+  String _userAssessmentCount = '0';
 
   late StreamSubscription<DocumentSnapshot<Map<String, dynamic>>> _userStream;
 
@@ -37,7 +38,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
-    _userStream.cancel(); // Cancela la suscripción al salir de la pantalla
+    _userStream.cancel();
     super.dispose();
   }
 
@@ -53,19 +54,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .get();
 
       if (userDoc.exists) {
+        List<dynamic> averageSupplierEvaluation =
+            await getAverageSupplierEvaluation(combinedId);
+
         setState(() {
           _userName = userDoc.data()!['name'];
           _userLastName = userDoc.data()!['lastName'];
           _userBio = userDoc.data()!['bio'] ?? '';
           _profileImageUrl = userDoc.data()!['profileImageUrl'] ?? '';
-          _userAssessment =
-              userDoc.data()!['assessment'] ?? ''; // Obtén la calificación
+          _userAssessment = averageSupplierEvaluation[0].toString();
+          _userAssessmentCount = averageSupplierEvaluation[1].toString();
         });
       }
     }
   }
 
-  Future _getCombinedIdFromFirestore(String uid) async {
+  Future<String> _getCombinedIdFromFirestore(String uid) async {
     QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
         .instance
         .collection('users')
@@ -111,7 +115,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future _uploadImageToFirebase(String imagePath) async {
-    // Sube la imagen a Firebase Storage
     String fileName = DateTime.now().millisecondsSinceEpoch.toString();
     Reference storageReference =
         FirebaseStorage.instance.ref().child('profileImages/$fileName');
@@ -120,105 +123,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
       UploadTask uploadTask = storageReference.putFile(File(imagePath));
 
       await uploadTask.whenComplete(() async {
-        // Obtiene la URL de descarga de la imagen
         String downloadUrl = await storageReference.getDownloadURL();
-        // Actualiza la URL de la imagen de perfil en Firestore
         setState(() {
           _profileImageUrl = downloadUrl;
         });
         _updateProfileData(updatedProfileImageUrl: downloadUrl);
       });
     } catch (e) {
-      // Utiliza un logger en lugar de 'print'
-      // print('Error al subir la imagen: $e');
-      // Aquí debes agregar la lógica de manejo de errores,
-      // como mostrar un mensaje al usuario
+      OneContext().showSnackBar(
+        builder: (_) => SnackBar(
+          content: Text('Error al subir la imagen: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
   void _showEditProfileScreen() {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            _EditProfileScreen(
+    OneContext().push(
+      MaterialPageRoute(
+        builder: (context) => _EditProfileScreen(
           userBio: _userBio,
           profileImageUrl: _profileImageUrl,
           onUpdateProfile: _updateProfileData,
           onSelectImage: _selectImageFromGallery,
         ),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                .animate(animation),
-            child: child,
-          );
-        },
       ),
     );
   }
 
-  void _showSettingsScreen() {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const _SettingsScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                .animate(animation),
-            child: child,
-          );
-        },
+  void _showSecurityAndPrivacyScreen() {
+    OneContext().push(
+      MaterialPageRoute(
+        builder: (context) => const SecurityAndPrivacyScreen(),
+      ),
+    );
+  }
+
+  void _showAccountScreen() {
+    OneContext().push(
+      MaterialPageRoute(
+        builder: (context) => const AccountScreen(),
       ),
     );
   }
 
   void _showHelpScreen() {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const _HelpScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                .animate(animation),
-            child: child,
-          );
-        },
-      ),
-    );
-  }
-
-  void _showAdminTempScreen() {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const AdminTempScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                .animate(animation),
-            child: child,
-          );
-        },
+    OneContext().push(
+      MaterialPageRoute(
+        builder: (context) => const HelpScreen(),
       ),
     );
   }
 
   void _signOut() async {
     await FirebaseAuth.instance.signOut();
-    Navigator.pushReplacement(
-      // ignore: use_build_context_synchronously
-      context,
+    OneContext().pushReplacement(
       MaterialPageRoute(builder: (context) => const IntroScreen()),
     );
   }
 
-  // Escucha las actualizaciones en la colección 'users'
   void _listenForUserUpdates() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -232,296 +196,250 @@ class _ProfileScreenState extends State<ProfileScreen> {
           setState(() {
             _userName = snapshot.data()!['name'];
             _userLastName = snapshot.data()!['lastName'];
+            _userID = combinedId;
             _userBio = snapshot.data()!['bio'] ?? '';
             _profileImageUrl = snapshot.data()!['profileImageUrl'] ?? '';
-            _userAssessment =
-                snapshot.data()!['assessment'] ?? ''; // Obtén la calificación
           });
         }
       });
     }
   }
 
+  Future<List<dynamic>> getAverageSupplierEvaluation(String combinedId) async {
+    QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
+        await FirebaseFirestore.instance.collection('tasks').get();
+
+    double totalEvaluation = 0;
+    int evaluationCount = 0;
+
+    for (var taskDoc in tasksSnapshot.docs) {
+      if (taskDoc.data()['clientID'] == combinedId &&
+          taskDoc.data().containsKey('supplierEvaluation')) {
+        totalEvaluation +=
+            double.tryParse(taskDoc.data()['supplierEvaluation'].toString()) ??
+                0.0;
+        evaluationCount++;
+      }
+    }
+
+    if (evaluationCount == 0) {
+      return ['0', 0];
+    } else {
+      double averageEvaluation = totalEvaluation / evaluationCount;
+      return [averageEvaluation.toStringAsFixed(1), evaluationCount];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        title: const Text(
-          'Perfil',
-          style: TextStyle(
-            fontSize: 28.0,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        centerTitle: true, // Centra el texto del AppBar
-        actions: [
-          IconButton(
-            onPressed: _showHelpScreen,
-            icon: Image.asset(
-              'assets/images/IconHelp.png',
-              height: 24,
-              width: 24,
-            ),
-          ),
-        ],
-      ),
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 20.0),
-
-                // Foto de perfil
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 100.0,
-                      height: 100.0,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.grey[300],
-                        border: Border.all(
-                          color: Colors.green,
-                          width: 2.0,
-                        ),
-                      ),
-                    ),
-                    // Mostrar la imagen de perfil de Firebase si está disponible
-                    _profileImageUrl.isNotEmpty
-                        ? CircleAvatar(
-                            radius: 45.0,
-                            backgroundImage: NetworkImage(_profileImageUrl),
-                          )
-                        : const CircleAvatar(
-                            radius: 45.0,
-                            backgroundImage: AssetImage(
-                                'assets/images/ProfilePhoto_predetermined.png'),
-                          ),
-                  ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            // Portada azul oscura, CircleAvatar y botón "Editar perfil"
+            Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                Container(
+                  height: 170,
+                  color: const Color(0xFF08143c),
                 ),
-
-                const SizedBox(height: 16.0),
-
-                // Nombre y Puntuación
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '$_userName $_userLastName',
-                      style: const TextStyle(
-                        fontSize: 18.0,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                Positioned(
+                  top: 105,
+                  left: 20,
+                  child: Container(
+                    width: 130,
+                    height: 130,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 4.0,
                       ),
                     ),
-                    const SizedBox(width: 10.0),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10.0, vertical: 5.0),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[900],
-                        borderRadius: BorderRadius.circular(10.0),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _userAssessment, // Mostrar la calificación real
-                            style: const TextStyle(
-                              fontSize: 16.0,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 5.0),
-                          const Icon(
-                            Icons.star,
-                            size: 16.0,
-                            color: Colors.amber,
-                          ),
-                        ],
-                      ),
+                    child: CircleAvatar(
+                      radius: 60,
+                      backgroundImage: _profileImageUrl.isNotEmpty
+                          ? NetworkImage(_profileImageUrl)
+                          : const AssetImage(
+                                  'assets/images/ProfilePhoto_predetermined.png')
+                              as ImageProvider,
                     ),
-                  ],
-                ),
-
-                const SizedBox(height: 16.0),
-
-                // Descripción del usuario
-                if (_userBio.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    child: Text(
-                      _userBio,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 16.0,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
-
-                const SizedBox(height: 24.0),
-
-                // Botones de acción
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Botón Editar Perfil
-                    ElevatedButton(
-                      onPressed: _showEditProfileScreen,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[200], // Formato diferente
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10.0,
-                          vertical: 8.0,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/images/IconEditProfile.png',
-                            height: 14,
-                            width: 14,
-                          ),
-                          const SizedBox(width: 5.0),
-                          const Text(
-                            'Editar Perfil',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10.0),
-                    // Botón Configuración
-                    ElevatedButton(
-                      onPressed: _showSettingsScreen,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[200], // Formato diferente
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10.0,
-                          vertical: 8.0,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/images/IconConfig.png',
-                            height: 14,
-                            width: 14,
-                          ),
-                          const SizedBox(width: 5.0),
-                          const Text(
-                            'Configuración',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24.0),
-
-                // Botón Administrador (Temporal)
-                ElevatedButton(
-                  onPressed: _showAdminTempScreen,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[200], // Formato diferente
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20.0,
-                      vertical: 16.0,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10.0),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset(
-                        'assets/images/IconAdmin.png',
-                        height: 24,
-                        width: 24,
-                      ),
-                      const SizedBox(width: 10.0),
-                      const Text(
-                        'Administrador (Temporal)',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 32.0),
-
-                // Botón Cerrar Sesión
-                ElevatedButton(
-                  onPressed: _signOut,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red[300],
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40.0,
-                      vertical: 16.0,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24.0),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset(
-                        'assets/images/IconLogout.png',
-                        height: 24,
-                        width: 24,
-                      ),
-                      const SizedBox(width: 10.0),
-                      const Text(
-                        'Cerrar Sesión',
-                        style: TextStyle(
-                          fontSize: 16.0,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ],
             ),
-          ),
+
+            Padding(
+              padding: const EdgeInsets.only(right: 20.0, top: 10.0),
+              child: Align(
+                alignment: Alignment.topRight,
+                child: ElevatedButton(
+                  onPressed: _showEditProfileScreen,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF08143c),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20.0),
+                      side: const BorderSide(color: Color(0xFF08143c)),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20.0, vertical: 7.0),
+                  ),
+                  child: const Text(
+                    'Personalizar',
+                    style: TextStyle(
+                      fontSize: 12.0,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Contenido de la pantalla (nombre, biografía, etc.)
+            Padding(
+              padding: const EdgeInsets.only(left: 20, right: 20, top: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Nombre y apellido
+                  Text(
+                    '$_userName $_userLastName',
+                    style: const TextStyle(
+                      fontSize: 25.0,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF08143c),
+                    ),
+                  ),
+
+                  Text(
+                    'ID: $_userID',
+                    style: const TextStyle(
+                      fontSize: 15.0,
+                      fontWeight: FontWeight.bold,
+                      color: Color.fromRGBO(176, 190, 197, 1),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Biografía del usuario
+                  Text(
+                    _userBio,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color.fromRGBO(38, 50, 56, 1),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Puntuación del usuario
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10.0, vertical: 5.0),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF08143c),
+                      borderRadius: BorderRadius.circular(20.0),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize
+                          .min, // Agrega esto para que el Row tome el mínimo espacio posible.
+                      children: [
+                        const Icon(
+                          Icons.star,
+                          color: Color(0xFFFFD700),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          _userAssessment,
+                          style: const TextStyle(
+                            fontSize: 16.0,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          // ignore: unrelated_type_equality_checks
+                          '($_userAssessmentCount ${_userAssessmentCount == 1 ? 'opinión' : 'opiniones'})',
+                          style: const TextStyle(
+                            fontSize: 13.0,
+                            fontWeight: FontWeight.normal,
+                            color: Colors
+                                .white, // Puedes cambiar el color del texto si lo deseas.
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                ],
+              ),
+            ),
+
+            // Lista de opciones del menú
+            _buildMenuItem(
+              icon: Icons.security,
+              title: 'Seguridad y privacidad',
+              onTap: _showSecurityAndPrivacyScreen,
+            ),
+            _buildMenuItem(
+              icon: Icons.account_circle,
+              title: 'Cuenta',
+              onTap: _showAccountScreen,
+            ),
+            _buildMenuItem(
+              icon: Icons.help_outline,
+              title: 'Ayuda',
+              onTap: _showHelpScreen,
+            ),
+            const SizedBox(height: 30.0),
+
+            // Botón "Cerrar sesión"
+            Center(
+              child: ElevatedButton(
+                onPressed: _signOut,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red[400],
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30.0),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 30.0, vertical: 15.0),
+                ),
+                child: const Text(
+                  'Cerrar Sesión',
+                  style: TextStyle(fontSize: 16.0, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  // Función para construir cada elemento del menú
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: const Color(0xFF08143c)),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16.0,
+          color: Color(0xFF08143c),
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right, color: Color(0xFF08143c)),
+      onTap: onTap,
     );
   }
 }
@@ -540,7 +458,7 @@ class _EditProfileScreen extends StatefulWidget {
   });
 
   @override
-  State<_EditProfileScreen> createState() => _EditProfileScreenState();
+  _EditProfileScreenState createState() => _EditProfileScreenState();
 }
 
 class _EditProfileScreenState extends State<_EditProfileScreen> {
@@ -607,34 +525,25 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
           FirebaseStorage.instance.ref().child('profileImages/$fileName');
 
       try {
-        // Delete the old image if it exists
         if (_currentProfileImageUrl.isNotEmpty) {
           await FirebaseStorage.instance
               .refFromURL(_currentProfileImageUrl)
               .delete();
         }
 
-        // Upload the new image
         UploadTask uploadTask = storageReference.putFile(File(image.path));
         await uploadTask.whenComplete(() async {
           String downloadUrl = await storageReference.getDownloadURL();
           widget.onUpdateProfile(updatedProfileImageUrl: downloadUrl);
         });
       } catch (e) {
-        // Handle error (e.g., show a snackbar with the error message)
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
+        OneContext().showSnackBar(
+          builder: (_) => const SnackBar(
+            content: Text(
               'Error al actualizar la foto.',
               style: TextStyle(color: Colors.white),
             ),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
           ),
         );
       }
@@ -649,15 +558,14 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon:
-              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF08143c)),
+          onPressed: () => OneContext().pop(),
         ),
         title: const Text(
           'Editar Perfil',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: Color(0xFF08143c),
           ),
         ),
       ),
@@ -672,65 +580,59 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                   alignment: Alignment.center,
                   children: [
                     Container(
-                      width: 100.0,
-                      height: 100.0,
+                      width: 120.0,
+                      height: 120.0,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.grey[300],
                         border: Border.all(
-                          color: Colors.green,
-                          width: 2.0,
+                          color: const Color(0xFF1ca424),
+                          width: 3.0,
                         ),
                       ),
                     ),
                     _currentProfileImageUrl.isNotEmpty
                         ? CircleAvatar(
-                            radius: 45.0,
+                            radius: 55.0,
                             backgroundImage:
                                 NetworkImage(_currentProfileImageUrl),
                           )
-                        : const CircleAvatar(
-                            radius: 45.0,
-                            backgroundImage: AssetImage(
-                                'assets/images/ProfilePhoto_predetermined.png'),
+                        : CircleAvatar(
+                            radius: 55.0,
+                            backgroundColor: Colors.grey[300],
+                            child: Icon(
+                              Icons.person,
+                              size: 50.0,
+                              color: Colors.grey[600],
+                            ),
                           ),
                     Positioned(
-                      top: 25.0,
-                      right: 25.0,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.7),
-                        ),
+                      bottom: 0,
+                      right: 0,
+                      child: CircleAvatar(
+                        backgroundColor: const Color(0xFF08143c),
+                        radius: 20,
                         child: IconButton(
+                          icon: const Icon(Icons.edit,
+                              color: Colors.white, size: 18),
                           onPressed: _updateProfileImage,
-                          icon: const Icon(
-                            Icons.edit,
-                            size: 30.0,
-                            color: Colors.black,
-                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20.0),
+                const SizedBox(height: 30.0),
                 TextFormField(
                   controller: _bioController,
                   decoration: InputDecoration(
                     labelText: 'Biografía',
-                    labelStyle: const TextStyle(color: Colors.black),
-                    hintText: 'Descríbete',
-                    hintStyle: const TextStyle(color: Colors.grey),
-                    filled: true,
-                    fillColor: Colors.transparent,
+                    labelStyle: const TextStyle(color: Color(0xFF08143c)),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: const BorderSide(color: Colors.blue),
+                      borderRadius: BorderRadius.circular(10.0),
+                      borderSide: const BorderSide(color: Color(0xFF08143c)),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 16.0,
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                      borderSide: const BorderSide(color: Color(0xFF1ca424)),
                     ),
                   ),
                   maxLines: 3,
@@ -742,44 +644,27 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 32.0),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 20.0),
-                  child: Center(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          widget.onUpdateProfile(
-                              updatedUserBio: _bioController.text);
-                          Navigator.of(context).pop();
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 40.0,
-                          vertical: 15.0,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15.0),
-                        ),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.save, color: Colors.white),
-                          SizedBox(width: 10.0),
-                          Text(
-                            'Guardar',
-                            style: TextStyle(
-                              fontSize: 18.0,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
+                const SizedBox(height: 30.0),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_formKey.currentState!.validate()) {
+                      widget.onUpdateProfile(
+                        updatedUserBio: _bioController.text,
+                      );
+                      OneContext().pop();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1ca424),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30.0),
                     ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30.0, vertical: 15.0),
+                  ),
+                  child: const Text(
+                    'Guardar Cambios',
+                    style: TextStyle(fontSize: 16.0),
                   ),
                 ),
               ],
@@ -791,31 +676,8 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
   }
 }
 
-class _SettingsScreen extends StatefulWidget {
-  // ignore: unused_element
-  const _SettingsScreen({super.key});
-
-  @override
-  State<_SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<_SettingsScreen> {
-  void _showChangePasswordScreen() {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const _ChangePasswordScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                .animate(animation),
-            child: child,
-          );
-        },
-      ),
-    );
-  }
+class SecurityAndPrivacyScreen extends StatelessWidget {
+  const SecurityAndPrivacyScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -825,76 +687,57 @@ class _SettingsScreenState extends State<_SettingsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon:
-              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
-          onPressed: () {
-            Navigator.of(context).pop(); // Regresa a la pantalla anterior
-          },
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF08143c)),
+          onPressed: () => OneContext().pop(),
         ),
         title: const Text(
-          'Configuración',
+          'Seguridad y Privacidad',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: Color(0xFF08143c),
           ),
         ),
       ),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(20.0),
-        child: SizedBox(
-          width: double.infinity, // Ocupa todo el ancho
-          child: ElevatedButton(
-            onPressed: _showChangePasswordScreen,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20.0, // Espacio extra para los iconos
-                vertical: 16.0,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.0),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              // Alinear a los lados
-              children: [
-                // Icono de cambiar contraseña
-                Icon(Icons.lock_reset, color: Colors.blue[900]),
-                // Espacio entre los iconos
-                const SizedBox(width: 16.0),
-                // Texto del botón
-                const Text(
-                  'Cambiar Contraseña',
-                  style: TextStyle(
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.bold,
-                  ),
+        children: [
+          ListTile(
+            leading: const Icon(Icons.lock, color: Color(0xFF08143c)),
+            title: const Text('Cambiar contraseña'),
+            onTap: () {
+              OneContext().push(
+                MaterialPageRoute(
+                  builder: (context) => const ChangePasswordScreen(),
                 ),
-                // Espacio entre el texto y el ícono de flecha
-                const SizedBox(width: 16.0),
-                // Icono de flecha
-                const Icon(Icons.arrow_forward_ios_rounded,
-                    color: Colors.green),
-              ],
-            ),
+              );
+            },
           ),
-        ),
+          ListTile(
+            leading: const Icon(Icons.block, color: Color(0xFF08143c)),
+            title: const Text('Usuarios bloqueados'),
+            onTap: () {
+              OneContext().push(
+                MaterialPageRoute(
+                  builder: (context) => const BlockedUsersScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ChangePasswordScreen extends StatefulWidget {
+class ChangePasswordScreen extends StatefulWidget {
   // ignore: unused_element
-  const _ChangePasswordScreen({super.key});
+  const ChangePasswordScreen({super.key});
 
   @override
-  State<_ChangePasswordScreen> createState() => _ChangePasswordScreenState();
+  State<ChangePasswordScreen> createState() => ChangePasswordScreenState();
 }
 
-class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
+class ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _currentPasswordController;
   late TextEditingController _newPasswordController;
@@ -1118,9 +961,24 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
   }
 }
 
-class _HelpScreen extends StatelessWidget {
-  // ignore: unused_element
-  const _HelpScreen({super.key});
+class BlockedUsersScreen extends StatelessWidget {
+  const BlockedUsersScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Usuarios Bloqueados'),
+      ),
+      body: const Center(
+        child: Text('Lista de usuarios bloqueados'),
+      ),
+    );
+  }
+}
+
+class AccountScreen extends StatelessWidget {
+  const AccountScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -1130,17 +988,14 @@ class _HelpScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon:
-              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
-          onPressed: () {
-            Navigator.of(context).pop(); // Regresa a la pantalla anterior
-          },
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF08143c)),
+          onPressed: () => OneContext().pop(),
         ),
         title: const Text(
-          'Ayuda',
+          'Cuenta',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: Color(0xFF08143c),
           ),
         ),
       ),
@@ -1149,177 +1004,40 @@ class _HelpScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20.0),
             const Text(
-              'Preguntas frecuentes',
-              textAlign: TextAlign.center,
+              'Información de la cuenta',
               style: TextStyle(
-                fontSize: 20.0,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
+                color: Color(0xFF08143c),
               ),
             ),
-            const SizedBox(height: 20.0),
-            Expanded(
-              child: ListView.builder(
-                itemCount:
-                    10, // Reemplaza con la cantidad de preguntas frecuentes
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    title: Text('Pregunta frecuente ${index + 1}'),
-                    subtitle: const Text(
-                        'Aquí iría la respuesta a la pregunta frecuente'),
-                  );
-                },
-              ),
+            const SizedBox(height: 20),
+            const ListTile(
+              title: Text('Correo electrónico'),
+              subtitle: Text('usuario@ejemplo.com'),
             ),
-            // Botón "Contactar a soporte" en la parte inferior
-            Padding(
-              padding: const EdgeInsets.only(bottom: 20.0),
-              child: Center(
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final Uri whatsappUrl = Uri.parse(
-                        'https://wa.me/584245069119?text=Hola%20Soporte%2C%20necesito%20ayuda%20con...');
-                    if (await canLaunchUrl(whatsappUrl)) {
-                      await launchUrl(whatsappUrl);
-                    } else {
-                      // Mostrar un mensaje de error al usuario si no se puede abrir WhatsApp
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40.0,
-                      vertical: 7.0,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24.0),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.network(
-                        'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/WhatsApp.svg/1200px-WhatsApp.svg.png',
-                        height: 40.0,
-                        width: 40.0,
-                      ),
-                      const SizedBox(width: 10.0),
-                      const Text(
-                        'Contactar a soporte',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            const ListTile(
+              title: Text('Fecha de creación'),
+              subtitle: Text('01/01/2023'),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN//ADMIN
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class AdminTempScreen extends StatefulWidget {
-  // ignore: unused_element
-  const AdminTempScreen({super.key});
-
-  @override
-  State<AdminTempScreen> createState() => AdminTempScreenState();
-}
-
-class AdminTempScreenState extends State<AdminTempScreen> {
-  void _showSuppliersScreen() {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const SuppliersScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                .animate(animation),
-            child: child,
-          );
-        },
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context); // Regresa a la pantalla anterior
-          },
-          icon:
-              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
-        ),
-        title: const Text(
-          'Administrador (Temporal)',
-          style: TextStyle(color: Colors.black),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(
-            16.0), // Agrega un padding para espacio alrededor del botón
-        child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.stretch, // Expandir el botón a lo ancho
-          children: [
-            SizedBox(
-              width: double.infinity,
+            const SizedBox(height: 40),
+            Center(
               child: ElevatedButton(
                 onPressed: () {
-                  _showSuppliersScreen();
+                  // Lógica para eliminar la cuenta
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[200],
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20.0,
-                    vertical: 16.0,
-                  ),
+                  backgroundColor: Colors.red,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.0),
+                    borderRadius: BorderRadius.circular(30.0),
                   ),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 30.0, vertical: 15.0),
                 ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Icon(
-                      Icons.store_mall_directory_outlined,
-                      color: Colors.purple, // Icono para proveedores
-                      size: 28,
-                    ),
-                    SizedBox(width: 16.0),
-                    Text(
-                      'Proveedores',
-                      style: TextStyle(
-                        fontSize: 16.0,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(width: 16.0),
-                    Icon(Icons.arrow_forward_ios_rounded, color: Colors.green),
-                  ],
-                ),
+                child: const Text('Eliminar cuenta'),
               ),
             ),
-            // Aquí puedes agregar más widgets debajo del botón
           ],
         ),
       ),
@@ -1327,82 +1045,8 @@ class AdminTempScreenState extends State<AdminTempScreen> {
   }
 }
 
-class SuppliersScreen extends StatefulWidget {
-  // ignore: unused_element
-  const SuppliersScreen({super.key});
-
-  @override
-  State<SuppliersScreen> createState() => SuppliersScreenState();
-}
-
-class SuppliersScreenState extends State<SuppliersScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  List<Map<String, dynamic>> _users = [];
-  List<Map<String, dynamic>> _filteredUsers = [];
-  bool _isLoading = true;
-
-  void _showSuppliersManagementScreen() {
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const SuppliersManagementScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
-                .animate(animation),
-            child: child,
-          );
-        },
-      ),
-    );
-  }
-
-  Future<void> _fetchUsers() async {
-    try {
-      QuerySnapshot<Map<String, dynamic>> querySnapshot =
-          await FirebaseFirestore.instance.collection('users').get();
-      _users = querySnapshot.docs
-          .where((doc) => doc.data()['role'] == 1)
-          .map((doc) => doc.data())
-          .toList();
-      _filteredUsers = _users;
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      // ignore: avoid_print
-      print('Error al obtener usuarios: $e');
-      // Manejar el error, mostrar un mensaje al usuario, etc.
-    }
-  }
-
-  void _onSearchChanged(String query) {
-    setState(() {
-      _filteredUsers = _users
-          .where((user) =>
-              user['id']
-                  .toString()
-                  .toLowerCase()
-                  .contains(query.toLowerCase()) ||
-              (user['name'] + ' ' + user['lastName'])
-                  .toLowerCase()
-                  .contains(query.toLowerCase()))
-          .toList();
-    });
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUsers();
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.white,
-        statusBarIconBrightness: Brightness.dark,
-      ),
-    );
-  }
+class HelpScreen extends StatelessWidget {
+  const HelpScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -1410,760 +1054,197 @@ class SuppliersScreenState extends State<SuppliersScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
+        elevation: 0,
         leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context); // Regresa a la pantalla anterior
-          },
-          icon:
-              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF08143c)),
+          onPressed: () => OneContext().pop(),
         ),
         title: const Text(
-          'Proveedores',
-          style: TextStyle(color: Colors.black),
-        ),
-      ),
-      body: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                Container(
-                  height: 50,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: Colors.grey[200],
-                  ),
-                  child: Row(
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.only(left: 16.0),
-                        child: Icon(
-                          Icons.search,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(width: 16.0),
-                      Expanded(
-                        child: TextField(
-                          controller: _searchController,
-                          decoration: const InputDecoration(
-                            hintText: "Buscar usuario por ID o nombre",
-                            border: InputBorder.none,
-                          ),
-                          onChanged: _onSearchChanged,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 25.0),
-                Expanded(
-                  child: _isLoading
-                      ? const Center(
-                          child: CupertinoActivityIndicator(
-                          radius: 16,
-                          color: Colors.green,
-                        ))
-                      : _filteredUsers.isEmpty
-                          ? const Center(
-                              child: Text('No se encontraron usuarios'),
-                            )
-                          : ListView.builder(
-                              itemCount: _filteredUsers.length,
-                              itemBuilder: (context, index) {
-                                final user = _filteredUsers[index];
-                                return _buildUserTile(user);
-                              },
-                            ),
-                ),
-              ],
-            ),
+          'Ayuda',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF08143c),
           ),
-          Positioned(
-            bottom: 30.0, // Distancia desde la parte inferior
-            right: 30.0, // Distancia desde el lado derecho
-            child: FloatingActionButton(
-              onPressed: () {
-                _showSuppliersManagementScreen();
-              },
-              backgroundColor: Colors.green,
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(10.0),
-                  topRight: Radius.circular(10.0),
-                  bottomRight: Radius.circular(10.0),
-                  bottomLeft: Radius.circular(10.0),
-                ),
-              ),
-              child: const Icon(Icons.edit, color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUserTile(Map<String, dynamic> user) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: const Color(0xFF08143C),
-          width: 1.0,
-        ),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundImage: user['profileImageUrl'] != null
-                ? NetworkImage(user['profileImageUrl'])
-                : const AssetImage(
-                    'assets/images/ProfilePhoto_predetermined.png'),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${user['name']} ${user['lastName']}',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text('ID: ${user['id']}'),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class SuppliersManagementScreen extends StatefulWidget {
-  // ignore: unused_element
-  const SuppliersManagementScreen({super.key});
-
-  @override
-  State createState() => SuppliersManagementScreenState();
-}
-
-class SuppliersManagementScreenState extends State<SuppliersManagementScreen> {
-  String? _selectedStatus;
-  final _formKey = GlobalKey<FormState>();
-  Map<String, dynamic>? _selectedUser;
-  DocumentSnapshot? _supplierData; // Almacena los datos del proveedor
-
-  final _idController = TextEditingController();
-  final _nameController = TextEditingController();
-  // Lista para almacenar los servicios añadidos
-  final List<Map<String, dynamic>> _addedServices = [];
-
-  // Función para obtener los servicios de Firestore
-  Future<List<Map<String, dynamic>>> _fetchServices() async {
-    final QuerySnapshot snapshot =
-        await FirebaseFirestore.instance.collection('services').get();
-
-    List<Map<String, dynamic>> services = [];
-    for (var doc in snapshot.docs) {
-      services.add(doc.data() as Map<String, dynamic>);
-    }
-    return services;
-  }
-
-  Future<void> _fetchUser(BuildContext context) async {
-    // Aquí puedes usar la función para obtener datos del usuario,
-    // por ejemplo, obtener los datos de Firestore o desde una API.
-    // Puedes usar la función _fetchUser para eso
-  }
-
-  Future<void> _loadSupplierData(String userId) async {
-    _supplierData = await FirebaseFirestore.instance
-        .collection('suppliers')
-        .doc(userId)
-        .get();
-
-    if (_supplierData != null && _supplierData!.exists) {
-      // Verifica si 'services' es una lista
-      if (_supplierData!['services'] is List) {
-        // Convierte 'services' a una lista de mapas
-        List<Map<String, dynamic>> servicesList =
-            _supplierData!['services'].cast<Map<String, dynamic>>();
-        // Actualiza _addedServices con los servicios del proveedor
-        setState(() {
-          _addedServices.clear();
-          _addedServices.addAll(servicesList);
-        });
-      }
-    } else {
-      // Limpia _addedServices si no hay datos de proveedor
-      setState(() {
-        _addedServices.clear();
-      });
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUser(context); // Llama a la función para obtener datos del usuario
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon:
-              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
-        ),
-        title: const Text(
-          'Editar Proveedores',
-          style: TextStyle(color: Colors.black),
         ),
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Campo ID
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller:
-                            _idController, // Usa el TextEditingController
-                        decoration: InputDecoration(
-                          labelText: 'ID',
-                          labelStyle: const TextStyle(color: Colors.black),
-                          hintText: 'ID del usuario',
-                          hintStyle: const TextStyle(color: Colors.grey),
-                          filled: true,
-                          fillColor: Colors.transparent,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16.0),
-                            borderSide: const BorderSide(color: Colors.blue),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16.0,
-                            vertical: 16.0,
-                          ),
-                        ),
-                        enabled: false,
-                      ),
-                    ),
-                    const SizedBox(width: 8.0),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                const SearchUsersForSuppliersScreen(),
-                          ),
-                        ).then((value) {
-                          if (value != null) {
-                            setState(() {
-                              _selectedUser = value;
-                              _idController.text = _selectedUser!['id']
-                                  .toString(); // Actualiza el controlador
-                              _nameController.text =
-                                  '${_selectedUser!['name']} ${_selectedUser!['lastName']}'; // Actualiza el controlador
-                              _selectedStatus = _selectedUser!['role'] == 1
-                                  ? 'SI'
-                                  : 'NO'; // Actualiza el status
-                              _loadSupplierData(_selectedUser!['id']
-                                  .toString()); // Carga los datos del proveedor si existen
-                            });
-                          }
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF08143C),
-                        padding: const EdgeInsets.all(10.0),
-                        shape: const CircleBorder(),
-                      ),
-                      child: const Icon(
-                        Icons.search,
-                        color: Colors.white,
-                        size: 24.0,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16.0),
-                // Campo Nombre y apellido
-                TextFormField(
-                  controller: _nameController, // Usa el TextEditingController
-                  decoration: InputDecoration(
-                    labelText: 'Nombre y apellido',
-                    labelStyle: const TextStyle(color: Colors.black),
-                    hintText: 'Nombre y apellido del usuario',
-                    hintStyle: const TextStyle(color: Colors.grey),
-                    filled: true,
-                    fillColor: Colors.transparent,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: const BorderSide(color: Colors.blue),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 16.0,
-                    ),
-                  ),
-                  enabled: false,
-                ),
-                const SizedBox(height: 16.0),
-                // Lista desplegable "Activo"
-                DropdownButtonFormField(
-                  decoration: InputDecoration(
-                    labelText: 'Activo',
-                    labelStyle: const TextStyle(color: Colors.black),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: const BorderSide(color: Colors.blue),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 16.0,
-                    ),
-                  ),
-                  value: _selectedStatus,
-                  hint: const Text('Seleccione'),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedStatus = value;
-                    });
-                  },
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'SI',
-                      child: Text('SI'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'NO',
-                      child: Text('NO'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16.0),
-
-                // Muestra los servicios del proveedor si existen
-                if (_supplierData != null && _supplierData!.exists)
-                  const Text(
-                    'Servicios actuales:',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ..._addedServices.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  Map<String, dynamic> serviceData = entry.value;
-
-                  return Column(
-                    children: [
-                      // Contenedor del servicio
-                      Container(
-                        margin: const EdgeInsets.only(top: 16.0),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: const Color(0xFF08143C),
-                          ),
-                          borderRadius: BorderRadius.circular(16.0),
-                        ),
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Lista desplegable de servicios
-                            FutureBuilder<List<Map<String, dynamic>>>(
-                              future: _fetchServices(),
-                              builder: (context, snapshot) {
-                                if (snapshot.hasData) {
-                                  List<Map<String, dynamic>> services =
-                                      snapshot.data!;
-
-                                  return DropdownButtonFormField<String>(
-                                    value: serviceData['service'],
-                                    hint: const Text('Seleccione un servicio'),
-                                    onChanged: (newValue) {
-                                      setState(() {
-                                        serviceData['service'] = newValue;
-                                      });
-                                    },
-                                    items: services.map((service) {
-                                      return DropdownMenuItem<String>(
-                                        value: service['id'].toString(),
-                                        // Utiliza el ID como value
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            borderRadius: BorderRadius.circular(
-                                                7), // Agrega redondeo a los bordes
-                                          ),
-                                          padding: const EdgeInsets.all(
-                                              0.4), // Agrega padding
-                                          child: SizedBox(
-                                            width:
-                                                320, // Ajusta el ancho según sea necesario
-                                            child: Text(
-                                              '${service['id']} - ${service['serviceName']}',
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  );
-                                } else if (snapshot.hasError) {
-                                  return const Text(
-                                      'Error al cargar los servicios');
-                                } else {
-                                  return const CupertinoActivityIndicator(
-                                    radius: 16,
-                                    color: Colors.green,
-                                  );
-                                }
-                              },
-                            ),
-
-                            const SizedBox(height: 16.0),
-
-                            // Campo de texto para la ganancia por hora
-                            TextFormField(
-                              initialValue:
-                                  serviceData['hourlyRate']?.toString(),
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: 'Ganancia por hora',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16.0),
-                                ),
-                              ),
-                              onChanged: (newValue) {
-                                setState(() {
-                                  serviceData['hourlyRate'] =
-                                      double.tryParse(newValue);
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Botón para eliminar el servicio
-                      IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _addedServices.removeAt(index);
-                          });
-                        },
-                        icon: const Icon(Icons.delete),
-                      ),
-                    ],
-                  );
-                  // ignore: unnecessary_to_list_in_spreads
-                }).toList(),
-
-                const SizedBox(height: 16.0),
-                // Botón "Añadir servicio"
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      // Agrega un nuevo servicio a la lista
-                      setState(() {
-                        _addedServices.add({
-                          'service': null, // Inicializa el servicio a null
-                          'hourlyRate': null, // Inicializa la ganancia a null
-                        });
-                      });
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF08143C),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 12.0,
-                      ),
-                      textStyle: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.0,
-                      ),
-                    ),
-                    child: const Text('Añadir servicio'),
-                  ),
-                ),
-                const SizedBox(height: 16.0),
-                // Botón "Guardar"
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      // Aquí debes agregar la lógica para guardar los datos
-                      // en Firestore
-                      if (_formKey.currentState!.validate()) {
-                        // ignore: avoid_print
-                        print('Form is valid!');
-
-                        // Obtén el ID del usuario desde el controlador
-                        String userId = _idController.text;
-
-                        // Crea un mapa con los datos del usuario
-                        Map<String, dynamic> userData = {
-                          'name': _nameController.text,
-                          'services': _addedServices,
-                          'role':
-                              _selectedStatus == 'SI' ? 1 : 0, // Agrega role
-                        };
-
-                        // Guarda los datos del usuario en una nueva colección
-                        await FirebaseFirestore.instance
-                            .collection('suppliers')
-                            .doc(userId)
-                            .set(userData);
-
-                        // Actualiza el estado de "Activo" en la colección "users"
-                        await FirebaseFirestore.instance
-                            .collection('users')
-                            .doc(userId)
-                            .update({'role': _selectedStatus == 'SI' ? 1 : 0});
-
-                        // Navega a la pantalla anterior o muestra un mensaje de éxito
-                        // ignore: use_build_context_synchronously
-                        Navigator.pop(context);
-                        // Muestra un mensaje de éxito
-                        // ignore: use_build_context_synchronously
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                              '¡Proveedor guardado con éxito!.',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            backgroundColor: Colors.green,
-                            duration: const Duration(seconds: 5),
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        );
-                      } else {
-                        // ignore: avoid_print
-                        print('Form is not valid');
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1CA424),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 12.0,
-                      ),
-                      textStyle: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.0,
-                      ),
-                    ),
-                    child: const Text('Guardar'),
-                  ),
-                ),
-                const SizedBox(height: 16.0),
-              ],
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHelpSection(
+              context,
+              'Preguntas frecuentes',
+              Icons.question_answer,
+              const FrequentQuestionsScreen(),
             ),
-          ),
+            _buildHelpSection(
+              context,
+              'Términos y condiciones',
+              Icons.description,
+              const TermsAndConditionsScreen(),
+            ),
+            _buildHelpSection(
+              context,
+              'Acerca de la app',
+              Icons.info,
+              const AboutAppScreen(),
+            ),
+            const SizedBox(height: 30),
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Soporte al usuario',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF08143c),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _buildSupportOption(
+                      context,
+                      'Mensajería interna',
+                      Icons.message,
+                      const InternalMessagingScreen(),
+                    ),
+                    _buildSupportOption(
+                      context,
+                      'Correo electrónico',
+                      Icons.email,
+                      const EmailSupportScreen(),
+                    ),
+                    _buildSupportOption(
+                      context,
+                      'Vía WhatsApp',
+                      Icons.phone_iphone_rounded,
+                      () async {
+                        final Uri whatsappUrl = Uri.parse(
+                            'https://wa.me/584245069119?text=Hola%20Soporte%2C%20necesito%20ayuda%20con...');
+                        if (await canLaunchUrl(whatsappUrl)) {
+                          await launchUrl(whatsappUrl);
+                        } else {
+                          OneContext().showSnackBar(
+                            builder: (_) => const SnackBar(
+                              content: Text('No se pudo abrir WhatsApp'),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
-}
 
-class SearchUsersForSuppliersScreen extends StatefulWidget {
-  const SearchUsersForSuppliersScreen({super.key});
-
-  @override
-  State<SearchUsersForSuppliersScreen> createState() =>
-      _SearchUsersForSuppliersScreenState();
-}
-
-class _SearchUsersForSuppliersScreenState
-    extends State<SearchUsersForSuppliersScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  List<Map<String, dynamic>> _users = [];
-  List<Map<String, dynamic>> _filteredUsers = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchUsers();
-    SystemChrome.setSystemUIOverlayStyle(
-      const SystemUiOverlayStyle(
-        statusBarColor: Colors.white,
-        statusBarIconBrightness: Brightness.dark,
-      ),
+  Widget _buildHelpSection(
+    BuildContext context,
+    String title,
+    IconData icon,
+    Widget screen,
+  ) {
+    return ListTile(
+      leading: Icon(icon, color: const Color(0xFF08143c)),
+      title: Text(title),
+      trailing: const Icon(Icons.arrow_forward_ios, color: Color(0xFF08143c)),
+      onTap: () {
+        OneContext().push(
+          MaterialPageRoute(builder: (context) => screen),
+        );
+      },
     );
   }
 
-  Future<void> _fetchUsers() async {
-    try {
-      QuerySnapshot<Map<String, dynamic>> querySnapshot =
-          await FirebaseFirestore.instance.collection('users').get();
-      _users = querySnapshot.docs.map((doc) => doc.data()).toList();
-      _filteredUsers = _users;
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      // ignore: avoid_print
-      print('Error al obtener usuarios: $e');
-      // Manejar el error, mostrar un mensaje al usuario, etc.
-    }
+  Widget _buildSupportOption(
+    BuildContext context,
+    String title,
+    IconData icon,
+    dynamic onTap,
+  ) {
+    return ListTile(
+      leading: Icon(icon, color: const Color(0xFF1ca424)),
+      title: Text(title),
+      trailing: const Icon(Icons.arrow_forward_ios, color: Color(0xFF1ca424)),
+      onTap: onTap is Function
+          ? () => onTap() // Llamamos a la función si es una función
+          : (onTap is Widget
+              ? () => OneContext().push(
+                    MaterialPageRoute(builder: (context) => onTap),
+                  )
+              : null), // Si no es ni función ni Widget, asignamos null
+    );
   }
+}
 
-  void _onSearchChanged(String query) {
-    setState(() {
-      _filteredUsers = _users
-          .where((user) =>
-              user['id']
-                  .toString()
-                  .toLowerCase()
-                  .contains(query.toLowerCase()) ||
-              user['email'].toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    });
-  }
+class FrequentQuestionsScreen extends StatelessWidget {
+  const FrequentQuestionsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        title: const Text('Buscar usuarios'),
-        leading: IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon:
-              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Container(
-              height: 50,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: Colors.grey[200],
-              ),
-              child: Row(
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(left: 16.0),
-                    child: Icon(
-                      Icons.search,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(width: 16.0),
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: const InputDecoration(
-                        hintText: "Buscar usuario por ID o email",
-                        border: InputBorder.none,
-                      ),
-                      onChanged: _onSearchChanged,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 25.0),
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CupertinoActivityIndicator(
-                      radius: 16,
-                      color: Colors.green,
-                    ))
-                  : _filteredUsers.isEmpty
-                      ? const Center(
-                          child: Text('No se encontraron usuarios'),
-                        )
-                      : GridView.count(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          childAspectRatio: 16 / 14,
-                          children: _filteredUsers.map((user) {
-                            return _buildUserButton(user);
-                          }).toList(),
-                        ),
-            ),
-          ],
-        ),
-      ),
+      appBar: AppBar(title: const Text('Preguntas frecuentes')),
+      body: const Center(child: Text('Pantalla de Preguntas frecuentes')),
     );
   }
+}
 
-  Widget _buildUserButton(Map<String, dynamic> user) {
-    return InkWell(
-      onTap: () {
-        Navigator.of(context).pop(user); // Corrección aquí
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: const Color(0xFF08143C),
-            width: 1.0,
-          ),
-        ),
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundImage: user['profileImageUrl'] != null
-                  ? NetworkImage(user['profileImageUrl'])
-                  : const AssetImage(
-                      'assets/images/ProfilePhoto_predetermined.png'),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'ID: ${user['id']}',
-              style: const TextStyle(fontSize: 12),
-            ),
-            Text(
-              'Nombre: ${user['name']} ${user['lastName']}',
-              style: const TextStyle(fontSize: 12),
-            ),
-            Text(
-              'Rol: ${user['role']}',
-              style: const TextStyle(fontSize: 12),
-            ),
-            Text(
-              'Correo: ${user['email']}',
-              style: const TextStyle(fontSize: 8),
-            ),
-          ],
-        ),
-      ),
+class AboutAppScreen extends StatelessWidget {
+  const AboutAppScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Acerca de la app')),
+      body: const Center(child: Text('Información sobre la aplicación')),
+    );
+  }
+}
+
+class TermsAndConditionsScreen extends StatelessWidget {
+  const TermsAndConditionsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Términos y condiciones')),
+      body: const Center(child: Text('Términos y condiciones de uso')),
+    );
+  }
+}
+
+class InternalMessagingScreen extends StatelessWidget {
+  const InternalMessagingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Mensajería interna')),
+      body: const Center(child: Text('Sistema de mensajería interna')),
+    );
+  }
+}
+
+class EmailSupportScreen extends StatelessWidget {
+  const EmailSupportScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Soporte por correo')),
+      body: const Center(child: Text('Formulario de contacto por correo')),
     );
   }
 }
