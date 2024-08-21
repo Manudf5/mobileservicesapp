@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:intl/intl.dart';
+import 'package:photo_view/photo_view.dart';
 import 'dart:io';
 import '../intro_screen.dart';
 import 'package:image_picker/image_picker.dart';
@@ -24,6 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userID = '';
   String _userBio = '';
   String _profileImageUrl = '';
+  String _coverImageUrl = '';
   String _userAssessment = '0';
   String _userAssessmentCount = '0';
 
@@ -62,6 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _userLastName = userDoc.data()!['lastName'];
           _userBio = userDoc.data()!['bio'] ?? '';
           _profileImageUrl = userDoc.data()!['profileImageUrl'] ?? '';
+          _coverImageUrl = userDoc.data()!['coverImageUrl'] ?? '';
           _userAssessment = averageSupplierEvaluation[0].toString();
           _userAssessmentCount = averageSupplierEvaluation[1].toString();
         });
@@ -88,6 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String? updatedUserLastName,
     String? updatedUserBio,
     String? updatedProfileImageUrl,
+    String? updatedCoverImageUrl,
   }) async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
@@ -101,20 +107,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'lastName': updatedUserLastName ?? _userLastName,
         'bio': updatedUserBio ?? _userBio,
         'profileImageUrl': updatedProfileImageUrl ?? _profileImageUrl,
+        'coverImageUrl': updatedCoverImageUrl ?? _coverImageUrl,
       });
     }
   }
 
-  Future _selectImageFromGallery() async {
+  Future _selectImageFromGallery(bool isCoverImage) async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
     if (image != null) {
-      _uploadImageToFirebase(image.path);
+      if (isCoverImage) {
+        _uploadCoverImageToFirebase(image.path);
+      } else {
+        _uploadProfileImageToFirebase(image.path);
+      }
     }
   }
 
-  Future _uploadImageToFirebase(String imagePath) async {
+  Future _uploadProfileImageToFirebase(String imagePath) async {
     String fileName = DateTime.now().millisecondsSinceEpoch.toString();
     Reference storageReference =
         FirebaseStorage.instance.ref().child('profileImages/$fileName');
@@ -139,12 +150,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future _uploadCoverImageToFirebase(String imagePath) async {
+    String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+    Reference storageReference =
+        FirebaseStorage.instance.ref().child('coverImages/$fileName');
+
+    try {
+      if (_coverImageUrl.isNotEmpty) {
+        await FirebaseStorage.instance.refFromURL(_coverImageUrl).delete();
+      }
+
+      UploadTask uploadTask = storageReference.putFile(File(imagePath));
+      await uploadTask.whenComplete(() async {
+        String downloadUrl = await storageReference.getDownloadURL();
+        setState(() {
+          _coverImageUrl = downloadUrl;
+        });
+        _updateProfileData(updatedCoverImageUrl: downloadUrl);
+      });
+    } catch (e) {
+      OneContext().showSnackBar(
+        builder: (_) => SnackBar(
+          content: Text('Error al subir la imagen: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   void _showEditProfileScreen() {
     OneContext().push(
       MaterialPageRoute(
         builder: (context) => _EditProfileScreen(
           userBio: _userBio,
           profileImageUrl: _profileImageUrl,
+          coverImageUrl: _coverImageUrl,
           onUpdateProfile: _updateProfileData,
           onSelectImage: _selectImageFromGallery,
         ),
@@ -199,6 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _userID = combinedId;
             _userBio = snapshot.data()!['bio'] ?? '';
             _profileImageUrl = snapshot.data()!['profileImageUrl'] ?? '';
+            _coverImageUrl = snapshot.data()!['coverImageUrl'] ?? '';
           });
         }
       });
@@ -242,30 +283,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Stack(
               clipBehavior: Clip.none,
               children: <Widget>[
-                Container(
-                  height: 170,
-                  color: const Color(0xFF08143c),
+                GestureDetector(
+                  onTap: () {
+                    if (_coverImageUrl.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ImagePreviewScreen(
+                            imageUrl: _coverImageUrl,
+                            isCoverImage: true,
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(13.0),
+                      bottomRight: Radius.circular(13.0),
+                    ),
+                    child: _coverImageUrl.isEmpty
+                        ? Container(
+                            height: 190,
+                            color: const Color(0xFF08143c),
+                          )
+                        : Container(
+                            height: 190,
+                            decoration: BoxDecoration(
+                              image: DecorationImage(
+                                image: NetworkImage(_coverImageUrl),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                  ),
                 ),
                 Positioned(
-                  top: 105,
+                  top: 125,
                   left: 20,
-                  child: Container(
-                    width: 130,
-                    height: 130,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white,
-                        width: 4.0,
+                  child: GestureDetector(
+                    onTap: () {
+                      if (_profileImageUrl.isNotEmpty) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ImagePreviewScreen(
+                              imageUrl: _profileImageUrl,
+                              isCoverImage: false,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    child: Container(
+                      width: 130,
+                      height: 130,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 4.0,
+                        ),
                       ),
-                    ),
-                    child: CircleAvatar(
-                      radius: 60,
-                      backgroundImage: _profileImageUrl.isNotEmpty
-                          ? NetworkImage(_profileImageUrl)
-                          : const AssetImage(
-                                  'assets/images/ProfilePhoto_predetermined.png')
-                              as ImageProvider,
+                      child: CircleAvatar(
+                        radius: 60,
+                        backgroundImage: _profileImageUrl.isNotEmpty
+                            ? NetworkImage(_profileImageUrl)
+                            : const AssetImage(
+                                    'assets/images/ProfilePhoto_predetermined.png')
+                                as ImageProvider,
+                      ),
                     ),
                   ),
                 ),
@@ -282,7 +369,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     backgroundColor: Colors.white,
                     foregroundColor: const Color(0xFF08143c),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20.0),
+                      borderRadius: BorderRadius.circular(12.0),
                       side: const BorderSide(color: Color(0xFF08143c)),
                     ),
                     padding: const EdgeInsets.symmetric(
@@ -425,34 +512,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Función para construir cada elemento del menú
   Widget _buildMenuItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
+  required IconData icon,
+  required String title,
+  required VoidCallback onTap,
+}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 25.0), // Ajusta el valor según lo que necesites
+    child: ListTile(
       leading: Icon(icon, color: const Color(0xFF08143c)),
       title: Text(
         title,
         style: const TextStyle(
-          fontSize: 16.0,
+          fontSize: 15.0,
+          fontWeight: FontWeight.bold,
           color: Color(0xFF08143c),
         ),
       ),
       trailing: const Icon(Icons.chevron_right, color: Color(0xFF08143c)),
       onTap: onTap,
-    );
-  }
+    ),
+  );
+}
 }
 
 class _EditProfileScreen extends StatefulWidget {
   final String userBio;
   final String profileImageUrl;
+  final String coverImageUrl;
   final Function onUpdateProfile;
   final Function onSelectImage;
 
   const _EditProfileScreen({
     required this.userBio,
     required this.profileImageUrl,
+    required this.coverImageUrl,
     required this.onUpdateProfile,
     required this.onSelectImage,
   });
@@ -466,12 +559,14 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
   late TextEditingController _bioController;
   late StreamSubscription<DocumentSnapshot<Map<String, dynamic>>> _userStream;
   String _currentProfileImageUrl = '';
+  String _currentCoverImageUrl = '';
 
   @override
   void initState() {
     super.initState();
     _bioController = TextEditingController(text: widget.userBio);
     _currentProfileImageUrl = widget.profileImageUrl;
+    _currentCoverImageUrl = widget.coverImageUrl;
     _listenForUserUpdates();
   }
 
@@ -495,6 +590,7 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
           setState(() {
             _bioController.text = snapshot.data()!['bio'] ?? '';
             _currentProfileImageUrl = snapshot.data()!['profileImageUrl'] ?? '';
+            _currentCoverImageUrl = snapshot.data()!['coverImageUrl'] ?? '';
           });
         }
       });
@@ -515,37 +611,132 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
     return '';
   }
 
-  Future<void> _updateProfileImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
-    if (image != null) {
-      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-      Reference storageReference =
-          FirebaseStorage.instance.ref().child('profileImages/$fileName');
-
-      try {
-        if (_currentProfileImageUrl.isNotEmpty) {
-          await FirebaseStorage.instance
-              .refFromURL(_currentProfileImageUrl)
-              .delete();
-        }
-
-        UploadTask uploadTask = storageReference.putFile(File(image.path));
-        await uploadTask.whenComplete(() async {
-          String downloadUrl = await storageReference.getDownloadURL();
-          widget.onUpdateProfile(updatedProfileImageUrl: downloadUrl);
-        });
-      } catch (e) {
-        OneContext().showSnackBar(
-          builder: (_) => const SnackBar(
-            content: Text(
-              'Error al actualizar la foto.',
-              style: TextStyle(color: Colors.white),
+  Future<void> _showProfileImageOptions() async {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Actualizar foto de perfil'),
+              onTap: () async {
+                Navigator.pop(context);
+                await widget.onSelectImage(false);
+              },
             ),
-            backgroundColor: Colors.red,
-          ),
+            if (_currentProfileImageUrl.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.delete),
+                title: const Text('Eliminar foto de perfil'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _deleteProfileImage();
+                },
+              ),
+          ],
         );
+      },
+    );
+  }
+
+  Future<void> _showCoverImageOptions() async {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Actualizar foto de portada'),
+              onTap: () async {
+                Navigator.pop(context);
+                await widget.onSelectImage(true);
+              },
+            ),
+            if (_currentCoverImageUrl.isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.delete),
+                title: const Text('Eliminar foto de portada'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _deleteCoverImage();
+                },
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteProfileImage() async {
+    try {
+      // Eliminar la imagen de Firebase Storage
+      if (_currentProfileImageUrl.isNotEmpty) {
+        await FirebaseStorage.instance
+            .refFromURL(_currentProfileImageUrl)
+            .delete();
+      }
+
+      // Actualizar el campo profileImageUrl en Firestore
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        String combinedId = await _getCombinedIdFromFirestore(user.uid);
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(combinedId)
+            .update({
+          'profileImageUrl': '',
+        });
+      }
+
+      setState(() {
+        _currentProfileImageUrl = '';
+      });
+
+      // Llamar a onUpdateProfile para notificar que el perfil ha sido actualizado
+      await widget.onUpdateProfile(updatedUserBio: _bioController.text);
+    } catch (e) {
+      // Manejo de errores
+      if (kDebugMode) {
+        print("Error al eliminar la imagen de perfil: $e");
+      }
+    }
+  }
+
+  Future<void> _deleteCoverImage() async {
+    try {
+      // Eliminar la imagen de Firebase Storage
+      if (_currentCoverImageUrl.isNotEmpty) {
+        await FirebaseStorage.instance
+            .refFromURL(_currentCoverImageUrl)
+            .delete();
+      }
+
+      // Actualizar el campo coverImageUrl en Firestore
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        String combinedId = await _getCombinedIdFromFirestore(user.uid);
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(combinedId)
+            .update({
+          'coverImageUrl': '',
+        });
+      }
+
+      setState(() {
+        _currentCoverImageUrl = '';
+      });
+
+      // Llamar a onUpdateProfile para notificar que el perfil ha sido actualizado
+      await widget.onUpdateProfile(updatedUserBio: _bioController.text);
+    } catch (e) {
+      // Manejo de errores
+      if (kDebugMode) {
+        print("Error al eliminar la imagen de portada: $e");
       }
     }
   }
@@ -559,7 +750,7 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF08143c)),
-          onPressed: () => OneContext().pop(),
+          onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Editar Perfil',
@@ -579,42 +770,70 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                 Stack(
                   alignment: Alignment.center,
                   children: [
-                    Container(
-                      width: 120.0,
-                      height: 120.0,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFF1ca424),
-                          width: 3.0,
+                    GestureDetector(
+                      onTap: _showCoverImageOptions,
+                      child: Container(
+                        width: double.infinity,
+                        height: 150.0,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14.0),
+                          border: Border.all(
+                            color: const Color(0xFF08143c),
+                            width: 1.0,
+                          ),
+                          image: _currentCoverImageUrl.isNotEmpty
+                              ? DecorationImage(
+                                  image: NetworkImage(_currentCoverImageUrl),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
                         ),
+                        child: _currentCoverImageUrl.isEmpty
+                            ? Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF08143c),
+                                  borderRadius: BorderRadius.circular(12.0),
+                                ),
+                                child: const Padding(
+                                  padding: EdgeInsets.only(right: 68.0),
+                                  child: Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Text(
+                                      'Agregar portada',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : null,
                       ),
                     ),
-                    _currentProfileImageUrl.isNotEmpty
-                        ? CircleAvatar(
-                            radius: 55.0,
-                            backgroundImage:
-                                NetworkImage(_currentProfileImageUrl),
-                          )
-                        : CircleAvatar(
-                            radius: 55.0,
-                            backgroundColor: Colors.grey[300],
-                            child: Icon(
-                              Icons.person,
-                              size: 50.0,
-                              color: Colors.grey[600],
+                    Positioned(
+                      top: 30,
+                      left: 20,
+                      child: GestureDetector(
+                        onTap: _showProfileImageOptions,
+                        child: Container(
+                          width: 90,
+                          height: 90,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white,
+                              width: 4.0,
                             ),
                           ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: CircleAvatar(
-                        backgroundColor: const Color(0xFF08143c),
-                        radius: 20,
-                        child: IconButton(
-                          icon: const Icon(Icons.edit,
-                              color: Colors.white, size: 18),
-                          onPressed: _updateProfileImage,
+                          child: CircleAvatar(
+                            radius: 60,
+                            backgroundImage: _currentProfileImageUrl.isNotEmpty
+                                ? NetworkImage(_currentProfileImageUrl)
+                                : const AssetImage(
+                                        'assets/images/ProfilePhoto_predetermined.png')
+                                    as ImageProvider,
+                          ),
                         ),
                       ),
                     ),
@@ -627,11 +846,11 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                     labelText: 'Biografía',
                     labelStyle: const TextStyle(color: Color(0xFF08143c)),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10.0),
+                      borderRadius: BorderRadius.circular(14.0),
                       borderSide: const BorderSide(color: Color(0xFF08143c)),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10.0),
+                      borderRadius: BorderRadius.circular(14.0),
                       borderSide: const BorderSide(color: Color(0xFF1ca424)),
                     ),
                   ),
@@ -651,7 +870,7 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                       widget.onUpdateProfile(
                         updatedUserBio: _bioController.text,
                       );
-                      OneContext().pop();
+                      Navigator.pop(context);
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -664,7 +883,10 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                   ),
                   child: const Text(
                     'Guardar Cambios',
-                    style: TextStyle(fontSize: 16.0),
+                    style: TextStyle(
+                      fontSize: 16.0,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ],
@@ -703,7 +925,18 @@ class SecurityAndPrivacyScreen extends StatelessWidget {
         children: [
           ListTile(
             leading: const Icon(Icons.lock, color: Color(0xFF08143c)),
-            title: const Text('Cambiar contraseña'),
+            title: const Text('Contraseña'),
+            onTap: () {
+              OneContext().push(
+                MaterialPageRoute(
+                  builder: (context) => const ChangePasswordScreen(),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.lock, color: Color(0xFF08143c)),
+            title: const Text('Clave de pago'),
             onTap: () {
               OneContext().push(
                 MaterialPageRoute(
@@ -876,9 +1109,16 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
             children: [
               TextFormField(
                 controller: _currentPasswordController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Contraseña actual',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14.0),
+                      borderSide:  const BorderSide(color: Color(0xFF08143c)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14.0),
+                      borderSide: const BorderSide(color: Color(0xFF1ca424)),
+                    ),
                 ),
                 obscureText: true,
                 validator: (value) {
@@ -891,9 +1131,16 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
               const SizedBox(height: 16.0),
               TextFormField(
                 controller: _newPasswordController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Nueva contraseña',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14.0),
+                      borderSide:  const BorderSide(color: Color(0xFF08143c)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14.0),
+                      borderSide: const BorderSide(color: Color(0xFF1ca424)),
+                    ),
                 ),
                 obscureText: true,
                 validator: (value) {
@@ -909,9 +1156,16 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
               const SizedBox(height: 16.0),
               TextFormField(
                 controller: _confirmPasswordController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Confirmación de contraseña',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14.0),
+                      borderSide:  const BorderSide(color: Color(0xFF08143c)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14.0),
+                      borderSide: const BorderSide(color: Color(0xFF1ca424)),
+                    ),
                 ),
                 obscureText: true,
                 validator: (value) {
@@ -977,8 +1231,57 @@ class BlockedUsersScreen extends StatelessWidget {
   }
 }
 
-class AccountScreen extends StatelessWidget {
+class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
+
+  @override
+  _AccountScreenState createState() => _AccountScreenState();
+}
+
+class _AccountScreenState extends State<AccountScreen> {
+  late Future<Map<String, dynamic>> _userDataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _userDataFuture = _getUserData();
+  }
+
+  Future<Map<String, dynamic>> _getUserData() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      String combinedId = await _getCombinedIdFromFirestore(user.uid);
+      DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+          .instance
+          .collection('users')
+          .doc(combinedId)
+          .get();
+
+      if (userDoc.exists) {
+        return userDoc.data()!;
+      }
+    }
+    throw Exception('No se pudo obtener los datos del usuario');
+  }
+
+  Future<String> _getCombinedIdFromFirestore(String uid) async {
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+        .instance
+        .collection('users')
+        .where('uid', isEqualTo: uid)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      return querySnapshot.docs.first.id;
+    }
+
+    return '';
+  }
+
+  String _formatDate(Timestamp? timestamp) {
+    if (timestamp == null) return 'No disponible';
+    return DateFormat('dd/MM/yyyy').format(timestamp.toDate());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -999,47 +1302,83 @@ class AccountScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Información de la cuenta',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF08143c),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const ListTile(
-              title: Text('Correo electrónico'),
-              subtitle: Text('usuario@ejemplo.com'),
-            ),
-            const ListTile(
-              title: Text('Fecha de creación'),
-              subtitle: Text('01/01/2023'),
-            ),
-            const SizedBox(height: 40),
-            Center(
-              child: ElevatedButton(
-                onPressed: () {
-                  // Lógica para eliminar la cuenta
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30.0),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _userDataFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          } else if (snapshot.hasData) {
+            final userData = snapshot.data!;
+            return Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Información de la cuenta',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF08143c),
+                    ),
                   ),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 30.0, vertical: 15.0),
-                ),
-                child: const Text('Eliminar cuenta'),
+                  const SizedBox(height: 20),
+                  ListTile(
+                    title: const Text('Nombre y apellido'),
+                    subtitle: Text('${userData['name']} ${userData['lastName']}'),
+                  ),
+                  ListTile(
+                    title: const Text('Género'),
+                    subtitle: Text(userData['gender'] ?? 'No especificado'),
+                  ),
+                  ListTile(
+                    title: const Text('Correo electrónico'),
+                    subtitle: Text(userData['email']),
+                  ),
+                  ListTile(
+                    title: const Text('Número telefónico'),
+                    subtitle: Text(userData['phone'] ?? 'No especificado'),
+                  ),
+                  ListTile(
+                    title: const Text('Fecha de nacimiento'),
+                    subtitle: Text(_formatDate(userData['birthDate'])),
+                  ),
+                  ListTile(
+                    title: const Text('Apertura de la cuenta'),
+                    subtitle: Text(_formatDate(userData['registrationDate'])),
+                  ),
+                  const SizedBox(height: 40),
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        // Lógica para eliminar la cuenta
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30.0),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 30.0, vertical: 15.0),
+                      ),
+                      child: const Text(
+                        'Eliminar cuenta',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
+            );
+          } else {
+            return const Center(child: Text('No se encontraron datos'));
+          }
+        },
       ),
     );
   }
@@ -1092,7 +1431,8 @@ class HelpScreen extends StatelessWidget {
             ),
             const SizedBox(height: 30),
             Card(
-              elevation: 4,
+              color: Colors.blueGrey[50],
+              elevation: 6,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15),
               ),
@@ -1245,6 +1585,45 @@ class EmailSupportScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Soporte por correo')),
       body: const Center(child: Text('Formulario de contacto por correo')),
+    );
+  }
+}
+
+class ImagePreviewScreen extends StatelessWidget {
+  final String imageUrl;
+  final bool isCoverImage;
+
+  const ImagePreviewScreen({
+    super.key,
+    required this.imageUrl,
+    this.isCoverImage = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        leading: IconButton(
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          onPressed: () {
+            Navigator.of(context).pop(); // Regresa a la pantalla anterior
+          },
+        ),
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      body: Center(
+        child: PhotoView(
+          imageProvider: NetworkImage(imageUrl),
+          backgroundDecoration: const BoxDecoration(
+            color: Colors.black,
+          ),
+          minScale: PhotoViewComputedScale.contained * 0.8,
+          maxScale: PhotoViewComputedScale.covered * 3,
+        ),
+      ),
     );
   }
 }
