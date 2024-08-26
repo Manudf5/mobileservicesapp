@@ -12,6 +12,7 @@ import '../intro_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:one_context/one_context.dart';
+import 'package:image/image.dart' as img;
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -125,58 +126,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future _uploadProfileImageToFirebase(String imagePath) async {
-    String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-    Reference storageReference =
-        FirebaseStorage.instance.ref().child('profileImages/$fileName');
+  // Método para comprimir y redimensionar la imagen
+Future<File> _compressAndResizeImage(File imageFile, {int maxWidth = 800, int maxHeight = 600}) async {
+  final img.Image? image = img.decodeImage(await imageFile.readAsBytes());
 
-    try {
-      UploadTask uploadTask = storageReference.putFile(File(imagePath));
-
-      await uploadTask.whenComplete(() async {
-        String downloadUrl = await storageReference.getDownloadURL();
-        setState(() {
-          _profileImageUrl = downloadUrl;
-        });
-        _updateProfileData(updatedProfileImageUrl: downloadUrl);
-      });
-    } catch (e) {
-      OneContext().showSnackBar(
-        builder: (_) => SnackBar(
-          content: Text('Error al subir la imagen: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+  if (image == null) {
+    throw Exception("No se pudo decodificar la imagen");
   }
 
-  Future _uploadCoverImageToFirebase(String imagePath) async {
-    String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-    Reference storageReference =
-        FirebaseStorage.instance.ref().child('coverImages/$fileName');
+  // Redimensionar la imagen
+  img.Image resizedImage = img.copyResize(
+    image,
+    width: maxWidth,
+    height: maxHeight,
+    interpolation: img.Interpolation.linear
+  );
 
-    try {
-      if (_coverImageUrl.isNotEmpty) {
-        await FirebaseStorage.instance.refFromURL(_coverImageUrl).delete();
-      }
+  // Comprimir la imagen redimensionada a un 85% de calidad
+  final compressedImage = img.encodeJpg(resizedImage, quality: 85);
 
-      UploadTask uploadTask = storageReference.putFile(File(imagePath));
-      await uploadTask.whenComplete(() async {
-        String downloadUrl = await storageReference.getDownloadURL();
-        setState(() {
-          _coverImageUrl = downloadUrl;
-        });
-        _updateProfileData(updatedCoverImageUrl: downloadUrl);
-      });
-    } catch (e) {
-      OneContext().showSnackBar(
-        builder: (_) => SnackBar(
-          content: Text('Error al subir la imagen: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+  final compressedFile = File(imageFile.path)
+    ..writeAsBytesSync(compressedImage);
+
+  return compressedFile;
+}
+
+Future _uploadProfileImageToFirebase(String imagePath) async {
+  String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+  Reference storageReference =
+      FirebaseStorage.instance.ref().child('profileImages/$fileName');
+
+  try {
+    // Eliminar la imagen de perfil existente
+    if (_profileImageUrl.isNotEmpty) {
+      await FirebaseStorage.instance.refFromURL(_profileImageUrl).delete();
     }
+
+    // Comprimir y redimensionar la imagen antes de subirla
+    File compressedFile = await _compressAndResizeImage(
+      File(imagePath),
+      maxWidth: 400,
+      maxHeight: 500
+    );
+
+    // Subir la imagen comprimida y redimensionada
+    UploadTask uploadTask = storageReference.putFile(compressedFile);
+
+    await uploadTask.whenComplete(() async {
+      String downloadUrl = await storageReference.getDownloadURL();
+      setState(() {
+        _profileImageUrl = downloadUrl;
+      });
+      _updateProfileData(updatedProfileImageUrl: downloadUrl);
+    });
+  } catch (e) {
+    OneContext().showSnackBar(
+      builder: (_) => SnackBar(
+        content: Text('Error al subir la imagen: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
+}
+
+Future _uploadCoverImageToFirebase(String imagePath) async {
+  String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+  Reference storageReference =
+      FirebaseStorage.instance.ref().child('coverImages/$fileName');
+
+  try {
+    // Eliminar la imagen de portada existente
+    if (_coverImageUrl.isNotEmpty) {
+      await FirebaseStorage.instance.refFromURL(_coverImageUrl).delete();
+    }
+
+    // Comprimir y redimensionar la imagen antes de subirla
+    File compressedFile = await _compressAndResizeImage(
+      File(imagePath),
+      maxWidth: 1200,
+      maxHeight: 630
+    );
+
+    // Subir la imagen comprimida y redimensionada
+    UploadTask uploadTask = storageReference.putFile(compressedFile);
+    await uploadTask.whenComplete(() async {
+      String downloadUrl = await storageReference.getDownloadURL();
+      setState(() {
+        _coverImageUrl = downloadUrl;
+      });
+      _updateProfileData(updatedCoverImageUrl: downloadUrl);
+    });
+  } catch (e) {
+    OneContext().showSnackBar(
+      builder: (_) => SnackBar(
+        content: Text('Error al subir la imagen: $e'),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
 
   void _showEditProfileScreen() {
     OneContext().push(
@@ -512,27 +560,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // Función para construir cada elemento del menú
   Widget _buildMenuItem({
-  required IconData icon,
-  required String title,
-  required VoidCallback onTap,
-}) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 25.0), // Ajusta el valor según lo que necesites
-    child: ListTile(
-      leading: Icon(icon, color: const Color(0xFF08143c)),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 15.0,
-          fontWeight: FontWeight.bold,
-          color: Color(0xFF08143c),
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+          horizontal: 25.0), // Ajusta el valor según lo que necesites
+      child: ListTile(
+        leading: Icon(icon, color: const Color(0xFF08143c)),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 15.0,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF08143c),
+          ),
         ),
+        trailing:
+            const Icon(Icons.chevron_right, color: Color(0xFF08143c)),
+        onTap: onTap,
       ),
-      trailing: const Icon(Icons.chevron_right, color: Color(0xFF08143c)),
-      onTap: onTap,
-    ),
-  );
-}
+    );
+  }
 }
 
 class _EditProfileScreen extends StatefulWidget {
