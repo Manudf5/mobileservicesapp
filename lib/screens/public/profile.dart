@@ -13,6 +13,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:one_context/one_context.dart';
 import 'package:image/image.dart' as img;
+import 'package:image_cropper/image_cropper.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -114,17 +115,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future _selectImageFromGallery(bool isCoverImage) async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+  final ImagePicker picker = ImagePicker();
+  final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-    if (image != null) {
+  if (image != null) {
+    CroppedFile? croppedFile = await ImageCropper().cropImage(
+      sourcePath: image.path,
+      aspectRatio: isCoverImage 
+          ? const CropAspectRatio(ratioX: 1200, ratioY: 630)
+          : const CropAspectRatio(ratioX: 400, ratioY: 500),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: isCoverImage ? 'Ajustar foto de portada' : 'Ajustar foto de perfil',
+          toolbarColor: Colors.white,
+          toolbarWidgetColor: Colors.black,
+          backgroundColor: Colors.white,
+          statusBarColor: Colors.white,
+          activeControlsWidgetColor: Colors.green,
+          cropFrameColor: Colors.green,
+          cropGridColor: Colors.grey[300],
+          hideBottomControls: false,
+          initAspectRatio: isCoverImage ? CropAspectRatioPreset.ratio16x9 : CropAspectRatioPreset.ratio4x3,
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(
+          title: isCoverImage ? 'Ajustar foto de portada' : 'Ajustar foto de perfil',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+        ),
+      ],
+    );
+
+    if (croppedFile != null) {
       if (isCoverImage) {
-        _uploadCoverImageToFirebase(image.path);
+        _uploadCoverImageToFirebase(croppedFile.path);
       } else {
-        _uploadProfileImageToFirebase(image.path);
+        _uploadProfileImageToFirebase(croppedFile.path);
       }
     }
   }
+}
 
   // Método para comprimir y redimensionar la imagen
 Future<File> _compressAndResizeImage(File imageFile, {int maxWidth = 800, int maxHeight = 600}) async {
@@ -1285,6 +1315,7 @@ class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _AccountScreenState createState() => _AccountScreenState();
 }
 
