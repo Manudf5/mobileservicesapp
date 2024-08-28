@@ -123,7 +123,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       sourcePath: image.path,
       aspectRatio: isCoverImage 
           ? const CropAspectRatio(ratioX: 1200, ratioY: 630)
-          : const CropAspectRatio(ratioX: 400, ratioY: 500),
+          : const CropAspectRatio(ratioX: 400, ratioY: 400),
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: isCoverImage ? 'Ajustar foto de portada' : 'Ajustar foto de perfil',
@@ -640,6 +640,7 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
   late StreamSubscription<DocumentSnapshot<Map<String, dynamic>>> _userStream;
   String _currentProfileImageUrl = '';
   String _currentCoverImageUrl = '';
+  bool _isBioFocused = false;
 
   @override
   void initState() {
@@ -669,7 +670,8 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
         if (snapshot.exists) {
           setState(() {
             _bioController.text = snapshot.data()!['bio'] ?? '';
-            _currentProfileImageUrl = snapshot.data()!['profileImageUrl'] ?? '';
+            _currentProfileImageUrl =
+                snapshot.data()!['profileImageUrl'] ?? '';
             _currentCoverImageUrl = snapshot.data()!['coverImageUrl'] ?? '';
           });
         }
@@ -753,14 +755,12 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
 
   Future<void> _deleteProfileImage() async {
     try {
-      // Eliminar la imagen de Firebase Storage
       if (_currentProfileImageUrl.isNotEmpty) {
         await FirebaseStorage.instance
             .refFromURL(_currentProfileImageUrl)
             .delete();
       }
 
-      // Actualizar el campo profileImageUrl en Firestore
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         String combinedId = await _getCombinedIdFromFirestore(user.uid);
@@ -776,10 +776,8 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
         _currentProfileImageUrl = '';
       });
 
-      // Llamar a onUpdateProfile para notificar que el perfil ha sido actualizado
       await widget.onUpdateProfile(updatedUserBio: _bioController.text);
     } catch (e) {
-      // Manejo de errores
       if (kDebugMode) {
         print("Error al eliminar la imagen de perfil: $e");
       }
@@ -788,14 +786,12 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
 
   Future<void> _deleteCoverImage() async {
     try {
-      // Eliminar la imagen de Firebase Storage
       if (_currentCoverImageUrl.isNotEmpty) {
         await FirebaseStorage.instance
             .refFromURL(_currentCoverImageUrl)
             .delete();
       }
 
-      // Actualizar el campo coverImageUrl en Firestore
       User? user = FirebaseAuth.instance.currentUser;
       if (user != null) {
         String combinedId = await _getCombinedIdFromFirestore(user.uid);
@@ -811,10 +807,8 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
         _currentCoverImageUrl = '';
       });
 
-      // Llamar a onUpdateProfile para notificar que el perfil ha sido actualizado
       await widget.onUpdateProfile(updatedUserBio: _bioController.text);
     } catch (e) {
-      // Manejo de errores
       if (kDebugMode) {
         print("Error al eliminar la imagen de portada: $e");
       }
@@ -920,28 +914,39 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 30.0),
-                TextFormField(
-                  controller: _bioController,
-                  decoration: InputDecoration(
-                    labelText: 'Biografía',
-                    labelStyle: const TextStyle(color: Color(0xFF08143c)),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.0),
-                      borderSide: const BorderSide(color: Color(0xFF08143c)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.0),
-                      borderSide: const BorderSide(color: Color(0xFF1ca424)),
-                    ),
-                  ),
-                  maxLines: 3,
-                  maxLength: 100,
-                  validator: (value) {
-                    if (value != null && value.length > 100) {
-                      return 'La biografía debe tener un máximo de 100 caracteres';
-                    }
-                    return null;
+                Focus(
+                  onFocusChange: (hasFocus) {
+                    setState(() {
+                      _isBioFocused = hasFocus;
+                    });
                   },
+                  child: TextFormField(
+                    controller: _bioController,
+                    decoration: InputDecoration(
+                      labelText: 'Biografía',
+                      labelStyle: const TextStyle(
+                        color: Color.fromRGBO(13, 71, 161, 1),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14.0),
+                        borderSide: const BorderSide(color: Color(0xFF08143c)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14.0),
+                        borderSide: const BorderSide(color: Color(0xFF1ca424)),
+                      ),
+                    ),
+                    maxLines: _isBioFocused ? 3 : 1,
+                    maxLength: 100,
+                    validator: (value) {
+                      if (value != null && value.length > 100) {
+                        return 'La biografía debe tener un máximo de 100 caracteres';
+                      }
+                      return null;
+                    },
+                  ),
                 ),
                 const SizedBox(height: 30.0),
                 ElevatedButton(
@@ -977,6 +982,7 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
     );
   }
 }
+
 
 class SecurityAndPrivacyScreen extends StatelessWidget {
   const SecurityAndPrivacyScreen({super.key});
@@ -1020,7 +1026,7 @@ class SecurityAndPrivacyScreen extends StatelessWidget {
             onTap: () {
               OneContext().push(
                 MaterialPageRoute(
-                  builder: (context) => const ChangePasswordScreen(),
+                  builder: (context) => const ChangePaymentKeyScreen(),
                 ),
               );
             },
@@ -1279,6 +1285,265 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     SizedBox(width: 10.0),
                     Text(
                       'Actualizar contraseña',
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ChangePaymentKeyScreen extends StatefulWidget {
+  const ChangePaymentKeyScreen({super.key});
+
+  @override
+  State<ChangePaymentKeyScreen> createState() => _ChangePaymentKeyScreenState();
+}
+
+class _ChangePaymentKeyScreenState extends State<ChangePaymentKeyScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _currentPinController;
+  late TextEditingController _newPinController;
+  late TextEditingController _confirmPinController;
+  bool _hasPinCreated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentPinController = TextEditingController();
+    _newPinController = TextEditingController();
+    _confirmPinController = TextEditingController();
+    _checkExistingPin();
+  }
+
+  @override
+  void dispose() {
+    _currentPinController.dispose();
+    _newPinController.dispose();
+    _confirmPinController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkExistingPin() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      String combinedId = await _getCombinedIdFromFirestore(user.uid);
+      DocumentSnapshot doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(combinedId)
+          .get();
+
+      setState(() {
+        _hasPinCreated = doc.data() != null &&
+            (doc.data() as Map<String, dynamic>).containsKey('pin');
+      });
+    }
+  }
+
+  Future<void> _updatePin() async {
+    if (_formKey.currentState!.validate()) {
+      String newPin = _newPinController.text.trim();
+
+      try {
+        User? user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          String combinedId = await _getCombinedIdFromFirestore(user.uid);
+          DocumentSnapshot doc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(combinedId)
+              .get();
+
+          if (_hasPinCreated) {
+            String currentPin = _currentPinController.text.trim();
+            if (doc.data() != null &&
+                (doc.data() as Map<String, dynamic>)['pin'] != currentPin) {
+              _showSnackBar('El PIN actual es incorrecto.', Colors.red);
+              return;
+            }
+          }
+
+          // Actualiza el PIN en Firestore
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(combinedId)
+              .update({'pin': newPin});
+
+          _showSnackBar('¡PIN actualizado exitosamente!', Colors.green);
+
+          // Limpia los campos de texto
+          _currentPinController.clear();
+          _newPinController.clear();
+          _confirmPinController.clear();
+        }
+      } catch (e) {
+        _showSnackBar('Error al actualizar el PIN.', Colors.red);
+      }
+    }
+  }
+
+  void _showSnackBar(String message, Color backgroundColor) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(color: Colors.white),
+        ),
+        backgroundColor: backgroundColor,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+
+  Future<String> _getCombinedIdFromFirestore(String uid) async {
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+        .instance
+        .collection('users')
+        .where('uid', isEqualTo: uid)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      return querySnapshot.docs.first.id;
+    }
+
+    return '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Clave de pago',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              if (_hasPinCreated)
+                TextFormField(
+                  controller: _currentPinController,
+                  decoration: InputDecoration(
+                    labelText: 'PIN actual',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14.0),
+                      borderSide: const BorderSide(color: Color(0xFF08143c)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14.0),
+                      borderSide: const BorderSide(color: Color(0xFF1ca424)),
+                    ),
+                  ),
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Por favor, ingresa tu PIN actual';
+                    }
+                    return null;
+                  },
+                  maxLength: 4,
+                ),
+              if (_hasPinCreated) const SizedBox(height: 16.0),
+              TextFormField(
+                controller: _newPinController,
+                decoration: InputDecoration(
+                  labelText: 'Nuevo PIN',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14.0),
+                    borderSide: const BorderSide(color: Color(0xFF08143c)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14.0),
+                    borderSide: const BorderSide(color: Color(0xFF1ca424)),
+                  ),
+                ),
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor, ingresa tu nuevo PIN';
+                  }
+                  if (value.length != 4) {
+                    return 'El PIN debe tener 4 dígitos';
+                  }
+                  return null;
+                },
+                maxLength: 4,
+              ),
+              const SizedBox(height: 16.0),
+              TextFormField(
+                controller: _confirmPinController,
+                decoration: InputDecoration(
+                  labelText: 'Confirmar nuevo PIN',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14.0),
+                    borderSide: const BorderSide(color: Color(0xFF08143c)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14.0),
+                    borderSide: const BorderSide(color: Color(0xFF1ca424)),
+                  ),
+                ),
+                obscureText: true,
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor, confirma tu nuevo PIN';
+                  }
+                  if (value != _newPinController.text) {
+                    return 'Los PINs no coinciden';
+                  }
+                  return null;
+                },
+                maxLengthEnforcement: 4,
+              ),
+              const SizedBox(height: 32.0),
+              ElevatedButton(
+                onPressed: _updatePin,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20.0,
+                    vertical: 15.0,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15.0),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.update, color: Colors.white),
+                    SizedBox(width: 10.0),
+                    Text(
+                      'Actualizar PIN',
                       style: TextStyle(
                         fontSize: 16.0,
                         fontWeight: FontWeight.bold,
