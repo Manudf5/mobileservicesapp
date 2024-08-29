@@ -2761,7 +2761,6 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
       TextEditingController();
 
   bool _showProfileImage = false;
-  bool _showReservationModal = false;
   String clientIDString = "";
   String clientName = "";
 
@@ -3173,6 +3172,26 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                                 'assets/images/Zelle_Logo.png'),
                         ],
                       ),
+                      const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: () {
+                _showReservationBottomSheet();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                minimumSize: const Size(double.infinity, 50),
+                textStyle: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text('Reservar servicio'),
+            ),
                     ],
                   ),
                 ),
@@ -3204,56 +3223,10 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                     ),
                   ),
                 ),
-              if (_showReservationModal)
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _showReservationModal = false;
-                      _animationController.reverse();
-                    });
-                  },
-                  child: Container(
-                    color: Colors.black.withOpacity(0.5),
-                  ),
-                ),
-              if (_showReservationModal) _buildReservationModal(),
             ],
           );
         },
       ),
-      floatingActionButton: _showReservationModal
-          ? null
-          : SizedBox(
-              width: double.infinity,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _showReservationModal = true;
-                    });
-                    _animationController.forward();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1ca424),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 15,
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text('Reservar servicio'),
-                ),
-              ),
-            ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -3291,88 +3264,104 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
     );
   }
 
-  Widget _buildReservationModal() {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.8,
-      minChildSize: 0.2,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
-          ),
-          child: SingleChildScrollView(
-            controller: scrollController,
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'CONFIRMAR RESERVA',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF08143C),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    '¿Por qué requiere del servicio?',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF08143C),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: TextField(
-                      controller: _reservationTextController,
-                      maxLines: 4,
-                      style: const TextStyle(color: Color(0xFF08143C)),
-                      decoration: const InputDecoration(
-                        hintText:
-                            'Indica brevemente qué problema o situación le lleva a solicitar del servicio. Esta información ayudará al agente a entender tus necesidades y ofrecerle una solución óptima.',
-                        hintStyle:
-                            TextStyle(color: Color.fromARGB(129, 0, 0, 0)),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.all(15),
+  void _showReservationBottomSheet() {
+    _animationController.forward();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AnimatedBuilder(
+        animation: _animationController,
+        builder: (context, child) {
+          return SlideTransition(
+            position: _slideAnimation,
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+              ),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2.5),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'CONFIRMAR RESERVA',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF08143C),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        '¿Por qué requiere del servicio?',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF08143C),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: TextField(
+                          controller: _reservationTextController,
+                          maxLines: 4,
+                          style: const TextStyle(color: Color(0xFF08143C)),
+                          decoration: const InputDecoration(
+                            hintText: 'Indica brevemente qué problema o situación le lleva a solicitar del servicio. Esta información ayudará al agente a entender tus necesidades y ofrecerle una solución óptima.',
+                            hintStyle: TextStyle(color: Color.fromARGB(129, 0, 0, 0)),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.all(15),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () => _confirmReservation(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1ca424),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 40,
+                            vertical: 15,
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text('Confirmar reserva'),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () => _confirmReservation(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1ca424),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 15,
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text('Confirmar reserva'),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        );
-      },
-    );
+          );
+        },
+      ),
+    ).then((_) {
+      _animationController.reverse();
+    });
   }
 
   void _confirmReservation() async {
@@ -3399,10 +3388,6 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
 
   // Verificamos si el ID del proveedor es el mismo que el del usuario actual
   if (currentUserID == widget.selectedSupplier.id) {
-    setState(() {
-      _showReservationModal = false;
-      _animationController.reverse();
-    });
 
     _showErrorSnackBar('No es posible reservar sus propios servicios. Por favor, seleccione otro proveedor.');
     return;
@@ -3469,11 +3454,6 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
     }
     _showErrorSnackBar('Reserva fallida. Por favor, intente nuevamente.');
   }
-
-  setState(() {
-    _showReservationModal = false;
-    _animationController.reverse();
-  });
 }
 
 // Función auxiliar para mostrar SnackBars de error

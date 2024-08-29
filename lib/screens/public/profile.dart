@@ -49,32 +49,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future _loadUserData() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      String combinedId = await _getCombinedIdFromFirestore(user.uid);
+  User? user = FirebaseAuth.instance.currentUser;
+  if (user != null) {
+    String combinedId = await _getCombinedIdFromFirestore(user.uid);
 
-      DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
-          .instance
-          .collection('users')
-          .doc(combinedId)
-          .get();
+    DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+        .instance
+        .collection('users')
+        .doc(combinedId)
+        .get();
 
-      if (userDoc.exists) {
-        List<dynamic> averageSupplierEvaluation =
-            await getAverageSupplierEvaluation(combinedId);
+    if (userDoc.exists) {
+      List<dynamic> averageSupplierEvaluation =
+          await getAverageSupplierEvaluation(combinedId);
 
-        setState(() {
-          _userName = userDoc.data()!['name'];
-          _userLastName = userDoc.data()!['lastName'];
-          _userBio = userDoc.data()!['bio'] ?? '';
-          _profileImageUrl = userDoc.data()!['profileImageUrl'] ?? '';
-          _coverImageUrl = userDoc.data()!['coverImageUrl'] ?? '';
-          _userAssessment = averageSupplierEvaluation[0].toString();
-          _userAssessmentCount = averageSupplierEvaluation[1].toString();
-        });
-      }
+      setState(() {
+        _userName = userDoc.data()!['name'];
+        _userLastName = userDoc.data()!['lastName'];
+        _userID = combinedId; // Asegúrate de que esta línea esté presente
+        _userBio = userDoc.data()!['bio'] ?? '';
+        _profileImageUrl = userDoc.data()!['profileImageUrl'] ?? '';
+        _coverImageUrl = userDoc.data()!['coverImageUrl'] ?? '';
+        _userAssessment = averageSupplierEvaluation[0].toString();
+        _userAssessmentCount = averageSupplierEvaluation[1].toString();
+      });
     }
   }
+}
 
   Future<String> _getCombinedIdFromFirestore(String uid) async {
     QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
@@ -196,7 +197,7 @@ Future _uploadProfileImageToFirebase(String imagePath) async {
     File compressedFile = await _compressAndResizeImage(
       File(imagePath),
       maxWidth: 400,
-      maxHeight: 500
+      maxHeight: 400
     );
 
     // Subir la imagen comprimida y redimensionada
@@ -348,6 +349,129 @@ Future _uploadCoverImageToFirebase(String imagePath) async {
       return [averageEvaluation.toStringAsFixed(1), evaluationCount];
     }
   }
+
+  Future<List<Map<String, dynamic>>> getDetailedEvaluations(String combinedId) async {
+  QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
+      await FirebaseFirestore.instance.collection('tasks').get();
+
+  List<Map<String, dynamic>> evaluations = [];
+
+  for (var taskDoc in tasksSnapshot.docs) {
+    if (taskDoc.data()['clientID'] == combinedId &&
+        taskDoc.data().containsKey('supplierEvaluation')) {
+      evaluations.add({
+        'taskId': taskDoc.id,
+        'evaluation': taskDoc.data()['supplierEvaluation'],
+        'comment': taskDoc.data()['supplierComment'] ?? 'Sin comentario'
+      });
+    }
+  }
+
+  return evaluations;
+}
+
+void _showEvaluationsModal(BuildContext context) async {
+  List<Map<String, dynamic>> evaluations = await getDetailedEvaluations(_userID);
+  
+  showModalBottomSheet(
+    // ignore: use_build_context_synchronously
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (BuildContext context) {
+      return Container(
+        height: MediaQuery.of(context).size.height * 0.75,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Column(
+          children: [
+            Container(
+              height: 5,
+              width: 40,
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2.5),
+              ),
+            ),
+            const Text(
+              'Opiniones detalladas',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF08143c),
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: evaluations.length,
+                itemBuilder: (context, index) {
+                  return _buildEvaluationCard(evaluations[index]);
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+Widget _buildEvaluationCard(Map<String, dynamic> evaluation) {
+  return Card(
+    color: Colors.white,
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    elevation: 2,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+      // Agrega un borde al Card con un ancho de 1
+      side: BorderSide(color: Colors.grey[300]!, width: 1), 
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'TaskID: ${evaluation['taskId']}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.star, color: Color(0xFFFFD700), size: 20),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${evaluation['evaluation']}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            evaluation['comment'],
+            style: const TextStyle(fontSize: 16),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -502,45 +626,47 @@ Future _uploadCoverImageToFirebase(String imagePath) async {
                   const SizedBox(height: 10),
 
                   // Puntuación del usuario
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10.0, vertical: 5.0),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF08143c),
-                      borderRadius: BorderRadius.circular(20.0),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize
-                          .min, // Agrega esto para que el Row tome el mínimo espacio posible.
-                      children: [
-                        const Icon(
-                          Icons.star,
-                          color: Color(0xFFFFD700),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          _userAssessment,
-                          style: const TextStyle(
-                            fontSize: 16.0,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          // ignore: unrelated_type_equality_checks
-                          '($_userAssessmentCount ${_userAssessmentCount == 1 ? 'opinión' : 'opiniones'})',
-                          style: const TextStyle(
-                            fontSize: 13.0,
-                            fontWeight: FontWeight.normal,
-                            color: Colors
-                                .white, // Puedes cambiar el color del texto si lo deseas.
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  GestureDetector(
+  onTap: () {
+    _showEvaluationsModal(context);
+  },
+  child: Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+    decoration: BoxDecoration(
+      color: const Color(0xFF08143c),
+      borderRadius: BorderRadius.circular(20.0),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.star,
+          color: Color(0xFFFFD700),
+          size: 18,
+        ),
+        const SizedBox(width: 5),
+        Text(
+          _userAssessment,
+          style: const TextStyle(
+            fontSize: 16.0,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          // ignore: unrelated_type_equality_checks
+          '($_userAssessmentCount ${_userAssessmentCount == 1 ? 'opinión' : 'opiniones'})',
+          style: const TextStyle(
+            fontSize: 13.0,
+            fontWeight: FontWeight.normal,
+            color: Colors.white,
+          ),
+        ),
+      ],
+    ),
+  ),
+),
                   const SizedBox(height: 30),
                 ],
               ),
@@ -1021,7 +1147,7 @@ class SecurityAndPrivacyScreen extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.lock, color: Color(0xFF08143c)),
+            leading: const Icon(Icons.lock_outline_rounded, color: Color(0xFF08143c)),
             title: const Text('Clave de pago'),
             onTap: () {
               OneContext().push(
@@ -1521,7 +1647,7 @@ class _ChangePaymentKeyScreenState extends State<ChangePaymentKeyScreen> {
                   }
                   return null;
                 },
-                maxLengthEnforcement: 4,
+                maxLength: 4,
               ),
               const SizedBox(height: 32.0),
               ElevatedButton(
@@ -1624,9 +1750,22 @@ class _AccountScreenState extends State<AccountScreen> {
     return '';
   }
 
-  String _formatDate(Timestamp? timestamp) {
+  String _formatDate(Timestamp? timestamp, {bool includeTime = false, bool includeWeekday = false}) {
     if (timestamp == null) return 'No disponible';
-    return DateFormat('dd/MM/yyyy').format(timestamp.toDate());
+
+    String formattedDate = DateFormat('dd/MM/yyyy').format(timestamp.toDate());
+
+    if (includeWeekday) {
+      String weekday = DateFormat('EEEE', 'es_ES').format(timestamp.toDate()).toLowerCase();
+      weekday = '${weekday[0].toUpperCase()}${weekday.substring(1)}'; // Poner la primera letra en mayúscula
+      formattedDate = "$weekday $formattedDate";
+    }
+
+    if (includeTime) {
+      formattedDate = "$formattedDate a las ${DateFormat('hh:mm a').format(timestamp.toDate())}";
+    }
+
+    return formattedDate;
   }
 
   @override
@@ -1689,11 +1828,11 @@ class _AccountScreenState extends State<AccountScreen> {
                   ),
                   ListTile(
                     title: const Text('Fecha de nacimiento'),
-                    subtitle: Text(_formatDate(userData['birthDate'])),
+                    subtitle: Text(_formatDate(userData['birthDate'])), // Solo la fecha
                   ),
                   ListTile(
                     title: const Text('Apertura de la cuenta'),
-                    subtitle: Text(_formatDate(userData['registrationDate'])),
+                    subtitle: Text(_formatDate(userData['registrationDate'], includeTime: true, includeWeekday: true)), // Con dia de la semana, fecha y hora
                   ),
                   const SizedBox(height: 40),
                   Center(

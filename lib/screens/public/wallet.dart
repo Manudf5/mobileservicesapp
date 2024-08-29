@@ -1466,19 +1466,28 @@ class _ConfirmTransferFundsScreenState
   }
 
   Future<void> _fetchUserInfo() async {
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance
-        .collection('wallets')
-        .doc(widget.userId)
-        .get();
-    DocumentSnapshot userInfoDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.userId)
-        .get();
-    setState(() {
-      _userDocId = userDoc.id;
-      _pin = userDoc.get('pin');
-      _userName = '${userInfoDoc.get('name')} ${userInfoDoc.get('lastName')}';
-    });
+    try {
+      // Obtener información del usuario
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
+
+      setState(() {
+        _userDocId = widget.userId;
+        _pin = userDoc.get('pin') as String?;
+        _userName = '${userDoc.get('name')} ${userDoc.get('lastName')}';
+      });
+
+      if (kDebugMode) {
+        print('User info fetched: PIN: $_pin, Name: $_userName');
+      } // Para depuración
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching user info: $e');
+      } // Para depuración
+      // Manejar el error, tal vez mostrar un SnackBar al usuario
+    }
   }
 
   void _showPinDialog() {
@@ -1688,6 +1697,11 @@ class _ConfirmTransferFundsScreenState
 
   void _processPayment() async {
     try {
+      // Verificar si tenemos la información del usuario
+      if (_userName.isEmpty) {
+        await _fetchUserInfo(); // Intentar obtener la información de nuevo si no la tenemos
+      }
+
       // Obtener el monto como número
       double amount = double.parse(widget.amount);
 
@@ -1719,6 +1733,14 @@ class _ConfirmTransferFundsScreenState
             recipientWalletRef, {'walletBalance': currentBalance + amount});
       });
 
+      // Obtener la información más reciente del usuario emisor
+      DocumentSnapshot senderInfoDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .get();
+      String senderName =
+          '${senderInfoDoc.get('name')} ${senderInfoDoc.get('lastName')}';
+
       // Registrar la transacción
       DocumentReference transactionRef =
           await FirebaseFirestore.instance.collection('transactions').add({
@@ -1726,12 +1748,16 @@ class _ConfirmTransferFundsScreenState
         'amount': amount,
         'concept': _commentController.text,
         'senderId': widget.userId,
-        'senderName': _userName,
+        'senderName': senderName, // Usar el nombre obtenido justo ahora
         'recipientId': widget.recipient['id'],
         'recipientName':
             '${widget.recipient['name']} ${widget.recipient['lastName']}',
         'paymentType': 'Transferencia de fondos',
       });
+
+      if (kDebugMode) {
+        print('Transaction registered with sender name: $_userName');
+      } // Para depuración
 
       // Navegar a la pantalla de recibo
       // ignore: use_build_context_synchronously
