@@ -67,6 +67,8 @@ dependencies:
   photo_view: ^0.15.0
   image: ^4.2.0
   image_cropper: ^8.0.2
+  flutter_animate: ^4.1.1+1
+  package_info_plus: ^4.0.0
   
 dev_dependencies:
   flutter_test:

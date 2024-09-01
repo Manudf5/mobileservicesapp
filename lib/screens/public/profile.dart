@@ -1,7 +1,8 @@
 import 'dart:async';
-
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -14,6 +15,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:one_context/one_context.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_cropper/image_cropper.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -49,33 +52,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future _loadUserData() async {
-  User? user = FirebaseAuth.instance.currentUser;
-  if (user != null) {
-    String combinedId = await _getCombinedIdFromFirestore(user.uid);
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      String combinedId = await _getCombinedIdFromFirestore(user.uid);
 
-    DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
-        .instance
-        .collection('users')
-        .doc(combinedId)
-        .get();
+      DocumentSnapshot<Map<String, dynamic>> userDoc = await FirebaseFirestore
+          .instance
+          .collection('users')
+          .doc(combinedId)
+          .get();
 
-    if (userDoc.exists) {
-      List<dynamic> averageSupplierEvaluation =
-          await getAverageSupplierEvaluation(combinedId);
+      if (userDoc.exists) {
+        List<dynamic> averageSupplierEvaluation =
+            await getAverageSupplierEvaluation(combinedId);
 
-      setState(() {
-        _userName = userDoc.data()!['name'];
-        _userLastName = userDoc.data()!['lastName'];
-        _userID = combinedId; // Asegúrate de que esta línea esté presente
-        _userBio = userDoc.data()!['bio'] ?? '';
-        _profileImageUrl = userDoc.data()!['profileImageUrl'] ?? '';
-        _coverImageUrl = userDoc.data()!['coverImageUrl'] ?? '';
-        _userAssessment = averageSupplierEvaluation[0].toString();
-        _userAssessmentCount = averageSupplierEvaluation[1].toString();
-      });
+        setState(() {
+          _userName = userDoc.data()!['name'];
+          _userLastName = userDoc.data()!['lastName'];
+          _userID = combinedId; // Asegúrate de que esta línea esté presente
+          _userBio = userDoc.data()!['bio'] ?? '';
+          _profileImageUrl = userDoc.data()!['profileImageUrl'] ?? '';
+          _coverImageUrl = userDoc.data()!['coverImageUrl'] ?? '';
+          _userAssessment = averageSupplierEvaluation[0].toString();
+          _userAssessmentCount = averageSupplierEvaluation[1].toString();
+        });
+      }
     }
   }
-}
 
   Future<String> _getCombinedIdFromFirestore(String uid) async {
     QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
@@ -116,146 +119,145 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future _selectImageFromGallery(bool isCoverImage) async {
-  final ImagePicker picker = ImagePicker();
-  final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-  if (image != null) {
-    CroppedFile? croppedFile = await ImageCropper().cropImage(
-      sourcePath: image.path,
-      aspectRatio: isCoverImage 
-          ? const CropAspectRatio(ratioX: 1200, ratioY: 630)
-          : const CropAspectRatio(ratioX: 400, ratioY: 400),
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: isCoverImage ? 'Ajustar foto de portada' : 'Ajustar foto de perfil',
-          toolbarColor: Colors.white,
-          toolbarWidgetColor: Colors.black,
-          backgroundColor: Colors.white,
-          statusBarColor: Colors.white,
-          activeControlsWidgetColor: Colors.green,
-          cropFrameColor: Colors.green,
-          cropGridColor: Colors.grey[300],
-          hideBottomControls: false,
-          initAspectRatio: isCoverImage ? CropAspectRatioPreset.ratio16x9 : CropAspectRatioPreset.ratio4x3,
-          lockAspectRatio: true,
-        ),
-        IOSUiSettings(
-          title: isCoverImage ? 'Ajustar foto de portada' : 'Ajustar foto de perfil',
-          aspectRatioLockEnabled: true,
-          resetAspectRatioEnabled: false,
-        ),
-      ],
-    );
+    if (image != null) {
+      CroppedFile? croppedFile = await ImageCropper().cropImage(
+        sourcePath: image.path,
+        aspectRatio: isCoverImage
+            ? const CropAspectRatio(ratioX: 1200, ratioY: 630)
+            : const CropAspectRatio(ratioX: 400, ratioY: 400),
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: isCoverImage
+                ? 'Ajustar foto de portada'
+                : 'Ajustar foto de perfil',
+            toolbarColor: Colors.white,
+            toolbarWidgetColor: Colors.black,
+            backgroundColor: Colors.white,
+            statusBarColor: Colors.white,
+            activeControlsWidgetColor: Colors.green,
+            cropFrameColor: Colors.green,
+            cropGridColor: Colors.grey[300],
+            hideBottomControls: false,
+            initAspectRatio: isCoverImage
+                ? CropAspectRatioPreset.ratio16x9
+                : CropAspectRatioPreset.ratio4x3,
+            lockAspectRatio: true,
+          ),
+          IOSUiSettings(
+            title: isCoverImage
+                ? 'Ajustar foto de portada'
+                : 'Ajustar foto de perfil',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+          ),
+        ],
+      );
 
-    if (croppedFile != null) {
-      if (isCoverImage) {
-        _uploadCoverImageToFirebase(croppedFile.path);
-      } else {
-        _uploadProfileImageToFirebase(croppedFile.path);
+      if (croppedFile != null) {
+        if (isCoverImage) {
+          _uploadCoverImageToFirebase(croppedFile.path);
+        } else {
+          _uploadProfileImageToFirebase(croppedFile.path);
+        }
       }
     }
   }
-}
 
   // Método para comprimir y redimensionar la imagen
-Future<File> _compressAndResizeImage(File imageFile, {int maxWidth = 800, int maxHeight = 600}) async {
-  final img.Image? image = img.decodeImage(await imageFile.readAsBytes());
+  Future<File> _compressAndResizeImage(File imageFile,
+      {int maxWidth = 800, int maxHeight = 600}) async {
+    final img.Image? image = img.decodeImage(await imageFile.readAsBytes());
 
-  if (image == null) {
-    throw Exception("No se pudo decodificar la imagen");
-  }
-
-  // Redimensionar la imagen
-  img.Image resizedImage = img.copyResize(
-    image,
-    width: maxWidth,
-    height: maxHeight,
-    interpolation: img.Interpolation.linear
-  );
-
-  // Comprimir la imagen redimensionada a un 85% de calidad
-  final compressedImage = img.encodeJpg(resizedImage, quality: 85);
-
-  final compressedFile = File(imageFile.path)
-    ..writeAsBytesSync(compressedImage);
-
-  return compressedFile;
-}
-
-Future _uploadProfileImageToFirebase(String imagePath) async {
-  String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-  Reference storageReference =
-      FirebaseStorage.instance.ref().child('profileImages/$fileName');
-
-  try {
-    // Eliminar la imagen de perfil existente
-    if (_profileImageUrl.isNotEmpty) {
-      await FirebaseStorage.instance.refFromURL(_profileImageUrl).delete();
+    if (image == null) {
+      throw Exception("No se pudo decodificar la imagen");
     }
 
-    // Comprimir y redimensionar la imagen antes de subirla
-    File compressedFile = await _compressAndResizeImage(
-      File(imagePath),
-      maxWidth: 400,
-      maxHeight: 400
-    );
+    // Redimensionar la imagen
+    img.Image resizedImage = img.copyResize(image,
+        width: maxWidth,
+        height: maxHeight,
+        interpolation: img.Interpolation.linear);
 
-    // Subir la imagen comprimida y redimensionada
-    UploadTask uploadTask = storageReference.putFile(compressedFile);
+    // Comprimir la imagen redimensionada a un 85% de calidad
+    final compressedImage = img.encodeJpg(resizedImage, quality: 85);
 
-    await uploadTask.whenComplete(() async {
-      String downloadUrl = await storageReference.getDownloadURL();
-      setState(() {
-        _profileImageUrl = downloadUrl;
-      });
-      _updateProfileData(updatedProfileImageUrl: downloadUrl);
-    });
-  } catch (e) {
-    OneContext().showSnackBar(
-      builder: (_) => SnackBar(
-        content: Text('Error al subir la imagen: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
+    final compressedFile = File(imageFile.path)
+      ..writeAsBytesSync(compressedImage);
+
+    return compressedFile;
   }
-}
 
-Future _uploadCoverImageToFirebase(String imagePath) async {
-  String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-  Reference storageReference =
-      FirebaseStorage.instance.ref().child('coverImages/$fileName');
+  Future _uploadProfileImageToFirebase(String imagePath) async {
+    String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+    Reference storageReference =
+        FirebaseStorage.instance.ref().child('profileImages/$fileName');
 
-  try {
-    // Eliminar la imagen de portada existente
-    if (_coverImageUrl.isNotEmpty) {
-      await FirebaseStorage.instance.refFromURL(_coverImageUrl).delete();
+    try {
+      // Eliminar la imagen de perfil existente
+      if (_profileImageUrl.isNotEmpty) {
+        await FirebaseStorage.instance.refFromURL(_profileImageUrl).delete();
+      }
+
+      // Comprimir y redimensionar la imagen antes de subirla
+      File compressedFile = await _compressAndResizeImage(File(imagePath),
+          maxWidth: 400, maxHeight: 400);
+
+      // Subir la imagen comprimida y redimensionada
+      UploadTask uploadTask = storageReference.putFile(compressedFile);
+
+      await uploadTask.whenComplete(() async {
+        String downloadUrl = await storageReference.getDownloadURL();
+        setState(() {
+          _profileImageUrl = downloadUrl;
+        });
+        _updateProfileData(updatedProfileImageUrl: downloadUrl);
+      });
+    } catch (e) {
+      OneContext().showSnackBar(
+        builder: (_) => SnackBar(
+          content: Text('Error al subir la imagen: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-
-    // Comprimir y redimensionar la imagen antes de subirla
-    File compressedFile = await _compressAndResizeImage(
-      File(imagePath),
-      maxWidth: 1200,
-      maxHeight: 630
-    );
-
-    // Subir la imagen comprimida y redimensionada
-    UploadTask uploadTask = storageReference.putFile(compressedFile);
-    await uploadTask.whenComplete(() async {
-      String downloadUrl = await storageReference.getDownloadURL();
-      setState(() {
-        _coverImageUrl = downloadUrl;
-      });
-      _updateProfileData(updatedCoverImageUrl: downloadUrl);
-    });
-  } catch (e) {
-    OneContext().showSnackBar(
-      builder: (_) => SnackBar(
-        content: Text('Error al subir la imagen: $e'),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
-}
+
+  Future _uploadCoverImageToFirebase(String imagePath) async {
+    String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+    Reference storageReference =
+        FirebaseStorage.instance.ref().child('coverImages/$fileName');
+
+    try {
+      // Eliminar la imagen de portada existente
+      if (_coverImageUrl.isNotEmpty) {
+        await FirebaseStorage.instance.refFromURL(_coverImageUrl).delete();
+      }
+
+      // Comprimir y redimensionar la imagen antes de subirla
+      File compressedFile = await _compressAndResizeImage(File(imagePath),
+          maxWidth: 1200, maxHeight: 630);
+
+      // Subir la imagen comprimida y redimensionada
+      UploadTask uploadTask = storageReference.putFile(compressedFile);
+      await uploadTask.whenComplete(() async {
+        String downloadUrl = await storageReference.getDownloadURL();
+        setState(() {
+          _coverImageUrl = downloadUrl;
+        });
+        _updateProfileData(updatedCoverImageUrl: downloadUrl);
+      });
+    } catch (e) {
+      OneContext().showSnackBar(
+        builder: (_) => SnackBar(
+          content: Text('Error al subir la imagen: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   void _showEditProfileScreen() {
     OneContext().push(
@@ -350,128 +352,139 @@ Future _uploadCoverImageToFirebase(String imagePath) async {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getDetailedEvaluations(String combinedId) async {
-  QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
-      await FirebaseFirestore.instance.collection('tasks').get();
+  Future<List<Map<String, dynamic>>> getDetailedEvaluations(
+      String combinedId) async {
+    QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
+        await FirebaseFirestore.instance.collection('tasks').get();
 
-  List<Map<String, dynamic>> evaluations = [];
+    List<Map<String, dynamic>> evaluations = [];
 
-  for (var taskDoc in tasksSnapshot.docs) {
-    if (taskDoc.data()['clientID'] == combinedId &&
-        taskDoc.data().containsKey('supplierEvaluation')) {
-      evaluations.add({
-        'taskId': taskDoc.id,
-        'evaluation': taskDoc.data()['supplierEvaluation'],
-        'comment': taskDoc.data()['supplierComment'] ?? 'Sin comentario'
-      });
+    for (var taskDoc in tasksSnapshot.docs) {
+      if (taskDoc.data()['clientID'] == combinedId &&
+          taskDoc.data().containsKey('supplierEvaluation')) {
+        evaluations.add({
+          'taskId': taskDoc.id,
+          'evaluation': taskDoc.data()['supplierEvaluation'],
+          'comment': taskDoc.data()['supplierComment'] ?? 'Sin comentario'
+        });
+      }
     }
+
+    return evaluations;
   }
 
-  return evaluations;
-}
+  void _showEvaluationsModal(BuildContext context) async {
+    List<Map<String, dynamic>> evaluations =
+        await getDetailedEvaluations(_userID);
 
-void _showEvaluationsModal(BuildContext context) async {
-  List<Map<String, dynamic>> evaluations = await getDetailedEvaluations(_userID);
-  
-  showModalBottomSheet(
-    // ignore: use_build_context_synchronously
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (BuildContext context) {
-      return Container(
-        height: MediaQuery.of(context).size.height * 0.75,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
+    showModalBottomSheet(
+      // ignore: use_build_context_synchronously
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
           ),
-        ),
-        child: Column(
-          children: [
-            Container(
-              height: 5,
-              width: 40,
-              margin: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2.5),
-              ),
-            ),
-            const Text(
-              'Opiniones detalladas',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF08143c),
-              ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: evaluations.length,
-                itemBuilder: (context, index) {
-                  return _buildEvaluationCard(evaluations[index]);
-                },
-              ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
-
-Widget _buildEvaluationCard(Map<String, dynamic> evaluation) {
-  return Card(
-    color: Colors.white,
-    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    elevation: 2,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-      // Agrega un borde al Card con un ancho de 1
-      side: BorderSide(color: Colors.grey[300]!, width: 1), 
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
             children: [
-              Text(
-                'TaskID: ${evaluation['taskId']}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
+              Container(
+                height: 5,
+                width: 40,
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2.5),
                 ),
               ),
-              Row(
-                children: [
-                  const Icon(Icons.star, color: Color(0xFFFFD700), size: 20),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${evaluation['evaluation']}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+              const Text(
+                'Opiniones detalladas',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF08143c),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: evaluations.length,
+                  itemBuilder: (context, index) {
+                    return _buildEvaluationCard(evaluations[index]);
+                  },
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            evaluation['comment'],
-            style: const TextStyle(fontSize: 16),
-          ),
-        ],
+        );
+      },
+    );
+  }
+
+  Widget _buildEvaluationCard(Map<String, dynamic> evaluation) {
+    return Card(
+      color: Colors.blueGrey[50],
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        // Agrega un borde al Card con un ancho de 1
+        side: const BorderSide(color: Colors.blueGrey, width: 1),
       ),
-    ),
-  );
-}
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'TaskID: ${evaluation['taskId']}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.blueGrey,
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 3, horizontal: 7),
+                  decoration: BoxDecoration(
+                    color: Colors.blueGrey,
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.yellow, size: 20),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${evaluation['evaluation']}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              evaluation['comment'],
+              style: const TextStyle(fontSize: 16),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -518,7 +531,7 @@ Widget _buildEvaluationCard(Map<String, dynamic> evaluation) {
                               ),
                             ),
                           ),
-                  ),
+                  ).animate().fadeIn().slideY(),
                 ),
                 Positioned(
                   top: 125,
@@ -555,7 +568,7 @@ Widget _buildEvaluationCard(Map<String, dynamic> evaluation) {
                                     'assets/images/ProfilePhoto_predetermined.png')
                                 as ImageProvider,
                       ),
-                    ),
+                    ).animate().fade().scale(),
                   ),
                 ),
               ],
@@ -627,46 +640,47 @@ Widget _buildEvaluationCard(Map<String, dynamic> evaluation) {
 
                   // Puntuación del usuario
                   GestureDetector(
-  onTap: () {
-    _showEvaluationsModal(context);
-  },
-  child: Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
-    decoration: BoxDecoration(
-      color: const Color(0xFF08143c),
-      borderRadius: BorderRadius.circular(20.0),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(
-          Icons.star,
-          color: Color(0xFFFFD700),
-          size: 18,
-        ),
-        const SizedBox(width: 5),
-        Text(
-          _userAssessment,
-          style: const TextStyle(
-            fontSize: 16.0,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(width: 5),
-        Text(
-          // ignore: unrelated_type_equality_checks
-          '($_userAssessmentCount ${_userAssessmentCount == 1 ? 'opinión' : 'opiniones'})',
-          style: const TextStyle(
-            fontSize: 13.0,
-            fontWeight: FontWeight.normal,
-            color: Colors.white,
-          ),
-        ),
-      ],
-    ),
-  ),
-),
+                    onTap: () {
+                      _showEvaluationsModal(context);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10.0, vertical: 5.0),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF08143c),
+                        borderRadius: BorderRadius.circular(20.0),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.star,
+                            color: Color(0xFFFFD700),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            _userAssessment,
+                            style: const TextStyle(
+                              fontSize: 16.0,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            // ignore: unrelated_type_equality_checks
+                            '($_userAssessmentCount ${_userAssessmentCount == 1 ? 'opinión' : 'opiniones'})',
+                            style: const TextStyle(
+                              fontSize: 13.0,
+                              fontWeight: FontWeight.normal,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 30),
                 ],
               ),
@@ -697,10 +711,10 @@ Widget _buildEvaluationCard(Map<String, dynamic> evaluation) {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red[400],
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30.0),
+                    borderRadius: BorderRadius.circular(10.0),
                   ),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 30.0, vertical: 15.0),
+                      horizontal: 15.0, vertical: 7.0),
                 ),
                 child: const Text(
                   'Cerrar Sesión',
@@ -733,11 +747,10 @@ Widget _buildEvaluationCard(Map<String, dynamic> evaluation) {
             color: Color(0xFF08143c),
           ),
         ),
-        trailing:
-            const Icon(Icons.chevron_right, color: Color(0xFF08143c)),
+        trailing: const Icon(Icons.chevron_right, color: Color(0xFF08143c)),
         onTap: onTap,
       ),
-    );
+    ).animate().fadeIn().slideX();
   }
 }
 
@@ -796,8 +809,7 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
         if (snapshot.exists) {
           setState(() {
             _bioController.text = snapshot.data()!['bio'] ?? '';
-            _currentProfileImageUrl =
-                snapshot.data()!['profileImageUrl'] ?? '';
+            _currentProfileImageUrl = snapshot.data()!['profileImageUrl'] ?? '';
             _currentCoverImageUrl = snapshot.data()!['coverImageUrl'] ?? '';
           });
         }
@@ -1009,7 +1021,7 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                                 ),
                               )
                             : null,
-                      ),
+                      ).animate().fadeIn().slideX(),
                     ),
                     Positioned(
                       top: 30,
@@ -1034,7 +1046,7 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
                                         'assets/images/ProfilePhoto_predetermined.png')
                                     as ImageProvider,
                           ),
-                        ),
+                        ).animate().fade().scale(),
                       ),
                     ),
                   ],
@@ -1109,7 +1121,6 @@ class _EditProfileScreenState extends State<_EditProfileScreen> {
   }
 }
 
-
 class SecurityAndPrivacyScreen extends StatelessWidget {
   const SecurityAndPrivacyScreen({super.key});
 
@@ -1147,23 +1158,13 @@ class SecurityAndPrivacyScreen extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.lock_outline_rounded, color: Color(0xFF08143c)),
+            leading: const Icon(Icons.lock_outline_rounded,
+                color: Color(0xFF08143c)),
             title: const Text('Clave de pago'),
             onTap: () {
               OneContext().push(
                 MaterialPageRoute(
                   builder: (context) => const ChangePaymentKeyScreen(),
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.block, color: Color(0xFF08143c)),
-            title: const Text('Usuarios bloqueados'),
-            onTap: () {
-              OneContext().push(
-                MaterialPageRoute(
-                  builder: (context) => const BlockedUsersScreen(),
                 ),
               );
             },
@@ -1324,13 +1325,13 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 decoration: InputDecoration(
                   labelText: 'Contraseña actual',
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.0),
-                      borderSide:  const BorderSide(color: Color(0xFF08143c)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.0),
-                      borderSide: const BorderSide(color: Color(0xFF1ca424)),
-                    ),
+                    borderRadius: BorderRadius.circular(14.0),
+                    borderSide: const BorderSide(color: Color(0xFF08143c)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14.0),
+                    borderSide: const BorderSide(color: Color(0xFF1ca424)),
+                  ),
                 ),
                 obscureText: true,
                 validator: (value) {
@@ -1346,13 +1347,13 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 decoration: InputDecoration(
                   labelText: 'Nueva contraseña',
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.0),
-                      borderSide:  const BorderSide(color: Color(0xFF08143c)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.0),
-                      borderSide: const BorderSide(color: Color(0xFF1ca424)),
-                    ),
+                    borderRadius: BorderRadius.circular(14.0),
+                    borderSide: const BorderSide(color: Color(0xFF08143c)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14.0),
+                    borderSide: const BorderSide(color: Color(0xFF1ca424)),
+                  ),
                 ),
                 obscureText: true,
                 validator: (value) {
@@ -1371,13 +1372,13 @@ class ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 decoration: InputDecoration(
                   labelText: 'Confirmación de contraseña',
                   border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.0),
-                      borderSide:  const BorderSide(color: Color(0xFF08143c)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14.0),
-                      borderSide: const BorderSide(color: Color(0xFF1ca424)),
-                    ),
+                    borderRadius: BorderRadius.circular(14.0),
+                    borderSide: const BorderSide(color: Color(0xFF08143c)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14.0),
+                    borderSide: const BorderSide(color: Color(0xFF1ca424)),
+                  ),
                 ),
                 obscureText: true,
                 validator: (value) {
@@ -1554,7 +1555,8 @@ class _ChangePaymentKeyScreenState extends State<ChangePaymentKeyScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
@@ -1686,22 +1688,6 @@ class _ChangePaymentKeyScreenState extends State<ChangePaymentKeyScreen> {
   }
 }
 
-class BlockedUsersScreen extends StatelessWidget {
-  const BlockedUsersScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Usuarios Bloqueados'),
-      ),
-      body: const Center(
-        child: Text('Lista de usuarios bloqueados'),
-      ),
-    );
-  }
-}
-
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
 
@@ -1750,19 +1736,23 @@ class _AccountScreenState extends State<AccountScreen> {
     return '';
   }
 
-  String _formatDate(Timestamp? timestamp, {bool includeTime = false, bool includeWeekday = false}) {
+  String _formatDate(Timestamp? timestamp,
+      {bool includeTime = false, bool includeWeekday = false}) {
     if (timestamp == null) return 'No disponible';
 
     String formattedDate = DateFormat('dd/MM/yyyy').format(timestamp.toDate());
 
     if (includeWeekday) {
-      String weekday = DateFormat('EEEE', 'es_ES').format(timestamp.toDate()).toLowerCase();
-      weekday = '${weekday[0].toUpperCase()}${weekday.substring(1)}'; // Poner la primera letra en mayúscula
+      String weekday =
+          DateFormat('EEEE', 'es_ES').format(timestamp.toDate()).toLowerCase();
+      weekday =
+          '${weekday[0].toUpperCase()}${weekday.substring(1)}'; // Poner la primera letra en mayúscula
       formattedDate = "$weekday $formattedDate";
     }
 
     if (includeTime) {
-      formattedDate = "$formattedDate a las ${DateFormat('hh:mm a').format(timestamp.toDate())}";
+      formattedDate =
+          "$formattedDate a las ${DateFormat('hh:mm a').format(timestamp.toDate())}";
     }
 
     return formattedDate;
@@ -1777,10 +1767,10 @@ class _AccountScreenState extends State<AccountScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF08143c)),
-          onPressed: () => OneContext().pop(),
+          onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
-          'Cuenta',
+          'Mi Cuenta',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Color(0xFF08143c),
@@ -1791,73 +1781,84 @@ class _AccountScreenState extends State<AccountScreen> {
         future: _userDataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+                child: CupertinoActivityIndicator(
+              radius: 16,
+              color: Colors.green,
+            ));
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (snapshot.hasData) {
             final userData = snapshot.data!;
-            return Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Información de la cuenta',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF08143c),
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: const Color(0xFFE0E0E0),
+                      child: Text(
+                        '${userData['name'][0]}${userData['lastName'][0]}',
+                        style: const TextStyle(
+                            fontSize: 30, color: Color(0xFF08143c)),
+                      ),
+                    ).animate().fade().scale(),
+                    const SizedBox(height: 20),
+                    Text(
+                      '${userData['name']} ${userData['lastName']}',
+                      style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF08143c)),
+                    ).animate().fadeIn(),
+                    const SizedBox(height: 30),
+                    _buildInfoCard(
+                      icon: Icons.person,
+                      title: 'Género',
+                      subtitle: userData['gender'] ?? 'No especificado',
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  ListTile(
-                    title: const Text('Nombre y apellido'),
-                    subtitle: Text('${userData['name']} ${userData['lastName']}'),
-                  ),
-                  ListTile(
-                    title: const Text('Género'),
-                    subtitle: Text(userData['gender'] ?? 'No especificado'),
-                  ),
-                  ListTile(
-                    title: const Text('Correo electrónico'),
-                    subtitle: Text(userData['email']),
-                  ),
-                  ListTile(
-                    title: const Text('Número telefónico'),
-                    subtitle: Text(userData['phone'] ?? 'No especificado'),
-                  ),
-                  ListTile(
-                    title: const Text('Fecha de nacimiento'),
-                    subtitle: Text(_formatDate(userData['birthDate'])), // Solo la fecha
-                  ),
-                  ListTile(
-                    title: const Text('Apertura de la cuenta'),
-                    subtitle: Text(_formatDate(userData['registrationDate'], includeTime: true, includeWeekday: true)), // Con dia de la semana, fecha y hora
-                  ),
-                  const SizedBox(height: 40),
-                  Center(
-                    child: ElevatedButton(
+                    _buildInfoCard(
+                      icon: Icons.email,
+                      title: 'Correo electrónico',
+                      subtitle: userData['email'],
+                    ),
+                    _buildInfoCard(
+                      icon: Icons.phone,
+                      title: 'Número telefónico',
+                      subtitle: userData['phone'] ?? 'No especificado',
+                    ),
+                    _buildInfoCard(
+                      icon: Icons.cake,
+                      title: 'Fecha de nacimiento',
+                      subtitle: _formatDate(userData['birthDate']),
+                    ),
+                    _buildInfoCard(
+                      icon: Icons.calendar_today,
+                      title: 'Apertura de la cuenta',
+                      subtitle: _formatDate(userData['registrationDate'],
+                          includeTime: true, includeWeekday: true),
+                    ),
+                    const SizedBox(height: 28),
+                    ElevatedButton(
                       onPressed: () {
                         // Lógica para eliminar la cuenta
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30.0),
+                          borderRadius: BorderRadius.circular(20.0),
                         ),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 30.0, vertical: 15.0),
                       ),
-                      child: const Text(
-                        'Eliminar cuenta',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                      child: const Text('Eliminar cuenta',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ).animate().fadeIn().slide(),
+                  ],
+                ),
               ),
             );
           } else {
@@ -1867,10 +1868,37 @@ class _AccountScreenState extends State<AccountScreen> {
       ),
     );
   }
+
+  Widget _buildInfoCard(
+      {required IconData icon,
+      required String title,
+      required String subtitle}) {
+    return Card(
+      color: Colors.blueGrey[50],
+      elevation: 3,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: ListTile(
+        leading: Icon(icon, color: const Color(0xFF08143c)),
+        title: Text(title,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, color: Color(0xFF08143c))),
+        subtitle:
+            Text(subtitle, style: const TextStyle(color: Colors.blueGrey)),
+      ),
+    ).animate().fadeIn().slideX();
+  }
 }
 
 class HelpScreen extends StatelessWidget {
   const HelpScreen({super.key});
+
+  String? encodeQueryParameters(Map<String, String> params) {
+    return params.entries
+        .map((e) =>
+            '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+        .join('&');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1938,19 +1966,42 @@ class HelpScreen extends StatelessWidget {
                     _buildSupportOption(
                       context,
                       'Mensajería interna',
-                      Icons.message,
+                      Image.asset('assets/images/IconSend.png', width: 24),
                       const InternalMessagingScreen(),
                     ),
                     _buildSupportOption(
                       context,
                       'Correo electrónico',
-                      Icons.email,
-                      const EmailSupportScreen(),
+                      const Icon(Icons.email, color: Color(0xFF1ca424)),
+                      () async {
+                        final Uri emailLaunchUri = Uri(
+                          scheme: 'mailto',
+                          path: 'msasupport@gmail.com',
+                          query: encodeQueryParameters({
+                            'subject': 'Soporte de MSA',
+                            'body': 'Hola Soporte, necesito ayuda con...'
+                          }),
+                        );
+
+                        if (await canLaunchUrl(emailLaunchUri)) {
+                          await launchUrl(emailLaunchUri);
+                        } else {
+                          await Clipboard.setData(const ClipboardData(
+                              text: 'manueldelga2018@gmail.com'));
+                          OneContext().showSnackBar(
+                            builder: (_) => const SnackBar(
+                              content: Text(
+                                  'Dirección de correo copiada al portapapeles'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      },
                     ),
                     _buildSupportOption(
                       context,
                       'Vía WhatsApp',
-                      Icons.phone_iphone_rounded,
+                      Image.asset('assets/images/WhatsApp_Logo.png', width: 24),
                       () async {
                         final Uri whatsappUrl = Uri.parse(
                             'https://wa.me/584245069119?text=Hola%20Soporte%2C%20necesito%20ayuda%20con...');
@@ -1996,32 +2047,221 @@ class HelpScreen extends StatelessWidget {
   Widget _buildSupportOption(
     BuildContext context,
     String title,
-    IconData icon,
+    Widget icon, // Cambiado a Widget para aceptar tanto Icon como Image
     dynamic onTap,
   ) {
     return ListTile(
-      leading: Icon(icon, color: const Color(0xFF1ca424)),
+      leading: icon, // Ahora puede ser una imagen o un ícono
       title: Text(title),
       trailing: const Icon(Icons.arrow_forward_ios, color: Color(0xFF1ca424)),
       onTap: onTap is Function
-          ? () => onTap() // Llamamos a la función si es una función
+          ? () => onTap()
           : (onTap is Widget
               ? () => OneContext().push(
                     MaterialPageRoute(builder: (context) => onTap),
                   )
-              : null), // Si no es ni función ni Widget, asignamos null
+              : null),
     );
   }
 }
 
-class FrequentQuestionsScreen extends StatelessWidget {
+class FrequentQuestionsScreen extends StatefulWidget {
   const FrequentQuestionsScreen({super.key});
+
+  @override
+  // ignore: library_private_types_in_public_api
+  _FrequentQuestionsScreenState createState() =>
+      _FrequentQuestionsScreenState();
+}
+
+class _FrequentQuestionsScreenState extends State<FrequentQuestionsScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Preguntas frecuentes')),
-      body: const Center(child: Text('Pantalla de Preguntas frecuentes')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Preguntas frecuentes'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF08143c)),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: '¿Que dudas tienes?',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: Colors.grey[200],
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('faq').snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return const Center(child: Text('Ocurrió un error'));
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                      child: CupertinoActivityIndicator(
+                    radius: 16,
+                    color: Colors.green,
+                  ));
+                }
+
+                final faqDocs = snapshot.data!.docs;
+                // Ordenar por ID de documento
+                faqDocs.sort((a, b) => a.id.compareTo(b.id));
+                // Filtrar por pregunta
+                final filteredDocs = faqDocs
+                    .where((doc) => doc['question']
+                        .toString()
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase()))
+                    .toList();
+
+                return ListView.builder(
+                  itemCount: filteredDocs.length,
+                  itemBuilder: (context, index) {
+                    final faq = filteredDocs[index];
+                    final data = faq.data() as Map<String, dynamic>?;
+                    return FAQItem(
+                      question: faq['question'],
+                      answer: faq['answer'],
+                      publicationDate:
+                          (faq['publicationDate'] as Timestamp).toDate(),
+                      imageUrl: data != null && data.containsKey('FaqImageUrl')
+                          ? data['FaqImageUrl']
+                          : null,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class FAQItem extends StatefulWidget {
+  final String question;
+  final String answer;
+  final DateTime publicationDate;
+  final String? imageUrl;
+
+  const FAQItem({
+    super.key,
+    required this.question,
+    required this.answer,
+    required this.publicationDate,
+    this.imageUrl,
+  });
+
+  // ignore: library_private_types_in_public_api
+  @override
+  // ignore: library_private_types_in_public_api
+  _FAQItemState createState() => _FAQItemState();
+}
+
+class _FAQItemState extends State<FAQItem> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Colors.white,
+      elevation: 1,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(
+          color: _expanded ? Colors.green : Colors.blueGrey,
+          width: 1.0,
+        ),
+      ),
+      child: Theme(
+        data: Theme.of(context)
+            .copyWith(dividerColor: Colors.transparent), // Elimina las líneas
+        child: ExpansionTile(
+          // Eliminamos la decoración por defecto del ExpansionTile
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: EdgeInsets.zero,
+          backgroundColor: Colors
+              .transparent, // Asegura que no haya fondo detrás de las respuestas
+          trailing: Padding(
+            // <-- Añade este padding al trailing
+            padding:
+                const EdgeInsets.only(right: 16.0), // Ajusta el espacio aquí
+            child: Icon(
+              _expanded ? Icons.expand_less : Icons.expand_more,
+              color: Colors.green,
+            ),
+          ),
+          title: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Text(
+              widget.question,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(widget.answer),
+                  const SizedBox(height: 8),
+                  if (widget.imageUrl != null)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(
+                        widget.imageUrl!,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Publicado el ${DateFormat('dd/MM/yyyy').format(widget.publicationDate)}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                ],
+              ),
+            ),
+          ],
+          onExpansionChanged: (expanded) {
+            setState(() {
+              _expanded = expanded;
+            });
+          },
+        ),
+      ),
     );
   }
 }
@@ -2032,8 +2272,61 @@ class AboutAppScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Acerca de la app')),
-      body: const Center(child: Text('Información sobre la aplicación')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text('Acerca de la app'),
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF08143c)),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/images/LogoPrueba.png',
+              width: 100,
+              height: 100,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Mobile Services App',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 5),
+            FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Text('Versión: ${snapshot.data!.version}');
+                } else {
+                  return const Text('Versión: Cargando...');
+                }
+              },
+            ),
+            const SizedBox(height: 20),
+            const Text('© 2024 MSA Inc.'),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: () {
+                // Función para el botón de licencias (aún no implementada)
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+              ),
+              child: const Text('Licencias'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -2058,18 +2351,6 @@ class InternalMessagingScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Mensajería interna')),
       body: const Center(child: Text('Sistema de mensajería interna')),
-    );
-  }
-}
-
-class EmailSupportScreen extends StatelessWidget {
-  const EmailSupportScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Soporte por correo')),
-      body: const Center(child: Text('Formulario de contacto por correo')),
     );
   }
 }

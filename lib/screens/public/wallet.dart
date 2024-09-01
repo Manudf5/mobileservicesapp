@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter/foundation.dart';
@@ -238,11 +239,10 @@ class _WalletScreenState extends State<WalletScreen> {
                         radius: 20,
                         backgroundImage: _profileImageUrl.isNotEmpty
                             ? NetworkImage(_profileImageUrl)
-                            : null,
-                        child: _profileImageUrl.isEmpty
-                            ? const Icon(Icons.person, color: Colors.green)
-                            : null,
-                      ),
+                            : const AssetImage(
+                                    'assets/images/ProfilePhoto_predetermined.png')
+                                as ImageProvider,
+                      ).animate().fade().scale(),
                     ],
                   ),
                 ],

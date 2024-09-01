@@ -1837,26 +1837,26 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
   }
 
   Future<int?> getFollowersCount(String supplierId) async {
-  try {
-    var followersCollection = FirebaseFirestore.instance
-        .collection('suppliers')
-        .doc(supplierId)
-        .collection('followers');
-    
-    var snapshot = await followersCollection.get();
-    
-    if (snapshot.docs.isNotEmpty) {
-      return snapshot.docs.length;
-    } else {
+    try {
+      var followersCollection = FirebaseFirestore.instance
+          .collection('suppliers')
+          .doc(supplierId)
+          .collection('followers');
+
+      var snapshot = await followersCollection.get();
+
+      if (snapshot.docs.isNotEmpty) {
+        return snapshot.docs.length;
+      } else {
+        return null;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al obtener seguidores: $e');
+      }
       return null;
     }
-  } catch (e) {
-    if (kDebugMode) {
-      print('Error al obtener seguidores: $e');
-    }
-    return null;
   }
-}
 
   double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     const earthRadius = 6371.0;
@@ -2400,46 +2400,52 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                   Row(
                     children: [
                       Stack(
-                      alignment: Alignment.bottomCenter,
-                      children: [
-                        CircleAvatar(
-                          radius: 35,
-                          backgroundImage: supplier.data()?['profileImageUrl'] != null
-                              ? NetworkImage(supplier.data()?['profileImageUrl'])
-                              : const AssetImage('assets/images/ProfilePhoto_predetermined.png') as ImageProvider,
-                        ),
-                        if (followersCount != null)
-                          Positioned(
-                            bottom: -1,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.person,
-                                    size: 09,
-                                    color: Color.fromARGB(255, 15, 37, 112),
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    '$followersCount',
-                                    style: const TextStyle(
+                        alignment: Alignment.bottomCenter,
+                        children: [
+                          CircleAvatar(
+                            radius: 35,
+                            backgroundImage: supplier
+                                        .data()?['profileImageUrl'] !=
+                                    null
+                                ? NetworkImage(
+                                    supplier.data()?['profileImageUrl'])
+                                : const AssetImage(
+                                        'assets/images/ProfilePhoto_predetermined.png')
+                                    as ImageProvider,
+                          ),
+                          if (followersCount != null)
+                            Positioned(
+                              bottom: -1,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.person,
+                                      size: 09,
                                       color: Color.fromARGB(255, 15, 37, 112),
-                                      fontSize: 8,
-                                      fontWeight: FontWeight.bold,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      '$followersCount',
+                                      style: const TextStyle(
+                                        color: Color.fromARGB(255, 15, 37, 112),
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
+                        ],
+                      ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(
@@ -3020,41 +3026,43 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                       ),
                       const SizedBox(height: 10),
                       // Agregar la biografía aquí
-                    FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(widget.selectedSupplier.id)
-                          .get(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const CupertinoActivityIndicator(
-                            radius: 16,
-                            color: Colors.green,
-                          );
-                        }
-                        if (snapshot.hasData && snapshot.data!.exists) {
-                          String? bio = snapshot.data!.get('bio') as String?;
-                          if (bio != null && bio.isNotEmpty) {
-                            return Container(
-                              margin: const EdgeInsets.only(top: 10, bottom: 20),
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[200],
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                bio,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
+                      FutureBuilder<DocumentSnapshot>(
+                        future: FirebaseFirestore.instance
+                            .collection('users')
+                            .doc(widget.selectedSupplier.id)
+                            .get(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const CupertinoActivityIndicator(
+                              radius: 16,
+                              color: Colors.green,
                             );
                           }
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
+                          if (snapshot.hasData && snapshot.data!.exists) {
+                            String? bio = snapshot.data!.get('bio') as String?;
+                            if (bio != null && bio.isNotEmpty) {
+                              return Container(
+                                margin:
+                                    const EdgeInsets.only(top: 10, bottom: 20),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  bio,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
                       Text(
                         'Servicio: ${widget.serviceName}',
                         style: const TextStyle(fontSize: 16),
@@ -3173,25 +3181,25 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                         ],
                       ),
                       const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: () {
-                _showReservationBottomSheet();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                minimumSize: const Size(double.infinity, 50),
-                textStyle: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: const Text('Reservar servicio'),
-            ),
+                      ElevatedButton(
+                        onPressed: () {
+                          _showReservationBottomSheet();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          minimumSize: const Size(double.infinity, 50),
+                          textStyle: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text('Reservar servicio'),
+                      ),
                     ],
                   ),
                 ),
@@ -3324,8 +3332,10 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                           maxLines: 4,
                           style: const TextStyle(color: Color(0xFF08143C)),
                           decoration: const InputDecoration(
-                            hintText: 'Indica brevemente qué problema o situación le lleva a solicitar del servicio. Esta información ayudará al agente a entender tus necesidades y ofrecerle una solución óptima.',
-                            hintStyle: TextStyle(color: Color.fromARGB(129, 0, 0, 0)),
+                            hintText:
+                                'Indica brevemente qué problema o situación le lleva a solicitar del servicio. Esta información ayudará al agente a entender tus necesidades y ofrecerle una solución óptima.',
+                            hintStyle:
+                                TextStyle(color: Color.fromARGB(129, 0, 0, 0)),
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.all(15),
                           ),
@@ -3365,82 +3375,108 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   }
 
   void _confirmReservation() async {
-  // Primero, obtenemos el ID del usuario actual
-  final currentUser = FirebaseAuth.instance.currentUser;
-  if (currentUser == null) {
-    // Si no hay usuario actual, mostramos un error
-    _showErrorSnackBar('Error de autenticación. Por favor, inicie sesión nuevamente.');
-    return;
-  }
+    // Primero, obtenemos el ID del usuario actual
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      // Si no hay usuario actual, mostramos un error
+      _showErrorSnackBar(
+          'Error de autenticación. Por favor, inicie sesión nuevamente.');
+      return;
+    }
 
-  // Buscamos el documento del usuario actual en la colección 'users'
-  final userDoc = await FirebaseFirestore.instance
-      .collection('users')
-      .where('uid', isEqualTo: currentUser.uid)
-      .get();
+    // Buscamos el documento del usuario actual en la colección 'users'
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .where('uid', isEqualTo: currentUser.uid)
+        .get();
 
-  if (userDoc.docs.isEmpty) {
-    _showErrorSnackBar('Error al obtener información del usuario.');
-    return;
-  }
+    if (userDoc.docs.isEmpty) {
+      _showErrorSnackBar('Error al obtener información del usuario.');
+      return;
+    }
 
-  final currentUserID = userDoc.docs.first.id;
+    final currentUserID = userDoc.docs.first.id;
 
-  // Verificamos si el ID del proveedor es el mismo que el del usuario actual
-  if (currentUserID == widget.selectedSupplier.id) {
+    // Verificamos si el ID del proveedor es el mismo que el del usuario actual
+    if (currentUserID == widget.selectedSupplier.id) {
+      _showErrorSnackBar(
+          'No es posible reservar sus propios servicios. Por favor, seleccione otro proveedor.');
+      return;
+    }
 
-    _showErrorSnackBar('No es posible reservar sus propios servicios. Por favor, seleccione otro proveedor.');
-    return;
-  }
+    // Continuamos con la verificación de la longitud del texto de reserva
+    if (_reservationTextController.text.length < 10) {
+      _showErrorSnackBar(
+          'Por favor, escriba al menos 10 caracteres describiendo por qué requiere del servicio.');
+      return;
+    }
 
-  // Continuamos con la verificación de la longitud del texto de reserva
-  if (_reservationTextController.text.length < 10) {
-    _showErrorSnackBar('Por favor, escriba al menos 10 caracteres describiendo por qué requiere del servicio.');
-    return;
-  }
+    // El resto del código de _confirmReservation() sigue igual...
 
-  // El resto del código de _confirmReservation() sigue igual...
+    final hourlyRate = _getHourlyRate(widget.selectedSupplier, widget.id)
+        .replaceAll('\$', '')
+        .trim();
 
-  final hourlyRate = _getHourlyRate(widget.selectedSupplier, widget.id)
-      .replaceAll('\$', '')
-      .trim();
+    List<String> selectedPaymentMethods = ['Monedero'];
 
-  List<String> selectedPaymentMethods = ['Monedero'];
+    final taskData = {
+      'clientID': clientIDString,
+      'clientLocation': GeoPoint(widget.latitude, widget.longitude),
+      'clientName': clientName,
+      'hourlyRate': double.tryParse(hourlyRate) ?? 0.0,
+      'referencePoint': widget.reference.isEmpty ? null : widget.reference,
+      'reservation': Timestamp.now(),
+      'service': widget.serviceName,
+      'serviceDetails': _reservationTextController.text,
+      'serviceID': widget.id,
+      'state': 'Pendiente',
+      'supplierID': widget.selectedSupplier.id,
+      'supplierName': widget.selectedSupplier.data()?['name'],
+      'paymentMethods': selectedPaymentMethods,
+    };
 
-  final taskData = {
-    'clientID': clientIDString,
-    'clientLocation': GeoPoint(widget.latitude, widget.longitude),
-    'clientName': clientName,
-    'hourlyRate': double.tryParse(hourlyRate) ?? 0.0,
-    'referencePoint': widget.reference.isEmpty ? null : widget.reference,
-    'reservation': Timestamp.now(),
-    'service': widget.serviceName,
-    'serviceDetails': _reservationTextController.text,
-    'serviceID': widget.id,
-    'state': 'Pendiente',
-    'supplierID': widget.selectedSupplier.id,
-    'supplierName': widget.selectedSupplier.data()?['name'],
-    'paymentMethods': selectedPaymentMethods,
-  };
-
-  try {
-    await FirebaseFirestore.instance.collection('tasks').add(taskData);
-    Navigator.pushAndRemoveUntil(
+    try {
+      await FirebaseFirestore.instance.collection('tasks').add(taskData);
+      Navigator.pushAndRemoveUntil(
+        // ignore: use_build_context_synchronously
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HomePage(selectedIndex: 2),
+        ),
+        (route) => false,
+      );
       // ignore: use_build_context_synchronously
-      context,
-      MaterialPageRoute(
-        builder: (context) => const HomePage(selectedIndex: 2),
-      ),
-      (route) => false,
-    );
-    // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            '¡Servicio reservado con éxito!',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } catch (error) {
+      if (kDebugMode) {
+        print('Error al guardar la tarea: $error');
+      }
+      _showErrorSnackBar('Reserva fallida. Por favor, intente nuevamente.');
+    }
+  }
+
+// Función auxiliar para mostrar SnackBars de error
+  void _showErrorSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text(
-          '¡Servicio reservado con éxito!',
-          style: TextStyle(color: Colors.white),
+        content: Text(
+          message,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
         ),
-        backgroundColor: Colors.green,
+        backgroundColor: Colors.red,
         duration: const Duration(seconds: 5),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
@@ -3448,31 +3484,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
         ),
       ),
     );
-  } catch (error) {
-    if (kDebugMode) {
-      print('Error al guardar la tarea: $error');
-    }
-    _showErrorSnackBar('Reserva fallida. Por favor, intente nuevamente.');
   }
-}
-
-// Función auxiliar para mostrar SnackBars de error
-void _showErrorSnackBar(String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        message,
-        style: const TextStyle(color: Colors.white, fontSize: 13),
-      ),
-      backgroundColor: Colors.red,
-      duration: const Duration(seconds: 5),
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
-    ),
-  );
-}
 
   String _getHourlyRate(
       DocumentSnapshot<Map<String, dynamic>> supplier, String id) {
