@@ -66,6 +66,17 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           fontFamily: 'Georgia',
           primarySwatch: Colors.green,
+          popupMenuTheme: const PopupMenuThemeData(
+            color: Colors.white,
+            elevation: 8,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+            ),
+            textStyle: TextStyle(
+              color: Colors.black,
+              fontSize: 16,
+            ),
+          ),
         ),
         navigatorKey: OneContext().key,
         builder: OneContext().builder,

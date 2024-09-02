@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:photo_view/photo_view.dart';
 
 class SocialScreen extends StatelessWidget {
   const SocialScreen({super.key});
@@ -296,10 +297,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         ),
                         if (unreadCount > 0)
                           Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
                               color: Colors.green,
-                              borderRadius: BorderRadius.circular(10),
+                              shape: BoxShape.circle,
                             ),
                             child: Text(
                               unreadCount.toString(),
@@ -383,6 +384,10 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _showChatInput = true;
   String? _supplierProfileImageUrl;
   String _chatID = '';
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _foundMessages = [];
+  int _currentFoundMessageIndex = -1;
 
   @override
   void initState() {
@@ -392,13 +397,23 @@ class _ChatScreenState extends State<ChatScreen> {
     _getSupplierProfileImageUrl();
     _resetUnreadCount();
     _markMessagesAsRead();
+    _scrollController.addListener(_scrollListener);
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _imageMessageController.dispose();
+    _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.position.pixels ==
+        _scrollController.position.maxScrollExtent) {
+      _markMessagesAsRead();
+    }
   }
 
   Future<void> _checkChatExistence() async {
@@ -462,11 +477,6 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     _messageController.clear();
-    //_scrollController.animateTo(
-    // _scrollController.position.maxScrollExtent,
-    // duration: const Duration(milliseconds: 300),
-    // curve: Curves.easeOut,
-    // );
   }
 
   Future<void> _getSupplierProfileImageUrl() async {
@@ -484,7 +494,6 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _selectedImage = File(pickedFile.path);
       });
-      // Mostrar la vista previa de la imagen y esperar a que se cierre
       await _showPreviewImage();
     }
   }
@@ -509,7 +518,7 @@ class _ChatScreenState extends State<ChatScreen> {
           'sender': widget.clientID,
           'timestamp': FieldValue.serverTimestamp(),
           'type': 'image_with_message',
-          'isRead': false, // Añadimos este campo
+          'isRead': false,
         });
 
         await _firestore.collection('chats').doc(_chatID).update({
@@ -524,65 +533,30 @@ class _ChatScreenState extends State<ChatScreen> {
           _selectedImage = null;
         });
         _imageMessageController.clear();
-
-        //_scrollController.animateTo(
-        // _scrollController.position.maxScrollExtent,
-        //  duration: const Duration(milliseconds: 300),
-        // curve: Curves.easeOut,
-        //  );
       });
     }
   }
 
   void _showFullScreenImage(String imageUrl) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          insetPadding: EdgeInsets.zero,
-          child: Container(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.9,
-              maxHeight: MediaQuery.of(context).size.height * 0.9,
-            ),
-            child: Stack(
-              children: [
-                InteractiveViewer(
-                  panEnabled: true,
-                  boundaryMargin: const EdgeInsets.all(20),
-                  minScale: 0.5,
-                  maxScale: 15,
-                  child: Image.network(
-                    imageUrl,
-                    fit: BoxFit.contain,
-                    loadingBuilder: (BuildContext context, Widget child,
-                        ImageChunkEvent? loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.green,
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
-                              : null,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ),
-              ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.of(context).pop(),
             ),
           ),
-        );
-      },
+          body: Center(
+            child: PhotoView(
+              imageProvider: NetworkImage(imageUrl),
+              backgroundDecoration: const BoxDecoration(color: Colors.black),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -602,7 +576,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
     await batch.commit();
 
-    // Actualizar el estado de lectura del último mensaje en el documento del chat
     await _firestore.collection('chats').doc(_chatID).update({
       'lastMessageIsRead': true,
       'unreadCountClient': 0,
@@ -623,10 +596,70 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     });
 
-    // Reseteamos el contador de mensajes no leídos
     await _firestore.collection('chats').doc(_chatID).update({
       'unreadCountClient': 0,
     });
+  }
+
+  void _onSearchTextChanged(String text) {
+    setState(() {
+      _foundMessages = [];
+      _currentFoundMessageIndex = -1;
+    });
+
+    if (text.isEmpty) {
+      return;
+    }
+
+    _firestore
+        .collection('chats')
+        .doc(_chatID)
+        .collection('messages')
+        .get()
+        .then((querySnapshot) {
+      for (var message in querySnapshot.docs) {
+        if (message['message'] != null &&
+            message['message'].toLowerCase().contains(text.toLowerCase())) {
+          setState(() {
+            _foundMessages.add(message);
+          });
+        }
+      }
+      if (_foundMessages.isNotEmpty) {
+        setState(() {
+          _currentFoundMessageIndex = 0;
+        });
+        _scrollToMessage(_foundMessages[0]);
+      }
+    });
+  }
+
+  void _scrollToMessage(QueryDocumentSnapshot<Map<String, dynamic>> message) {
+    _scrollController.animateTo(
+      _getMessagePosition(message),
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  double _getMessagePosition(
+      QueryDocumentSnapshot<Map<String, dynamic>> message) {
+    final messageIndex = _foundMessages.indexOf(message);
+    if (messageIndex == -1) {
+      return _scrollController.position.maxScrollExtent;
+    } else {
+      return _scrollController.position.maxScrollExtent -
+          (messageIndex * 80); // Ajusta 80 según el tamaño promedio de tus mensajes
+    }
+  }
+
+  void _showMultimediaScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MultimediaScreen(chatID: _chatID),
+      ),
+    );
   }
 
   @override
@@ -636,37 +669,126 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         leading: IconButton(
-          icon:
-              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
         ),
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundImage: _supplierProfileImageUrl != null
-                  ? NetworkImage(_supplierProfileImageUrl!)
-                  : const AssetImage(
-                          'assets/images/ProfilePhoto_predetermined.png')
-                      as ImageProvider,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              widget.supplierName,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                onChanged: _onSearchTextChanged,
+                decoration: const InputDecoration(
+                  hintText: 'Buscar en la conversación...',
+                  border: InputBorder.none,
+                ),
+              )
+            : Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundImage: _supplierProfileImageUrl != null
+                        ? NetworkImage(_supplierProfileImageUrl!)
+                        : const AssetImage(
+                            'assets/images/ProfilePhoto_predetermined.png')
+                            as ImageProvider,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    widget.supplierName,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
+        actions: [
+          if (!_isSearching)
+            IconButton(
+              icon: const Icon(Icons.search, color: Colors.black),
+              onPressed: () {
+                setState(() {
+                  _isSearching = true;
+                });
+              },
             ),
-          ],
-        ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.black),
+            itemBuilder: (context) => [
+              const PopupMenuItem<String>(
+                value: 'Ver perfil',
+                child: Text('Ver perfil'),
+              ),
+              const PopupMenuItem<String>(
+                value: 'Multimedia',
+                child: Text('Multimedia'),
+              ),
+              const PopupMenuItem<String>(
+                value: 'Reportar usuario',
+                child: Text('Reportar usuario'),
+              ),
+            ],
+            onSelected: (value) {
+              if (value == 'Ver perfil') {
+                // Navegar a la pantalla de perfil
+              } else if (value == 'Multimedia') {
+                _showMultimediaScreen();
+              } else if (value == 'Reportar usuario') {
+                // Navegar a la pantalla de reporte de usuario
+              }
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
           children: [
+            if (_isSearching)
+              if (_foundMessages.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(
+                    child: Text('No se encontraron mensajes'),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      IconButton(
+                        onPressed: _currentFoundMessageIndex > 0
+                            ? () {
+                                setState(() {
+                                  _currentFoundMessageIndex--;
+                                });
+                                _scrollToMessage(
+                                    _foundMessages[_currentFoundMessageIndex]);
+                              }
+                            : null,
+                        icon: const Icon(Icons.arrow_upward),
+                      ),
+                      Text('${_currentFoundMessageIndex + 1}/'
+                          '${_foundMessages.length}'),
+                      IconButton(
+                        onPressed: _currentFoundMessageIndex <
+                                _foundMessages.length - 1
+                            ? () {
+                                setState(() {
+                                  _currentFoundMessageIndex++;
+                                });
+                                _scrollToMessage(
+                                    _foundMessages[_currentFoundMessageIndex]);
+                              }
+                            : null,
+                        icon: const Icon(Icons.arrow_downward),
+                      ),
+                    ],
+                  ),
+                ),
             Expanded(
               child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: _firestore
@@ -684,7 +806,6 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (snapshot.hasData) {
                     final messages = snapshot.data!.docs;
 
-                    // Agrupar mensajes por fecha
                     final messagesByDate = <DateTime, List<dynamic>>{};
                     for (var message in messages) {
                       final timestamp =
@@ -704,11 +825,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
                     final messageWidgets = <Widget>[];
                     messagesByDate.forEach((date, messages) {
-                      // Primero añadir los mensajes del día
                       for (var message in messages) {
                         messageWidgets.add(_buildMessageBubble(message));
                       }
-                      // Luego añadir el separador de fecha
                       messageWidgets.add(_buildDateSeparator(date));
                     });
 
@@ -1053,5 +1172,97 @@ class _ChatScreenState extends State<ChatScreen> {
         },
       );
     }
+  }
+}
+
+class MultimediaScreen extends StatelessWidget {
+  final String chatID;
+
+  const MultimediaScreen({Key? key, required this.chatID}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        title: const Text('Archivos multimedia'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('chats')
+            .doc(chatID)
+            .collection('messages')
+            .where('imageUrl', isNotEqualTo: null)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return const Center(child: Text('Error al cargar imágenes'));
+          }
+
+          if (snapshot.hasData) {
+            final images = snapshot.data!.docs.where((image) {
+              final message = image.data();
+              return message.containsKey('imageUrl') &&
+                  message['imageUrl'] != null &&
+                  message['imageUrl'] != '';
+            }).toList();
+
+            if (images.isEmpty) {
+              return const Center(child: Text('No hay archivos multimedia'));
+            }
+
+            return GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+              ),
+              itemCount: images.length,
+              itemBuilder: (context, index) {
+                final imageUrl = images[index]['imageUrl'] as String;
+
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => Scaffold(
+                          appBar: AppBar(
+                            backgroundColor: Colors.black,
+                            leading: IconButton(
+                              icon: const Icon(Icons.arrow_back,
+                                  color: Colors.white),
+                              onPressed: () => Navigator.of(context).pop(),
+                            ),
+                          ),
+                          body: Center(
+                            child: PhotoView(
+                              imageProvider: NetworkImage(imageUrl),
+                              backgroundDecoration: const BoxDecoration(
+                                  color: Colors.black),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                  ),
+                );
+              },
+            );
+          }
+
+          return const Center(child: CircularProgressIndicator());
+        },
+      ),
+    );
   }
 }
