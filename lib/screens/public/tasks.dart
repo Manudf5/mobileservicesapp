@@ -29,11 +29,17 @@ class TasksScreen extends StatefulWidget {
   State createState() => _TasksScreenState();
 }
 
-class _TasksScreenState extends State {
+class _TasksScreenState extends State<TasksScreen> {
   // Obtiene el UID del usuario actual
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String? _userId;
   String? _clientId;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchClientId();
+  }
 
   // Obtiene el ID del cliente desde Firestore
   Future _fetchClientId() async {
@@ -62,10 +68,29 @@ class _TasksScreenState extends State {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchClientId();
+  // Función para obtener la evaluación promedio del proveedor
+  Future<double> _getAverageSupplierEvaluation(String supplierId) async {
+    QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
+        await FirebaseFirestore.instance.collection('tasks').get();
+
+    double totalEvaluation = 0;
+    int evaluationCount = 0;
+
+    for (var taskDoc in tasksSnapshot.docs) {
+      if (taskDoc.data()['supplierID'] == supplierId &&
+          taskDoc.data()['clientEvaluation'] != null) {
+        totalEvaluation +=
+            double.tryParse(taskDoc.data()['clientEvaluation'].toString()) ??
+                0.0;
+        evaluationCount++;
+      }
+    }
+
+    if (evaluationCount == 0) {
+      return 0.0;
+    } else {
+      return totalEvaluation / evaluationCount;
+    }
   }
 
   @override
@@ -223,152 +248,186 @@ class _TasksScreenState extends State {
                                           );
                                         }
 
-                                        return GestureDetector(
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    TaskDetailsScreen(
-                                                  task: task,
-                                                  supplier: supplier,
-                                                  supplierInfo: supplierInfo,
+                                        // Obtén la evaluación promedio del proveedor
+                                        return FutureBuilder<double>(
+                                          future: _getAverageSupplierEvaluation(
+                                              supplierId),
+                                          builder: (context,
+                                              averageEvaluationSnapshot) {
+                                            if (averageEvaluationSnapshot
+                                                .connectionState ==
+                                                ConnectionState.waiting) {
+                                              return const ListTile(
+                                                title: Center(
+                                                    child:
+                                                        CupertinoActivityIndicator(
+                                                  radius: 16,
+                                                  color: Colors.green,
+                                                )),
+                                              );
+                                            }
+
+                                            double averageEvaluation =
+                                                averageEvaluationSnapshot.data ??
+                                                    0.0;
+
+                                            return GestureDetector(
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        TaskDetailsScreen(
+                                                      task: task,
+                                                      supplier: supplier,
+                                                      supplierInfo:
+                                                          supplierInfo,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(
+                                                    bottom:
+                                                        0.0), // Añade espacio debajo
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.all(16),
+                                                  // Modifica la decoración para solo bordes arriba y abajo
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                    border: Border(
+                                                      bottom: BorderSide(
+                                                          color:
+                                                              Color(0xFF08143c),
+                                                          width: 0.5),
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      CircleAvatar(
+                                                        radius: 30,
+                                                        backgroundImage: supplier
+                                                                        .data()?[
+                                                                    'profileImageUrl'] !=
+                                                                null
+                                                            ? NetworkImage(
+                                                                supplier.data()?[
+                                                                    'profileImageUrl'])
+                                                            : const AssetImage(
+                                                                'assets/images/ProfilePhoto_predetermined.png'),
+                                                      ),
+                                                      const SizedBox(width: 16),
+                                                      Expanded(
+                                                        child: Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text(
+                                                              'ID: $supplierId',
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          8.0),
+                                                            ),
+                                                            Text(
+                                                              '${task.data()['supplierName']}',
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                      fontSize:
+                                                                          16),
+                                                            ),
+                                                            Text(
+                                                              task.data()[
+                                                                  'service'],
+                                                              style: const TextStyle(
+                                                                  fontSize: 14.0,
+                                                                  fontStyle:
+                                                                      FontStyle
+                                                                          .italic),
+                                                            ),
+                                                            Row(
+                                                              children: [
+                                                                const Icon(
+                                                                  Icons.star,
+                                                                  size: 16.0,
+                                                                  color: Color(
+                                                                      0xFF1ca424),
+                                                                ),
+                                                                const SizedBox(
+                                                                    width: 4.0),
+                                                                Text(
+                                                                  // Muestra la evaluación promedio
+                                                                  averageEvaluation.toStringAsFixed(1),
+                                                                  style:
+                                                                      const TextStyle(
+                                                                          fontSize:
+                                                                              12.0),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                                left: 16.0),
+                                                        child: Column(
+                                                          // Use a Column to stack the text widgets
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start, // Align text to the start
+                                                          children: [
+                                                            Text(
+                                                              '${task.data()['state']}',
+                                                              style:
+                                                                  const TextStyle(
+                                                                fontSize: 14.0,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color: Color(
+                                                                    0xFFE65100),
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                                height:
+                                                                    1), // Add some space between the text widgets
+                                                            Text(
+                                                              // Formatea la fecha desde Timestamp a DD/MM/YYYY
+                                                              task.data()[
+                                                                          'reservation'] !=
+                                                                      null
+                                                                  ? DateFormat(
+                                                                          'dd/MM/yyyy')
+                                                                      .format((task
+                                                                              .data()[
+                                                                                  'reservation']
+                                                                          as Timestamp)
+                                                                      .toDate())
+                                                                  : 'Sin fecha',
+                                                              style:
+                                                                  const TextStyle(
+                                                                fontSize:
+                                                                    10.0, // Smaller font size for the date
+                                                                color: Color(
+                                                                    0xFF08143C),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                               ),
                                             );
                                           },
-                                          child: Padding(
-                                            padding: const EdgeInsets.only(
-                                                bottom:
-                                                    0.0), // Añade espacio debajo
-                                            child: Container(
-                                              padding: const EdgeInsets.all(16),
-                                              // Modifica la decoración para solo bordes arriba y abajo
-                                              decoration: const BoxDecoration(
-                                                border: Border(
-                                                  bottom: BorderSide(
-                                                      color: Color(0xFF08143c),
-                                                      width: 0.5),
-                                                ),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  CircleAvatar(
-                                                    radius: 30,
-                                                    backgroundImage: supplier
-                                                                    .data()?[
-                                                                'profileImageUrl'] !=
-                                                            null
-                                                        ? NetworkImage(supplier
-                                                                .data()?[
-                                                            'profileImageUrl'])
-                                                        : const AssetImage(
-                                                            'assets/images/ProfilePhoto_predetermined.png'),
-                                                  ),
-                                                  const SizedBox(width: 16),
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          'ID: $supplierId',
-                                                          style:
-                                                              const TextStyle(
-                                                                  fontSize:
-                                                                      8.0),
-                                                        ),
-                                                        Text(
-                                                          '${task.data()['supplierName']}',
-                                                          style:
-                                                              const TextStyle(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  fontSize: 16),
-                                                        ),
-                                                        Text(
-                                                          task.data()[
-                                                              'service'],
-                                                          style: const TextStyle(
-                                                              fontSize: 14.0,
-                                                              fontStyle:
-                                                                  FontStyle
-                                                                      .italic),
-                                                        ),
-                                                        Row(
-                                                          children: [
-                                                            const Icon(
-                                                              Icons.star,
-                                                              size: 16.0,
-                                                              color: Color(
-                                                                  0xFF1ca424),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 4.0),
-                                                            Text(
-                                                              '${supplierInfo.data()?['assessment'] ?? 'Sin calificación'}',
-                                                              style:
-                                                                  const TextStyle(
-                                                                      fontSize:
-                                                                          12.0),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            left: 16.0),
-                                                    child: Column(
-                                                      // Use a Column to stack the text widgets
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start, // Align text to the start
-                                                      children: [
-                                                        Text(
-                                                          '${task.data()['state']}',
-                                                          style:
-                                                              const TextStyle(
-                                                            fontSize: 14.0,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            color: Color(
-                                                                0xFFE65100),
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                            height:
-                                                                1), // Add some space between the text widgets
-                                                        Text(
-                                                          // Formatea la fecha desde Timestamp a DD/MM/YYYY
-                                                          task.data()['reservation'] !=
-                                                                  null
-                                                              ? DateFormat(
-                                                                      'dd/MM/yyyy')
-                                                                  .format((task.data()[
-                                                                              'reservation']
-                                                                          as Timestamp)
-                                                                      .toDate())
-                                                              : 'Sin fecha',
-                                                          style:
-                                                              const TextStyle(
-                                                            fontSize:
-                                                                10.0, // Smaller font size for the date
-                                                            color: Color(
-                                                                0xFF08143C),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
                                         );
                                       });
                                 });
@@ -489,151 +548,186 @@ class _TasksScreenState extends State {
                                           );
                                         }
 
-                                        return GestureDetector(
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    TaskDetailsScreen(
-                                                  task: task,
-                                                  supplier: supplier,
-                                                  supplierInfo: supplierInfo,
+                                        // Obtén la evaluación promedio del proveedor
+                                        return FutureBuilder<double>(
+                                          future: _getAverageSupplierEvaluation(
+                                              supplierId),
+                                          builder: (context,
+                                              averageEvaluationSnapshot) {
+                                            if (averageEvaluationSnapshot
+                                                .connectionState ==
+                                                ConnectionState.waiting) {
+                                              return const ListTile(
+                                                title: Center(
+                                                    child:
+                                                        CupertinoActivityIndicator(
+                                                  radius: 16,
+                                                  color: Colors.green,
+                                                )),
+                                              );
+                                            }
+
+                                            double averageEvaluation =
+                                                averageEvaluationSnapshot.data ??
+                                                    0.0;
+
+                                            return GestureDetector(
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        TaskDetailsScreen(
+                                                      task: task,
+                                                      supplier: supplier,
+                                                      supplierInfo:
+                                                          supplierInfo,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(
+                                                    bottom:
+                                                        0.0), // Añade espacio debajo
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.all(16),
+                                                  // Modifica la decoración para solo bordes arriba y abajo
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                    border: Border(
+                                                      bottom: BorderSide(
+                                                          color:
+                                                              Color(0xFF08143c),
+                                                          width: 0.5),
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      CircleAvatar(
+                                                        radius: 30,
+                                                        backgroundImage: supplier
+                                                                        .data()?[
+                                                                    'profileImageUrl'] !=
+                                                                null
+                                                            ? NetworkImage(
+                                                                supplier.data()?[
+                                                                    'profileImageUrl'])
+                                                            : const AssetImage(
+                                                                'assets/images/ProfilePhoto_predetermined.png'),
+                                                      ),
+                                                      const SizedBox(width: 16),
+                                                      Expanded(
+                                                        child: Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text(
+                                                              'ID: $supplierId',
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          8.0),
+                                                            ),
+                                                            Text(
+                                                              '${task.data()['supplierName']}',
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                      fontSize:
+                                                                          16),
+                                                            ),
+                                                            Text(
+                                                              task.data()[
+                                                                  'service'],
+                                                              style: const TextStyle(
+                                                                  fontSize: 14.0,
+                                                                  fontStyle:
+                                                                      FontStyle
+                                                                          .italic),
+                                                            ),
+                                                            Row(
+                                                              children: [
+                                                                const Icon(
+                                                                  Icons.star,
+                                                                  size: 16.0,
+                                                                  color: Color(
+                                                                      0xFF1ca424),
+                                                                ),
+                                                                const SizedBox(
+                                                                    width: 4.0),
+                                                                Text(
+                                                                  // Muestra la evaluación promedio
+                                                                  averageEvaluation.toStringAsFixed(1),
+                                                                  style:
+                                                                      const TextStyle(
+                                                                          fontSize:
+                                                                              12.0),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                                left: 16.0),
+                                                        child: Column(
+                                                          // Use a Column to stack the text widgets
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start, // Align text to the start
+                                                          children: [
+                                                            Text(
+                                                              '${task.data()['state']}',
+                                                              style:
+                                                                  const TextStyle(
+                                                                fontSize: 14.0,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color:
+                                                                    Colors.amber,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                                height:
+                                                                    1), // Add some space between the text widgets
+                                                            Text(
+                                                              // Formatea la fecha desde Timestamp a DD/MM/YYYY
+                                                              task.data()[
+                                                                          'start'] !=
+                                                                      null
+                                                                  ? DateFormat(
+                                                                          'dd/MM/yyyy')
+                                                                      .format((task
+                                                                              .data()[
+                                                                                  'start']
+                                                                          as Timestamp)
+                                                                      .toDate())
+                                                                  : 'Sin fecha',
+                                                              style:
+                                                                  const TextStyle(
+                                                                fontSize:
+                                                                    10.0, // Smaller font size for the date
+                                                                color: Color(
+                                                                    0xFF08143C),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                               ),
                                             );
                                           },
-                                          child: Padding(
-                                            padding: const EdgeInsets.only(
-                                                bottom:
-                                                    0.0), // Añade espacio debajo
-                                            child: Container(
-                                              padding: const EdgeInsets.all(16),
-                                              // Modifica la decoración para solo bordes arriba y abajo
-                                              decoration: const BoxDecoration(
-                                                border: Border(
-                                                  bottom: BorderSide(
-                                                      color: Color(0xFF08143c),
-                                                      width: 0.5),
-                                                ),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  CircleAvatar(
-                                                    radius: 30,
-                                                    backgroundImage: supplier
-                                                                    .data()?[
-                                                                'profileImageUrl'] !=
-                                                            null
-                                                        ? NetworkImage(supplier
-                                                                .data()?[
-                                                            'profileImageUrl'])
-                                                        : const AssetImage(
-                                                            'assets/images/ProfilePhoto_predetermined.png'),
-                                                  ),
-                                                  const SizedBox(width: 16),
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          'ID: $supplierId',
-                                                          style:
-                                                              const TextStyle(
-                                                                  fontSize:
-                                                                      8.0),
-                                                        ),
-                                                        Text(
-                                                          '${task.data()['supplierName']}',
-                                                          style:
-                                                              const TextStyle(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  fontSize: 16),
-                                                        ),
-                                                        Text(
-                                                          task.data()[
-                                                              'service'],
-                                                          style: const TextStyle(
-                                                              fontSize: 14.0,
-                                                              fontStyle:
-                                                                  FontStyle
-                                                                      .italic),
-                                                        ),
-                                                        Row(
-                                                          children: [
-                                                            const Icon(
-                                                              Icons.star,
-                                                              size: 16.0,
-                                                              color: Color(
-                                                                  0xFF1ca424),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 4.0),
-                                                            Text(
-                                                              '${supplierInfo.data()?['assessment'] ?? 'Sin calificación'}',
-                                                              style:
-                                                                  const TextStyle(
-                                                                      fontSize:
-                                                                          12.0),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            left: 16.0),
-                                                    child: Column(
-                                                      // Use a Column to stack the text widgets
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start, // Align text to the start
-                                                      children: [
-                                                        Text(
-                                                          '${task.data()['state']}',
-                                                          style:
-                                                              const TextStyle(
-                                                            fontSize: 14.0,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            color: Colors.amber,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                            height:
-                                                                1), // Add some space between the text widgets
-                                                        Text(
-                                                          // Formatea la fecha desde Timestamp a DD/MM/YYYY
-                                                          task.data()['start'] !=
-                                                                  null
-                                                              ? DateFormat(
-                                                                      'dd/MM/yyyy')
-                                                                  .format((task.data()[
-                                                                              'start']
-                                                                          as Timestamp)
-                                                                      .toDate())
-                                                              : 'Sin fecha',
-                                                          style:
-                                                              const TextStyle(
-                                                            fontSize:
-                                                                10.0, // Smaller font size for the date
-                                                            color: Color(
-                                                                0xFF08143C),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
                                         );
                                       });
                                 });
@@ -750,152 +844,186 @@ class _TasksScreenState extends State {
                                           );
                                         }
 
-                                        return GestureDetector(
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    TaskDetailsScreen(
-                                                  task: task,
-                                                  supplier: supplier,
-                                                  supplierInfo: supplierInfo,
+                                        // Obtén la evaluación promedio del proveedor
+                                        return FutureBuilder<double>(
+                                          future: _getAverageSupplierEvaluation(
+                                              supplierId),
+                                          builder: (context,
+                                              averageEvaluationSnapshot) {
+                                            if (averageEvaluationSnapshot
+                                                .connectionState ==
+                                                ConnectionState.waiting) {
+                                              return const ListTile(
+                                                title: Center(
+                                                    child:
+                                                        CupertinoActivityIndicator(
+                                                  radius: 16,
+                                                  color: Colors.green,
+                                                )),
+                                              );
+                                            }
+
+                                            double averageEvaluation =
+                                                averageEvaluationSnapshot.data ??
+                                                    0.0;
+
+                                            return GestureDetector(
+                                              onTap: () {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        TaskDetailsScreen(
+                                                      task: task,
+                                                      supplier: supplier,
+                                                      supplierInfo:
+                                                          supplierInfo,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              child: Padding(
+                                                padding: const EdgeInsets.only(
+                                                    bottom:
+                                                        0.0), // Añade espacio debajo
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.all(16),
+                                                  // Modifica la decoración para solo bordes arriba y abajo
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                    border: Border(
+                                                      bottom: BorderSide(
+                                                          color:
+                                                              Color(0xFF08143c),
+                                                          width: 0.5),
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      CircleAvatar(
+                                                        radius: 30,
+                                                        backgroundImage: supplier
+                                                                        .data()?[
+                                                                    'profileImageUrl'] !=
+                                                                null
+                                                            ? NetworkImage(
+                                                                supplier.data()?[
+                                                                    'profileImageUrl'])
+                                                            : const AssetImage(
+                                                                'assets/images/ProfilePhoto_predetermined.png'),
+                                                      ),
+                                                      const SizedBox(width: 16),
+                                                      Expanded(
+                                                        child: Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start,
+                                                          children: [
+                                                            Text(
+                                                              'ID: $supplierId',
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          8.0),
+                                                            ),
+                                                            Text(
+                                                              '${task.data()['supplierName']}',
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .bold,
+                                                                      fontSize:
+                                                                          16),
+                                                            ),
+                                                            Text(
+                                                              task.data()[
+                                                                  'service'],
+                                                              style: const TextStyle(
+                                                                  fontSize: 14.0,
+                                                                  fontStyle:
+                                                                      FontStyle
+                                                                          .italic),
+                                                            ),
+                                                            Row(
+                                                              children: [
+                                                                const Icon(
+                                                                  Icons.star,
+                                                                  size: 16.0,
+                                                                  color: Color(
+                                                                      0xFF1ca424),
+                                                                ),
+                                                                const SizedBox(
+                                                                    width: 4.0),
+                                                                Text(
+                                                                  // Muestra la evaluación promedio
+                                                                  averageEvaluation.toStringAsFixed(1),
+                                                                  style:
+                                                                      const TextStyle(
+                                                                          fontSize:
+                                                                              12.0),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets.only(
+                                                                left: 16.0),
+                                                        child: Column(
+                                                          // Use a Column to stack the text widgets
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .start, // Align text to the start
+                                                          children: [
+                                                            Text(
+                                                              '${task.data()['state']}',
+                                                              style:
+                                                                  const TextStyle(
+                                                                fontSize: 14.0,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color: Color(
+                                                                    0xFF00C853),
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                                height:
+                                                                    1), // Add some space between the text widgets
+                                                            Text(
+                                                              // Formatea la fecha desde Timestamp a DD/MM/YYYY
+                                                              task.data()[
+                                                                          'end'] !=
+                                                                      null
+                                                                  ? DateFormat(
+                                                                          'dd/MM/yyyy')
+                                                                      .format((task
+                                                                              .data()[
+                                                                                  'end']
+                                                                          as Timestamp)
+                                                                      .toDate())
+                                                                  : 'Sin fecha',
+                                                              style:
+                                                                  const TextStyle(
+                                                                fontSize:
+                                                                    10.0, // Smaller font size for the date
+                                                                color: Color(
+                                                                    0xFF08143C),
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
                                               ),
                                             );
                                           },
-                                          child: Padding(
-                                            padding: const EdgeInsets.only(
-                                                bottom:
-                                                    0.0), // Añade espacio debajo
-                                            child: Container(
-                                              padding: const EdgeInsets.all(16),
-                                              // Modifica la decoración para solo bordes arriba y abajo
-                                              decoration: const BoxDecoration(
-                                                border: Border(
-                                                  bottom: BorderSide(
-                                                      color: Color(0xFF08143c),
-                                                      width: 0.5),
-                                                ),
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  CircleAvatar(
-                                                    radius: 30,
-                                                    backgroundImage: supplier
-                                                                    .data()?[
-                                                                'profileImageUrl'] !=
-                                                            null
-                                                        ? NetworkImage(supplier
-                                                                .data()?[
-                                                            'profileImageUrl'])
-                                                        : const AssetImage(
-                                                            'assets/images/ProfilePhoto_predetermined.png'),
-                                                  ),
-                                                  const SizedBox(width: 16),
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start,
-                                                      children: [
-                                                        Text(
-                                                          'ID: $supplierId',
-                                                          style:
-                                                              const TextStyle(
-                                                                  fontSize:
-                                                                      8.0),
-                                                        ),
-                                                        Text(
-                                                          '${task.data()['supplierName']}',
-                                                          style:
-                                                              const TextStyle(
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                  fontSize: 16),
-                                                        ),
-                                                        Text(
-                                                          task.data()[
-                                                              'service'],
-                                                          style: const TextStyle(
-                                                              fontSize: 14.0,
-                                                              fontStyle:
-                                                                  FontStyle
-                                                                      .italic),
-                                                        ),
-                                                        Row(
-                                                          children: [
-                                                            const Icon(
-                                                              Icons.star,
-                                                              size: 16.0,
-                                                              color: Color(
-                                                                  0xFF1ca424),
-                                                            ),
-                                                            const SizedBox(
-                                                                width: 4.0),
-                                                            Text(
-                                                              '${supplierInfo.data()?['assessment'] ?? 'Sin calificación'}',
-                                                              style:
-                                                                  const TextStyle(
-                                                                      fontSize:
-                                                                          12.0),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            left: 16.0),
-                                                    child: Column(
-                                                      // Use a Column to stack the text widgets
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .start, // Align text to the start
-                                                      children: [
-                                                        Text(
-                                                          '${task.data()['state']}',
-                                                          style:
-                                                              const TextStyle(
-                                                            fontSize: 14.0,
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            color: Color(
-                                                                0xFF00C853),
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                            height:
-                                                                1), // Add some space between the text widgets
-                                                        Text(
-                                                          // Formatea la fecha desde Timestamp a DD/MM/YYYY
-                                                          task.data()['end'] !=
-                                                                  null
-                                                              ? DateFormat(
-                                                                      'dd/MM/yyyy')
-                                                                  .format((task.data()[
-                                                                              'end']
-                                                                          as Timestamp)
-                                                                      .toDate())
-                                                              : 'Sin fecha',
-                                                          style:
-                                                              const TextStyle(
-                                                            fontSize:
-                                                                10.0, // Smaller font size for the date
-                                                            color: Color(
-                                                                0xFF08143C),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
                                         );
                                       });
                                 });
@@ -1320,12 +1448,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   void initState() {
     super.initState();
     _initFuture = _initializeData();
+    _getAverageSupplierEvaluation();
+    _getUserInfo();
     _startTimer();
     _initializeStartTime();
     _selectedReason = null;
     _checkFollowStatus();
-    _getUserInfo();
-    _getAverageSupplierEvaluation();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -2341,6 +2469,11 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
   @override
   Widget build(BuildContext context) {
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _checkFollowStatus();
+  });
+  
     return Scaffold(
       backgroundColor: Colors.blueGrey[50],
       appBar: AppBar(

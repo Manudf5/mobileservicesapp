@@ -6,7 +6,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-// ignore: unused_import
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 
 class SocialScreen extends StatelessWidget {
@@ -17,20 +16,22 @@ class SocialScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: const Text('Social', 
+        title: const Text(
+          'Social',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
-            fontSize: 28, 
+            fontSize: 28,
           ),
-          textAlign: TextAlign.center, 
+          textAlign: TextAlign.center,
         ),
         actions: [
           IconButton(
-            icon: Image.asset('assets/images/IconChat.png', 
+            icon: Image.asset(
+              'assets/images/IconChat.png',
               height: 32, // Ajusta el tamaño según sea necesario
               width: 32, // Ajusta el tamaño según sea necesario
-            ), 
+            ),
             onPressed: () {
               Navigator.push(
                 context,
@@ -92,11 +93,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
       if (user != null) {
         _clientId = user.uid;
 
-        final QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
-            .instance
-            .collection('users')
-            .where('uid', isEqualTo: _clientId)
-            .get();
+        final QuerySnapshot<Map<String, dynamic>> querySnapshot =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .where('uid', isEqualTo: _clientId)
+                .get();
 
         if (querySnapshot.docs.isNotEmpty) {
           _clientId = querySnapshot.docs.first.data()['id'];
@@ -115,7 +116,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: const Text('Chats',
+        title: const Text(
+          'Chats',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
@@ -149,11 +151,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 final conversation = conversations[index];
                 final clientID = conversation.data()?['clientID'];
                 final supplierID = conversation.data()?['supplierID'];
-                final supplierName= conversation.data()?['supplierName'];
+                final supplierName = conversation.data()?['supplierName'];
                 final lastMessage = conversation.data()?['lastMessage'];
                 final lastMessageTimestamp =
                     conversation.data()?['lastMessageTimestamp'] as Timestamp?;
-                final unreadCount = conversation.data()?['unreadCountClient'] ?? 0;
+                final unreadCount =
+                    conversation.data()?['unreadCountClient'] ?? 0;
                 final isUnread = unreadCount > 0;
 
                 return ElevatedButton(
@@ -174,6 +177,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,
+                    elevation: 0,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 8,
@@ -188,7 +192,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     ),
                   ),
                   child: ListTile(
-                    leading: GestureDetector( // Añadido GestureDetector para la foto de perfil
+                    leading: GestureDetector(
+                      // Añadido GestureDetector para la foto de perfil
                       onTap: () {
                         // Mostrar foto de perfil ampliada
                         showDialog(
@@ -198,7 +203,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                               content: FutureBuilder<String?>(
                                 future: getSupplierProfileImageUrl(supplierID),
                                 builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.done) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.done) {
                                     final profileImageUrl = snapshot.data;
                                     return profileImageUrl != null
                                         ? Image.network(profileImageUrl)
@@ -206,9 +212,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                             'assets/images/ProfilePhoto_predetermined.png');
                                   } else {
                                     return const CupertinoActivityIndicator(
-            radius: 16,
-            color: Colors.green,
-          );
+                                      radius: 16,
+                                      color: Colors.green,
+                                    );
                                   }
                                 },
                               ),
@@ -219,7 +225,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       child: FutureBuilder<String?>(
                         future: getSupplierProfileImageUrl(supplierID),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.done) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.done) {
                             final profileImageUrl = snapshot.data;
                             return CircleAvatar(
                               radius: 25,
@@ -230,9 +237,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             );
                           } else {
                             return const CupertinoActivityIndicator(
-            radius: 16,
-            color: Colors.green,
-          );
+                              radius: 16,
+                              color: Colors.green,
+                            );
                           }
                         },
                       ),
@@ -241,18 +248,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       supplierName ?? '',
                       style: TextStyle(
                         color: Colors.black,
-                        fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isUnread ? FontWeight.bold : FontWeight.normal,
                       ),
                     ),
                     subtitle: Row(
                       children: [
-                        if (conversation.data()?['lastMessageSender'] == _clientId)
+                        if (conversation.data()?['lastMessageSender'] ==
+                            _clientId)
                           Icon(
                             conversation.data()?['lastMessageIsRead'] == true
                                 ? Icons.done_all
                                 : Icons.done,
                             size: 16,
-                            color: conversation.data()?['lastMessageIsRead'] == true
+                            color: conversation.data()?['lastMessageIsRead'] ==
+                                    true
                                 ? Colors.blue
                                 : Colors.grey,
                           ),
@@ -263,14 +273,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             style: TextStyle(
                               color: Colors.grey,
                               fontSize: 12,
-                              fontWeight: isUnread ? FontWeight.bold : FontWeight.normal,
+                              fontWeight: isUnread
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-
                     trailing: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -307,7 +318,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
             );
           }
 
-          return const Center(child: CupertinoActivityIndicator(
+          return const Center(
+              child: CupertinoActivityIndicator(
             radius: 16,
             color: Colors.green,
           ));
@@ -317,10 +329,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   Future<String?> getSupplierProfileImageUrl(String supplierID) async {
-    final supplierDocSnapshot = await _firestore
-        .collection('users')
-        .doc(supplierID)
-        .get();
+    final supplierDocSnapshot =
+        await _firestore.collection('users').doc(supplierID).get();
     return supplierDocSnapshot.data()?['profileImageUrl'];
   }
 
@@ -376,13 +386,13 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void initState() {
-  super.initState();
-  _chatID = '${widget.clientID}_${widget.supplierID}';
-  _checkChatExistence();
-  _getSupplierProfileImageUrl();
-  _resetUnreadCount();
-  _markMessagesAsRead();
-}
+    super.initState();
+    _chatID = '${widget.clientID}_${widget.supplierID}';
+    _checkChatExistence();
+    _getSupplierProfileImageUrl();
+    _resetUnreadCount();
+    _markMessagesAsRead();
+  }
 
   @override
   void dispose() {
@@ -427,46 +437,41 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void sendMessage() async {
-  final messageText = _messageController.text.trim();
+    final messageText = _messageController.text.trim();
 
-  if (messageText.isEmpty) return;
+    if (messageText.isEmpty) return;
 
-  await _firestore
-      .collection('chats')
-      .doc(_chatID)
-      .collection('messages')
-      .add({
-    'message': messageText,
-    'sender': widget.clientID,
-    'timestamp': FieldValue.serverTimestamp(),
-    'type': '',
-    'isRead': false,
-  });
+    await _firestore
+        .collection('chats')
+        .doc(_chatID)
+        .collection('messages')
+        .add({
+      'message': messageText,
+      'sender': widget.clientID,
+      'timestamp': FieldValue.serverTimestamp(),
+      'type': '',
+      'isRead': false,
+    });
 
-  await _firestore
-      .collection('chats')
-      .doc(_chatID)
-      .update({
-    'lastMessage': messageText,
-    'lastMessageTimestamp': FieldValue.serverTimestamp(),
-    'unreadCountSupplier': FieldValue.increment(1),
-    'lastMessageSender': widget.clientID,
-    'lastMessageIsRead': false,
-  });
+    await _firestore.collection('chats').doc(_chatID).update({
+      'lastMessage': messageText,
+      'lastMessageTimestamp': FieldValue.serverTimestamp(),
+      'unreadCountSupplier': FieldValue.increment(1),
+      'lastMessageSender': widget.clientID,
+      'lastMessageIsRead': false,
+    });
 
-  _messageController.clear();
-  _scrollController.animateTo(
-    _scrollController.position.maxScrollExtent,
-    duration: const Duration(milliseconds: 300),
-    curve: Curves.easeOut,
-  );
-}
+    _messageController.clear();
+    //_scrollController.animateTo(
+    // _scrollController.position.maxScrollExtent,
+    // duration: const Duration(milliseconds: 300),
+    // curve: Curves.easeOut,
+    // );
+  }
 
   Future<void> _getSupplierProfileImageUrl() async {
-    final supplierDocSnapshot = await _firestore
-        .collection('users')
-        .doc(widget.supplierID)
-        .get();
+    final supplierDocSnapshot =
+        await _firestore.collection('users').doc(widget.supplierID).get();
     setState(() {
       _supplierProfileImageUrl = supplierDocSnapshot.data()?['profileImageUrl'];
     });
@@ -479,507 +484,574 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() {
         _selectedImage = File(pickedFile.path);
       });
-      _showPreviewImage();
+      // Mostrar la vista previa de la imagen y esperar a que se cierre
+      await _showPreviewImage();
     }
   }
-  
 
   Future<void> _sendImageWithMessage() async {
-  if (_selectedImage != null) {
-    // ignore: prefer_typing_uninitialized_variables
-    var firebaseStorage;
-    final storageRef = firebaseStorage.FirebaseStorage.instance
-        .ref()
-        .child('chat_images/$_chatID/${DateTime.now().millisecondsSinceEpoch}');
-    final uploadTask = storageRef.putFile(_selectedImage!);
+    if (_selectedImage != null) {
+      final storageRef = firebase_storage.FirebaseStorage.instance.ref().child(
+          'chat_images/$_chatID/${DateTime.now().millisecondsSinceEpoch}');
+      final uploadTask = storageRef.putFile(_selectedImage!);
 
-    await uploadTask.whenComplete(() async {
-      final downloadUrl = await storageRef.getDownloadURL();
-      final messageText = _imageMessageController.text.trim();
+      await uploadTask.whenComplete(() async {
+        final downloadUrl = await storageRef.getDownloadURL();
+        final messageText = _imageMessageController.text.trim();
 
-      await _firestore
-          .collection('chats')
-          .doc(_chatID)
-          .collection('messages')
-          .add({
-        'message': messageText,
-        'imageUrl': downloadUrl,
-        'sender': widget.clientID,
-        'timestamp': FieldValue.serverTimestamp(),
-        'type': 'image_with_message',
-        'isRead': false,  // Añadimos este campo
+        await _firestore
+            .collection('chats')
+            .doc(_chatID)
+            .collection('messages')
+            .add({
+          'message': messageText,
+          'imageUrl': downloadUrl,
+          'sender': widget.clientID,
+          'timestamp': FieldValue.serverTimestamp(),
+          'type': 'image_with_message',
+          'isRead': false, // Añadimos este campo
+        });
+
+        await _firestore.collection('chats').doc(_chatID).update({
+          'lastMessage': messageText.isNotEmpty ? messageText : 'Imagen',
+          'lastMessageTimestamp': FieldValue.serverTimestamp(),
+          'unreadCountSupplier': FieldValue.increment(1),
+          'lastMessageSender': widget.clientID,
+          'lastMessageIsRead': false,
+        });
+
+        setState(() {
+          _selectedImage = null;
+        });
+        _imageMessageController.clear();
+
+        //_scrollController.animateTo(
+        // _scrollController.position.maxScrollExtent,
+        //  duration: const Duration(milliseconds: 300),
+        // curve: Curves.easeOut,
+        //  );
       });
+    }
+  }
 
-      await _firestore
-          .collection('chats')
-          .doc(_chatID)
-          .update({
-        'lastMessage': messageText.isNotEmpty ? messageText : 'Imagen',
-        'lastMessageTimestamp': FieldValue.serverTimestamp(),
-        'unreadCountSupplier': FieldValue.increment(1),
-        'lastMessageSender': widget.clientID,
-        'lastMessageIsRead': false,
-      });
+  void _showFullScreenImage(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          insetPadding: EdgeInsets.zero,
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
+            child: Stack(
+              children: [
+                InteractiveViewer(
+                  panEnabled: true,
+                  boundaryMargin: const EdgeInsets.all(20),
+                  minScale: 0.5,
+                  maxScale: 15,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.contain,
+                    loadingBuilder: (BuildContext context, Widget child,
+                        ImageChunkEvent? loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          color: Colors.green,
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
-      setState(() {
-        _selectedImage = null;
-      });
-      _imageMessageController.clear();
+  Future<void> _markMessagesAsRead() async {
+    final querySnapshot = await _firestore
+        .collection('chats')
+        .doc(_chatID)
+        .collection('messages')
+        .where('sender', isEqualTo: widget.supplierID)
+        .where('isRead', isEqualTo: false)
+        .get();
 
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+    final batch = _firestore.batch();
+    for (var doc in querySnapshot.docs) {
+      batch.update(doc.reference, {'isRead': true});
+    }
+
+    await batch.commit();
+
+    // Actualizar el estado de lectura del último mensaje en el documento del chat
+    await _firestore.collection('chats').doc(_chatID).update({
+      'lastMessageIsRead': true,
+      'unreadCountClient': 0,
     });
   }
-}
 
-void _showFullScreenImage(String imageUrl) {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return Dialog(
-        insetPadding: EdgeInsets.zero,
-        child: Container(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.9,
-            maxHeight: MediaQuery.of(context).size.height * 0.9,
-          ),
-          child: Stack(
-            children: [
-              InteractiveViewer(
-                panEnabled: true,
-                boundaryMargin: const EdgeInsets.all(20),
-                minScale: 0.5,
-                maxScale: 15,
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.contain,
-                  loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-            color: Colors.green,
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                            : null,
-                      ),
+  Future<void> markMessagesAsRead() async {
+    await _firestore
+        .collection('chats')
+        .doc(_chatID)
+        .collection('messages')
+        .where('sender', isEqualTo: widget.supplierID)
+        .where('isRead', isEqualTo: false)
+        .get()
+        .then((querySnapshot) {
+      for (var doc in querySnapshot.docs) {
+        doc.reference.update({'isRead': true});
+      }
+    });
+
+    // Reseteamos el contador de mensajes no leídos
+    await _firestore.collection('chats').doc(_chatID).update({
+      'unreadCountClient': 0,
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundImage: _supplierProfileImageUrl != null
+                  ? NetworkImage(_supplierProfileImageUrl!)
+                  : const AssetImage(
+                          'assets/images/ProfilePhoto_predetermined.png')
+                      as ImageProvider,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              widget.supplierName,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: _firestore
+                    .collection('chats')
+                    .doc(_chatID)
+                    .collection('messages')
+                    .orderBy('timestamp', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return const Center(
+                        child: Text('Error al cargar mensajes'));
+                  }
+
+                  if (snapshot.hasData) {
+                    final messages = snapshot.data!.docs;
+
+                    // Agrupar mensajes por fecha
+                    final messagesByDate = <DateTime, List<dynamic>>{};
+                    for (var message in messages) {
+                      final timestamp =
+                          message.data()['timestamp'] as Timestamp;
+                      final messageDate = DateTime(
+                        timestamp.toDate().year,
+                        timestamp.toDate().month,
+                        timestamp.toDate().day,
+                      );
+
+                      if (!messagesByDate.containsKey(messageDate)) {
+                        messagesByDate[messageDate] = [];
+                      }
+
+                      messagesByDate[messageDate]!.add(message);
+                    }
+
+                    final messageWidgets = <Widget>[];
+                    messagesByDate.forEach((date, messages) {
+                      // Primero añadir los mensajes del día
+                      for (var message in messages) {
+                        messageWidgets.add(_buildMessageBubble(message));
+                      }
+                      // Luego añadir el separador de fecha
+                      messageWidgets.add(_buildDateSeparator(date));
+                    });
+
+                    return ListView.builder(
+                      controller: _scrollController,
+                      reverse: true,
+                      itemCount: messageWidgets.length,
+                      itemBuilder: (context, index) {
+                        return messageWidgets[index];
+                      },
                     );
-                  },
+                  }
+                  return const Center(
+                      child: CupertinoActivityIndicator(
+                    radius: 16,
+                    color: Colors.green,
+                  ));
+                },
+              ),
+            ),
+            if (_showChatInput)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              onPressed: () {
+                                _selectImage(ImageSource.gallery);
+                              },
+                              icon: Image.asset(
+                                'assets/images/IconGallery.png',
+                                height: 24,
+                                width: 24,
+                              ),
+                            ),
+                            Expanded(
+                              child: TextField(
+                                controller: _messageController,
+                                maxLines: null,
+                                keyboardType: TextInputType.multiline,
+                                decoration: const InputDecoration(
+                                  hintText: 'Escribe un mensaje',
+                                  hintStyle: TextStyle(color: Colors.grey),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 16.0,
+                                    vertical: 10.0,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: () {
+                        sendMessage();
+                      },
+                      icon: Image.asset(
+                        'assets/images/IconSend.png',
+                        height: 40,
+                        width: 40,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Positioned(
-                right: 0,
-                top: 0,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.of(context).pop(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(
+      QueryDocumentSnapshot<Map<String, dynamic>> message) {
+    final data = message.data();
+    final messageText = data['message'] as String? ?? '';
+    final sender = data['sender'] as String? ?? '';
+    final messageType = data['type'] as String? ?? '';
+    final imageUrl = data['imageUrl'] as String?;
+    final isRead = data['isRead'] as bool? ?? false;
+
+    Color? messageColor =
+        sender == widget.clientID ? Colors.green[100] : Colors.grey[200]!;
+
+    String formattedTimestamp = '';
+    if (data['timestamp'] != null) {
+      formattedTimestamp = DateFormat('hh:mm a')
+          .format((data['timestamp'] as Timestamp).toDate());
+    }
+
+    if (messageType == 'image_with_message' && imageUrl != null) {
+      return Align(
+        alignment: sender == widget.clientID
+            ? Alignment.bottomRight
+            : Alignment.bottomLeft,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: messageColor,
+          ),
+          constraints: const BoxConstraints(maxWidth: 220),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: () => _showFullScreenImage(imageUrl),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(
+                    imageUrl,
+                    height: 200,
+                    width: 200,
+                    fit: BoxFit.cover,
+                  ),
                 ),
+              ),
+              if (messageText.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  messageText,
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 5),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (formattedTimestamp.isNotEmpty)
+                    Text(
+                      formattedTimestamp,
+                      style: const TextStyle(
+                        color: Color(0xFF08143C),
+                        fontSize: 9,
+                      ),
+                    ),
+                  if (sender == widget.clientID) ...[
+                    const SizedBox(width: 5),
+                    Icon(
+                      isRead ? Icons.done_all : Icons.done,
+                      size: 16,
+                      color: isRead ? Colors.blue : Colors.grey,
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
         ),
       );
-    },
-  );
-}
+    } else {
+      return Align(
+        alignment: sender == widget.clientID
+            ? Alignment.bottomRight
+            : Alignment.bottomLeft,
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            color: messageColor,
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              double availableWidth = constraints.maxWidth - 20;
+              availableWidth = availableWidth > 280 ? 280 : availableWidth;
 
-Future<void> _markMessagesAsRead() async {
-  final querySnapshot = await _firestore
-      .collection('chats')
-      .doc(_chatID)
-      .collection('messages')
-      .where('sender', isEqualTo: widget.supplierID)
-      .where('isRead', isEqualTo: false)
-      .get();
-
-  final batch = _firestore.batch();
-  for (var doc in querySnapshot.docs) {
-    batch.update(doc.reference, {'isRead': true});
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: availableWidth),
+                    child: IntrinsicWidth(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            messageText,
+                            style: TextStyle(
+                              color: sender == widget.clientID
+                                  ? Colors.black
+                                  : Colors.black,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              if (formattedTimestamp.isNotEmpty)
+                                Text(
+                                  formattedTimestamp,
+                                  style: TextStyle(
+                                    color: sender == widget.clientID
+                                        ? const Color(0xFF08143C)
+                                        : const Color(0xFF08143C),
+                                    fontSize: 9,
+                                  ),
+                                ),
+                              if (sender == widget.clientID) ...[
+                                const SizedBox(width: 5),
+                                Icon(
+                                  isRead ? Icons.done_all : Icons.done,
+                                  size: 16,
+                                  color: isRead ? Colors.blue : Colors.grey,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      );
+    }
   }
 
-  await batch.commit();
+  Widget _buildDateSeparator(DateTime date) {
+    final now = DateTime.now();
+    final yesterday = DateTime(now.year, now.month, now.day - 1);
 
-  // Actualizar el estado de lectura del último mensaje en el documento del chat
-  await _firestore.collection('chats').doc(_chatID).update({
-    'lastMessageIsRead': true,
-    'unreadCountClient': 0,
-  });
-}
+    String dateText;
 
-Future<void> markMessagesAsRead() async {
-  await _firestore
-      .collection('chats')
-      .doc(_chatID)
-      .collection('messages')
-      .where('sender', isEqualTo: widget.supplierID)
-      .where('isRead', isEqualTo: false)
-      .get()
-      .then((querySnapshot) {
-    for (var doc in querySnapshot.docs) {
-      doc.reference.update({'isRead': true});
+    if (date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day) {
+      dateText = 'Hoy';
+    } else if (date.year == yesterday.year &&
+        date.month == yesterday.month &&
+        date.day == yesterday.day) {
+      dateText = 'Ayer';
+    } else {
+      dateText = DateFormat('dd/MM/yyyy').format(date);
     }
-  });
 
-  // Reseteamos el contador de mensajes no leídos
-  await _firestore
-      .collection('chats')
-      .doc(_chatID)
-      .update({
-    'unreadCountClient': 0,
-  });
-}
-
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: Colors.white,
-    appBar: AppBar(
-      backgroundColor: Colors.white,
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
-        onPressed: () {
-          Navigator.pop(context);
-        },
-      ),
-      title: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundImage: _supplierProfileImageUrl != null
-                ? NetworkImage(_supplierProfileImageUrl!)
-                : const AssetImage('assets/images/ProfilePhoto_predetermined.png') as ImageProvider,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(20.0),
           ),
-          const SizedBox(width: 10),
-          Text(
-            widget.supplierName,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 18,
+          child: Text(
+            dateText,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 12.0,
               fontWeight: FontWeight.bold,
             ),
           ),
-        ],
+        ),
       ),
-    ),
-    body: SafeArea(
-      child: Column(
-        children: [
-          Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _firestore
-                  .collection('chats')
-                  .doc(_chatID)
-                  .collection('messages')
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Center(child: Text('Error al cargar mensajes'));
-                }
+    );
+  }
 
-                if (snapshot.hasData) {
-                  final messages = snapshot.data!.docs;
-                  final messageWidgets = messages.map((message) {
-                    final data = message.data();
-                    final messageText = data['message'] as String? ?? '';
-                    final sender = data['sender'] as String? ?? '';
-                    final messageType = data['type'] as String? ?? '';
-                    final imageUrl = data['imageUrl'] as String?;
-                    final isRead = data['isRead'] as bool? ?? false;
-                    
-                    Color? messageColor =
-                        sender == widget.clientID ? Colors.green[100] : Colors.grey[200]!;
-                    
-                    String formattedTimestamp = '';
-                    if (data['timestamp'] != null) {
-                      formattedTimestamp = DateFormat('hh:mm a').format(
-                        (data['timestamp'] as Timestamp).toDate(),
-                      );
-                    }
-
-                   if (messageType == 'image_with_message' && imageUrl != null) {
-  return Align(
-    alignment: sender == widget.clientID
-        ? Alignment.bottomRight
-        : Alignment.bottomLeft,
-    child: Container(
-      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: messageColor,
-      ),
-      constraints: const BoxConstraints(maxWidth: 220),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: () => _showFullScreenImage(imageUrl),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                imageUrl,
-                height: 200,
-                width: 200,
-                fit: BoxFit.cover,
+  Future<void> _showPreviewImage() async {
+    if (_selectedImage != null) {
+      await showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: 300,
+                    width: 300,
+                    child: Image.file(_selectedImage!),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: TextField(
+                      controller: _imageMessageController,
+                      decoration: const InputDecoration(
+                        hintText: 'Escribe un comentario',
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(10),
+                      ),
+                      maxLines: 3,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          if (messageText.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              messageText,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 15,
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  setState(() {
+                    _selectedImage = null;
+                  });
+                  _imageMessageController.clear();
+                },
+                child: const Text('Cancelar'),
               ),
-            ),
-          ],
-          const SizedBox(height: 5),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (formattedTimestamp.isNotEmpty)
-                Text(
-                  formattedTimestamp,
-                  style: const TextStyle(
-                    color: Color(0xFF08143C),
-                    fontSize: 9,
-                  ),
-                ),
-              if (sender == widget.clientID) ...[
-                const SizedBox(width: 5),
-                Icon(
-                  isRead ? Icons.done_all : Icons.done,
-                  size: 16,
-                  color: isRead ? Colors.blue : Colors.grey,
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
-} else {
-  return Align(
-    alignment: sender == widget.clientID
-        ? Alignment.bottomRight
-        : Alignment.bottomLeft,
-    child: Container(
-      padding: const EdgeInsets.all(10),
-      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: messageColor,
-      ),
-      child: LayoutBuilder( 
-        builder: (context, constraints) {
-          double availableWidth = constraints.maxWidth - 20;
-          availableWidth = availableWidth > 280 ? 280 : availableWidth;
-
-          return Row(
-            mainAxisSize: MainAxisSize.min, 
-            crossAxisAlignment: CrossAxisAlignment.start, 
-            children: [
-              ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: availableWidth),
-                child: IntrinsicWidth(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        messageText,
-                        style: TextStyle(
-                          color: sender == widget.clientID
-                              ? Colors.black
-                              : Colors.black,
-                          fontSize: 15,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          if (formattedTimestamp.isNotEmpty)
-                            Text(
-                              formattedTimestamp,
-                              style: TextStyle(
-                                color: sender == widget.clientID
-                                    ? const Color(0xFF08143C)
-                                    : const Color(0xFF08143C),
-                                fontSize: 9,
-                              ),
-                            ),
-                          if (sender == widget.clientID) ...[
-                            const SizedBox(width: 5),
-                            Icon(
-                              isRead ? Icons.done_all : Icons.done,
-                              size: 16,
-                              color: isRead ? Colors.blue : Colors.grey,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
-                  ),
+              IconButton(
+                onPressed: () {
+                  _sendImageWithMessage();
+                  Navigator.of(context).pop();
+                },
+                icon: Image.asset(
+                  'assets/images/IconSend.png',
+                  height: 40,
+                  width: 40,
                 ),
               ),
             ],
           );
         },
-      ),
-    ),
-  );
-}
-          }).toList();
-
-                  return ListView.builder(
-                    controller: _scrollController,
-                    reverse: true,
-                    itemCount: messageWidgets.length,
-                    itemBuilder: (context, index) {
-                      return messageWidgets[index];
-                    },
-                  );
-                }
-                return const Center(child: CupertinoActivityIndicator(
-            radius: 16,
-            color: Colors.green,
-          ));
-              },
-            ),
-          ),
-        
-          if (_showChatInput)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: Row(
-                        children: [
-                          IconButton(
-                            onPressed: () {
-                              _selectImage(ImageSource.gallery);
-                            },
-                            icon: Image.asset(
-                              'assets/images/IconGallery.png', 
-                              height: 24, 
-                              width: 24,  
-                            ),
-                          ),
-                          Expanded(
-                            child: TextField(
-                              controller: _messageController,
-                              maxLines: null, 
-                              keyboardType: TextInputType.multiline, 
-                              decoration: const InputDecoration(
-                                hintText: 'Escribe un mensaje',
-                                hintStyle: TextStyle(color: Colors.grey),
-                                border: InputBorder.none,
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 16.0,
-                                  vertical: 10.0,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: () {
-                      sendMessage();
-                    },
-                    icon: Image.asset(
-                      'assets/images/IconSend.png', 
-                      height: 40, 
-                      width: 40,  
-                    ), 
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    ),
-  );
-}
-
-Future<void> _showPreviewImage() async {
-  if (_selectedImage != null) {
-    await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: 300,
-                  width: 300,
-                  child: Image.file(_selectedImage!),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: TextField(
-                    controller: _imageMessageController,
-                    decoration: const InputDecoration(
-                      hintText: 'Escribe un comentario',
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.all(10),
-                    ),
-                    maxLines: 3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                setState(() {
-                  _selectedImage = null;
-                });
-                _imageMessageController.clear();
-              },
-              child: const Text('Cancelar'),
-            ),
-            IconButton(
-              onPressed: () {
-                _sendImageWithMessage();
-                Navigator.of(context).pop();
-              },
-              icon: Image.asset(
-                'assets/images/IconSend.png',
-                height: 40,
-                width: 40,
-              ),
-            ),
-          ],
-        );
-      },
-    );
+      );
+    }
   }
- }
 }
