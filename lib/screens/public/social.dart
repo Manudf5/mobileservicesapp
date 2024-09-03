@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:photo_view/photo_view.dart';
+import 'package:image/image.dart' as img;
 
 class SocialScreen extends StatelessWidget {
   const SocialScreen({super.key});
@@ -389,6 +391,17 @@ class _ChatScreenState extends State<ChatScreen> {
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _foundMessages = [];
   int _currentFoundMessageIndex = -1;
 
+  StreamTransformer<QuerySnapshot<Map<String, dynamic>>,
+      QuerySnapshot<Map<String, dynamic>>> delayedTransformer() {
+    return StreamTransformer.fromHandlers(
+      handleData: (data, sink) {
+        Future.delayed(const Duration(milliseconds: 100), () {
+          sink.add(data);
+        });
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -500,9 +513,12 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendImageWithMessage() async {
     if (_selectedImage != null) {
+      // Comprimir la imagen antes de subirla
+      final compressedImage = await _compressImage(_selectedImage!);
+
       final storageRef = firebase_storage.FirebaseStorage.instance.ref().child(
           'chat_images/$_chatID/${DateTime.now().millisecondsSinceEpoch}');
-      final uploadTask = storageRef.putFile(_selectedImage!);
+      final uploadTask = storageRef.putFile(compressedImage);
 
       await uploadTask.whenComplete(() async {
         final downloadUrl = await storageRef.getDownloadURL();
@@ -535,6 +551,27 @@ class _ChatScreenState extends State<ChatScreen> {
         _imageMessageController.clear();
       });
     }
+  }
+
+  /// Comprime la imagen y reduce la calidad a 85.
+  Future<File> _compressImage(File imageFile) async {
+    final imageBytes = await imageFile.readAsBytes();
+    final decodedImage = img.decodeImage(imageBytes);
+
+    if (decodedImage == null) {
+      throw Exception('Error al decodificar la imagen');
+    }
+
+    final compressedImage = img.copyResize(
+      decodedImage,
+      width: (decodedImage.width * 0.8).toInt(), // Reducir el ancho en un 20%
+      height:
+          (decodedImage.height * 0.8).toInt(), // Reducir la altura en un 20%
+    );
+
+    final encodedImage = img.encodeJpg(compressedImage, quality: 85);
+    final compressedFile = File(imageFile.path)..writeAsBytesSync(encodedImage);
+    return compressedFile;
   }
 
   void _showFullScreenImage(String imageUrl) {
@@ -649,8 +686,39 @@ class _ChatScreenState extends State<ChatScreen> {
       return _scrollController.position.maxScrollExtent;
     } else {
       return _scrollController.position.maxScrollExtent -
-          (messageIndex * 80); // Ajusta 80 según el tamaño promedio de tus mensajes
+          (messageIndex *
+              80); // Ajusta 80 según el tamaño promedio de tus mensajes
     }
+  }
+
+  void _showImageSourceMenu() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera),
+                title: const Text('Cámara'),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Por ahora, no hacemos nada con la opción de cámara
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Galería'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _selectImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showMultimediaScreen() {
@@ -669,7 +737,8 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -690,7 +759,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     backgroundImage: _supplierProfileImageUrl != null
                         ? NetworkImage(_supplierProfileImageUrl!)
                         : const AssetImage(
-                            'assets/images/ProfilePhoto_predetermined.png')
+                                'assets/images/ProfilePhoto_predetermined.png')
                             as ImageProvider,
                   ),
                   const SizedBox(width: 10),
@@ -796,7 +865,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     .doc(_chatID)
                     .collection('messages')
                     .orderBy('timestamp', descending: true)
-                    .snapshots(),
+                    .snapshots()
+                    .transform(delayedTransformer()),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return const Center(
@@ -808,19 +878,29 @@ class _ChatScreenState extends State<ChatScreen> {
 
                     final messagesByDate = <DateTime, List<dynamic>>{};
                     for (var message in messages) {
-                      final timestamp =
-                          message.data()['timestamp'] as Timestamp;
-                      final messageDate = DateTime(
-                        timestamp.toDate().year,
-                        timestamp.toDate().month,
-                        timestamp.toDate().day,
-                      );
+                      final timestamp = message.data()['timestamp'];
+                      if (timestamp != null) {
+                        final messageDate = DateTime(
+                          (timestamp as Timestamp).toDate().year,
+                          (timestamp).toDate().month,
+                          (timestamp).toDate().day,
+                        );
 
-                      if (!messagesByDate.containsKey(messageDate)) {
-                        messagesByDate[messageDate] = [];
+                        if (!messagesByDate.containsKey(messageDate)) {
+                          messagesByDate[messageDate] = [];
+                        }
+
+                        messagesByDate[messageDate]!.add(message);
+                      } else {
+                        // Si el timestamp es null, añadimos el mensaje a la fecha actual
+                        final now = DateTime.now();
+                        final todayDate =
+                            DateTime(now.year, now.month, now.day);
+                        if (!messagesByDate.containsKey(todayDate)) {
+                          messagesByDate[todayDate] = [];
+                        }
+                        messagesByDate[todayDate]!.add(message);
                       }
-
-                      messagesByDate[messageDate]!.add(message);
                     }
 
                     final messageWidgets = <Widget>[];
@@ -867,7 +947,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           children: [
                             IconButton(
                               onPressed: () {
-                                _selectImage(ImageSource.gallery);
+                                _showImageSourceMenu();
                               },
                               icon: Image.asset(
                                 'assets/images/IconGallery.png',
@@ -931,6 +1011,8 @@ class _ChatScreenState extends State<ChatScreen> {
     if (data['timestamp'] != null) {
       formattedTimestamp = DateFormat('hh:mm a')
           .format((data['timestamp'] as Timestamp).toDate());
+    } else {
+      formattedTimestamp = DateFormat('hh:mm a').format(DateTime.now());
     }
 
     if (messageType == 'image_with_message' && imageUrl != null) {
@@ -1178,7 +1260,7 @@ class _ChatScreenState extends State<ChatScreen> {
 class MultimediaScreen extends StatelessWidget {
   final String chatID;
 
-  const MultimediaScreen({Key? key, required this.chatID}) : super(key: key);
+  const MultimediaScreen({super.key, required this.chatID});
 
   @override
   Widget build(BuildContext context) {
@@ -1188,7 +1270,8 @@ class MultimediaScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         title: const Text('Archivos multimedia'),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -1243,8 +1326,8 @@ class MultimediaScreen extends StatelessWidget {
                           body: Center(
                             child: PhotoView(
                               imageProvider: NetworkImage(imageUrl),
-                              backgroundDecoration: const BoxDecoration(
-                                  color: Colors.black),
+                              backgroundDecoration:
+                                  const BoxDecoration(color: Colors.black),
                             ),
                           ),
                         ),
