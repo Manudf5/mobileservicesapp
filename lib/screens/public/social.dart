@@ -10,6 +10,8 @@ import 'package:intl/intl.dart';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:photo_view/photo_view.dart';
 import 'package:image/image.dart' as img;
+import 'package:one_context/one_context.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class SocialScreen extends StatelessWidget {
   const SocialScreen({super.key});
@@ -382,6 +384,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
   final ImagePicker _picker = ImagePicker();
   File? _selectedImage;
+  String? _errorMessage;
 
   bool _showChatInput = true;
   String? _supplierProfileImageUrl;
@@ -390,6 +393,45 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _foundMessages = [];
   int _currentFoundMessageIndex = -1;
+
+  // Expresiones regulares para validar el mensaje
+  final RegExp _phoneRegex = RegExp(
+      r'(\+?\d{1,4}[\s-]?)?(?:\d{3}[\s-]?)?\d{3}[\s-]?\d{4}|\+?(0412|0414|0424|0416|0426|0251|0252)\d{7}');
+  final RegExp _emailRegex = RegExp(r'[\w-]+(\.[\w-]+)*@[\w-]+(\.[\w-]+)+');
+  final RegExp _urlRegex = RegExp(
+      r'(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)');
+  final RegExp _cardNumberRegex =
+      RegExp(r'(\d{4}[ -]?){3}\d{4}|\d{16}'); // Visa y Mastercard
+  final List<String> _profanities = [
+    'Coño',
+    'coño',
+    'Ladilla',
+    'ladilla',
+    'Verga',
+    'verga',
+  ];
+  final List<String> _socialMediaKeywords = [
+    '@',
+    'facebook',
+    'Facebook',
+    'fb',
+    'Fb',
+    'FB',
+    'instagram',
+    'Instagram',
+    'ig'
+    'Ig'
+    'IG',
+    'whatsapp',
+    'Whatsapp',
+    'twitter',
+    'Twitter',
+    'gmail',
+    'Gmail',
+    'hotmail',
+    'Hotmail',
+    // Agrega aquí más palabras clave de redes sociales
+  ];
 
   StreamTransformer<QuerySnapshot<Map<String, dynamic>>,
       QuerySnapshot<Map<String, dynamic>>> delayedTransformer() {
@@ -464,10 +506,21 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  void sendMessage() async {
+  Future<void> sendMessage() async {
     final messageText = _messageController.text.trim();
+  if (messageText.isEmpty) return;
 
-    if (messageText.isEmpty) return;
+  final errorMessage = _containsRestrictedContent(messageText);
+  if (errorMessage != null) {
+    setState(() {
+      _errorMessage = errorMessage;
+    });
+    return;
+  }
+
+  setState(() {
+    _errorMessage = null;
+  });
 
     await _firestore
         .collection('chats')
@@ -513,11 +566,25 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendImageWithMessage() async {
     if (_selectedImage != null) {
+    final messageText = _imageMessageController.text.trim();
+    final errorMessage = _containsRestrictedContent(messageText);
+    if (errorMessage != null) {
+      setState(() {
+        _errorMessage = errorMessage;
+      });
+      return;
+    }
+
+    setState(() {
+      _errorMessage = null;
+    });
+
       // Comprimir la imagen antes de subirla
       final compressedImage = await _compressImage(_selectedImage!);
 
-      final storageRef = firebase_storage.FirebaseStorage.instance.ref().child(
-          'chat_images/$_chatID/${DateTime.now().millisecondsSinceEpoch}');
+      final storageRef = firebase_storage.FirebaseStorage.instance
+          .ref()
+          .child('chat_images/$_chatID/${DateTime.now().millisecondsSinceEpoch}');
       final uploadTask = storageRef.putFile(compressedImage);
 
       await uploadTask.whenComplete(() async {
@@ -553,7 +620,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  /// Comprime la imagen y reduce la calidad a 85.
+  /// Comprime la imagen y reduce la calidad a 70.
   Future<File> _compressImage(File imageFile) async {
     final imageBytes = await imageFile.readAsBytes();
     final decodedImage = img.decodeImage(imageBytes);
@@ -564,12 +631,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
     final compressedImage = img.copyResize(
       decodedImage,
-      width: (decodedImage.width * 0.8).toInt(), // Reducir el ancho en un 20%
-      height:
-          (decodedImage.height * 0.8).toInt(), // Reducir la altura en un 20%
+      width: (decodedImage.width * 0.7).toInt(), // Reducir el ancho en un 30%
+      height: (decodedImage.height * 0.7)
+          .toInt(), // Reducir la altura en un 30%
     );
 
-    final encodedImage = img.encodeJpg(compressedImage, quality: 85);
+    final encodedImage = img.encodeJpg(
+        compressedImage,
+        quality: 70); // Reducir la calidad a 70
     final compressedFile = File(imageFile.path)..writeAsBytesSync(encodedImage);
     return compressedFile;
   }
@@ -703,7 +772,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 title: const Text('Cámara'),
                 onTap: () {
                   Navigator.pop(context);
-                  // Por ahora, no hacemos nada con la opción de cámara
+                  _handleCameraOption();
                 },
               ),
               ListTile(
@@ -721,6 +790,98 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Future<void> _handleCameraOption() async {
+    final status = await Permission.camera.status;
+    if (status.isGranted) {
+      _openCamera();
+    } else {
+      final result = await Permission.camera.request();
+      if (result.isGranted) {
+        _openCamera();
+      } else {
+        _showCameraPermissionDialog();
+      }
+    }
+  }
+
+  Future<void> _showCameraPermissionDialog() async {
+    OneContext().showDialog(
+      builder: (BuildContext context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.camera_alt, size: 50, color: Colors.green),
+              const SizedBox(height: 20),
+              const Text(
+                'Solicitud de acceso a la cámara',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Para poder tomar fotos y enviarlas, necesitamos acceso a la cámara de tu dispositivo. ¿Deseas permitir el acceso?',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      openAppSettings();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: const Text('Permitir'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      OneContext().showSnackBar(
+                        builder: (_) => const SnackBar(
+                          content: Text('Acceso denegado a la cámara'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                    ),
+                    child: const Text('Denegar'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openCamera() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.camera);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+      });
+      await _showPreviewImage();
+    }
+  }
+
   void _showMultimediaScreen() {
     Navigator.push(
       context,
@@ -729,6 +890,41 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
+
+  // Función para validar el contenido del mensaje
+  String? _containsRestrictedContent(String message) {
+  String messageLower = message.toLowerCase();
+
+  if (_phoneRegex.hasMatch(message)) {
+    return 'El mensaje contiene un número de teléfono no permitido.';
+  }
+
+  if (_emailRegex.hasMatch(message)) {
+    return 'El mensaje contiene una dirección de correo electrónico no permitida.';
+  }
+
+  if (_urlRegex.hasMatch(message)) {
+    return 'El mensaje contiene una URL no permitida.';
+  }
+
+  if (_cardNumberRegex.hasMatch(message)) {
+    return 'El mensaje contiene un número de tarjeta no permitido.';
+  }
+
+  for (String profanity in _profanities) {
+    if (messageLower.contains(profanity)) {
+      return 'El mensaje contiene lenguaje inapropiado.';
+    }
+  }
+
+  for (String keyword in _socialMediaKeywords) {
+    if (messageLower.contains(keyword)) {
+      return 'El mensaje contiene referencias a redes sociales no permitidas.';
+    }
+  }
+
+  return null;
+}
 
   @override
   Widget build(BuildContext context) {
@@ -930,65 +1126,77 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             if (_showChatInput)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: Row(
-                          children: [
-                            IconButton(
-                              onPressed: () {
-                                _showImageSourceMenu();
-                              },
-                              icon: Image.asset(
-                                'assets/images/IconGallery.png',
-                                height: 24,
-                                width: 24,
-                              ),
-                            ),
-                            Expanded(
-                              child: TextField(
-                                controller: _messageController,
-                                maxLines: null,
-                                keyboardType: TextInputType.multiline,
-                                decoration: const InputDecoration(
-                                  hintText: 'Escribe un mensaje',
-                                  hintStyle: TextStyle(color: Colors.grey),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 16.0,
-                                    vertical: 10.0,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  decoration: const BoxDecoration(
+    color: Colors.white,
+  ),
+  child: Row(
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(25),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      _showImageSourceMenu();
+                    },
+                    icon: Image.asset(
+                      'assets/images/IconGallery.png',
+                      height: 24,
+                      width: 24,
+                    ),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      maxLines: null,
+                      keyboardType: TextInputType.multiline,
+                      decoration: const InputDecoration(
+                        hintText: 'Escribe un mensaje',
+                        hintStyle: TextStyle(color: Colors.blueGrey),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 10.0,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: () {
-                        sendMessage();
-                      },
-                      icon: Image.asset(
-                        'assets/images/IconSend.png',
-                        height: 40,
-                        width: 40,
-                      ),
-                    ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            if (_errorMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0, left: 16.0),
+                child: Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.red, fontSize: 12),
                 ),
               ),
+          ],
+        ),
+      ),
+      const SizedBox(width: 8),
+      IconButton(
+        onPressed: () {
+          sendMessage();
+        },
+        icon: Image.asset(
+          'assets/images/IconSend.png',
+          height: 40,
+          width: 40,
+        ),
+      ),
+    ],
+  ),
+)
           ],
         ),
       ),
@@ -1193,68 +1401,93 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _showPreviewImage() async {
-    if (_selectedImage != null) {
-      await showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    height: 300,
-                    width: 300,
-                    child: Image.file(_selectedImage!),
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: TextField(
-                      controller: _imageMessageController,
-                      decoration: const InputDecoration(
-                        hintText: 'Escribe un comentario',
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.all(10),
+  if (_selectedImage != null) {
+    String? localErrorMessage;
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      maxLines: 3,
+                      child: TextField(
+                        controller: _imageMessageController,
+                        decoration: const InputDecoration(
+                          hintText: 'Escribe un comentario',
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.all(10),
+                        ),
+                        maxLines: 3,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  setState(() {
-                    _selectedImage = null;
-                  });
-                  _imageMessageController.clear();
-                },
-                child: const Text('Cancelar'),
-              ),
-              IconButton(
-                onPressed: () {
-                  _sendImageWithMessage();
-                  Navigator.of(context).pop();
-                },
-                icon: Image.asset(
-                  'assets/images/IconSend.png',
-                  height: 40,
-                  width: 40,
+                    if (localErrorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          localErrorMessage!,
+                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    if (_selectedImage != null)
+  ClipRRect(
+    borderRadius: BorderRadius.circular(20), // Define el radio de los bordes redondeados
+    child: SizedBox(
+      child: Image.file(_selectedImage!),
+    ),
+  ),
+                    const SizedBox(height: 10),
+                    
+                  ],
                 ),
               ),
-            ],
-          );
-        },
-      );
-    }
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _imageMessageController.clear();
+                  },
+                  child: const Text('Cancelar'),
+                ),
+                IconButton(
+                  onPressed: () {
+                    final errorMessage = _containsRestrictedContent(_imageMessageController.text.trim());
+                    if (errorMessage != null) {
+                      setState(() {
+                        localErrorMessage = errorMessage;
+                      });
+                    } else {
+                      _sendImageWithMessage();
+                      Navigator.of(context).pop();
+                    }
+                  },
+                  icon: Image.asset(
+                    'assets/images/IconSend.png',
+                    height: 40,
+                    width: 40,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    // Limpia _selectedImage después de cerrar el diálogo
+    setState(() {
+      _selectedImage = null;
+    });
   }
+}
 }
 
 class MultimediaScreen extends StatelessWidget {
