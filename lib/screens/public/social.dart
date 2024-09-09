@@ -12,15 +12,163 @@ import 'package:photo_view/photo_view.dart';
 import 'package:image/image.dart' as img;
 import 'package:one_context/one_context.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
-class SocialScreen extends StatelessWidget {
+class SocialScreen extends StatefulWidget {
   const SocialScreen({super.key});
+
+  @override
+  // ignore: library_private_types_in_public_api
+  _SocialScreenState createState() => _SocialScreenState();
+}
+
+class _SocialScreenState extends State<SocialScreen> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  String? _clientId;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchClientId();
+  }
+
+  Future<void> _fetchClientId() async {
+    try {
+      final User? user = _auth.currentUser;
+      if (user != null) {
+        _clientId = user.uid;
+
+        final QuerySnapshot<Map<String, dynamic>> querySnapshot =
+            await FirebaseFirestore.instance
+                .collection('users')
+                .where('uid', isEqualTo: _clientId)
+                .get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+          _clientId = querySnapshot.docs.first.data()['id'];
+          setState(() {});
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al obtener el ID del proveedor: $e');
+      }
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchPosts() async {
+    List<Map<String, dynamic>> posts = [];
+    if (_clientId == null) return posts;
+
+    final QuerySnapshot suppliersSnapshot =
+        await FirebaseFirestore.instance.collection('suppliers').get();
+
+    for (var supplier in suppliersSnapshot.docs) {
+      final followerSnapshot =
+          await supplier.reference.collection('followers').doc(_clientId).get();
+
+      if (followerSnapshot.exists) {
+        final publicationsSnapshot =
+            await supplier.reference.collection('publications').get();
+
+        for (var post in publicationsSnapshot.docs) {
+          final likesSnapshot = await post.reference.collection('likes').get();
+          final isLiked = likesSnapshot.docs.any((doc) => doc.id == _clientId);
+          posts.add({
+            'PostImageUrl': post['PostImageUrl'],
+            'description': post['description'],
+            'publicationDate': post['publicationDate'].toDate(),
+            'serviceName': post['serviceName'],
+            'name': supplier['name'],
+            'supplierId': supplier.id,
+            'postId': post.id,
+            'isLiked': isLiked,
+            'likesCount': likesSnapshot.docs.length,
+          });
+        }
+      }
+    }
+
+    return posts;
+  }
+
+  Future<void> _toggleLike(
+      String supplierId, String postId, bool isLiked) async {
+    final DocumentReference likesRef = FirebaseFirestore.instance
+        .collection('suppliers')
+        .doc(supplierId)
+        .collection('publications')
+        .doc(postId)
+        .collection('likes')
+        .doc(_clientId);
+
+    if (isLiked) {
+      await likesRef.delete();
+    } else {
+      await likesRef.set({
+        'likedAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  String _formatTimeAgo(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inSeconds < 60) {
+      return 'Hace ${difference.inSeconds} segundos';
+    } else if (difference.inMinutes < 60) {
+      return 'Hace ${difference.inMinutes} minutos';
+    } else if (difference.inHours < 24) {
+      return 'Hace ${difference.inHours} horas';
+    } else if (difference.inDays < 7) {
+      return 'Hace ${difference.inDays} días';
+    } else if (difference.inDays < 30) {
+      return 'Hace ${(difference.inDays / 7).floor()} semanas';
+    } else if (difference.inDays < 365) {
+      return 'Hace ${(difference.inDays / 30).floor()} meses';
+    } else {
+      return 'Hace ${(difference.inDays / 365).floor()} años';
+    }
+  }
+
+  void _showOptionsBottomSheet(BuildContext context, String supplierId) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.report),
+                title: const Text('Reportar'),
+                onTap: () {
+                  // Implementar lógica para reportar
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.person),
+                title: const Text('Ver perfil'),
+                onTap: () {
+                  // Implementar lógica para ver perfil
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.blueGrey[50],
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.blueGrey[50],
         title: const Text(
           'Social',
           style: TextStyle(
@@ -34,8 +182,8 @@ class SocialScreen extends StatelessWidget {
           IconButton(
             icon: Image.asset(
               'assets/images/IconChat.png',
-              height: 32, // Ajusta el tamaño según sea necesario
-              width: 32, // Ajusta el tamaño según sea necesario
+              height: 40,
+              width: 40,
             ),
             onPressed: () {
               Navigator.push(
@@ -46,9 +194,155 @@ class SocialScreen extends StatelessWidget {
           ),
         ],
       ),
-      backgroundColor: Colors.white, // Fondo blanco para la pantalla Social
-      body: const Center(
-        child: Text('Pantalla social'),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          setState(() {});
+        },
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: _fetchPosts(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text('Aun no sigues a nadie'));
+            } else {
+              final posts = snapshot.data!;
+              return ListView.builder(
+                itemCount: posts.length,
+                itemBuilder: (context, index) {
+                  final post = posts[index];
+                  return Card(
+                    color: Colors.white,
+                    margin: const EdgeInsets.all(10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        FutureBuilder<DocumentSnapshot>(
+                          future: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(post['supplierId'])
+                              .get(),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
+                              return const CircularProgressIndicator();
+                            } else if (snapshot.hasData) {
+                              final data = snapshot.data!.data()
+                                  as Map<String, dynamic>?;
+                              final profileImageUrl = data != null &&
+                                      data.containsKey('profileImageUrl') &&
+                                      data['profileImageUrl'] != null
+                                  ? data['profileImageUrl']
+                                  : 'assets/images/ProfilePhoto_predetermined.png';
+
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundImage:
+                                      profileImageUrl.startsWith('http')
+                                          ? CachedNetworkImageProvider(
+                                              profileImageUrl)
+                                          : AssetImage(profileImageUrl)
+                                              as ImageProvider,
+                                ),
+                                title: Text(
+                                  post['name'],
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                subtitle: Text(post['serviceName']),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.more_vert),
+                                  onPressed: () {
+                                    _showOptionsBottomSheet(
+                                        context, post['supplierId']);
+                                  },
+                                ),
+                              );
+                            } else {
+                              return const Text('Error al cargar perfil');
+                            }
+                          },
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(post['description']),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal:
+                                  5.0), // Ajusta el valor según el espacio deseado
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10.0),
+                            child: CachedNetworkImage(
+                              imageUrl: post['PostImageUrl'],
+                              placeholder: (context, url) =>
+                                  const CircularProgressIndicator(),
+                              errorWidget: (context, url, error) =>
+                                  const Icon(Icons.error),
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          child: Text(
+                            _formatTimeAgo(post['publicationDate']),
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            StatefulBuilder(
+                              builder:
+                                  (BuildContext context, StateSetter setState) {
+                                return Row(
+                                  children: [
+                                    Text(
+                                      '${post['likesCount']}',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                    IconButton(
+                                      icon: Icon(
+                                        post['isLiked']
+                                            ? Icons.thumb_up
+                                            : Icons.thumb_up_alt_outlined,
+                                        color: post['isLiked']
+                                            ? Colors.green
+                                            : null,
+                                      ),
+                                      onPressed: () async {
+                                        await _toggleLike(post['supplierId'],
+                                            post['postId'], post['isLiked']);
+                                        setState(() {
+                                          post['isLiked'] = !post['isLiked'];
+                                          post['likesCount'] +=
+                                              post['isLiked'] ? 1 : -1;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            }
+          },
+        ),
       ),
     );
   }
@@ -65,6 +359,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
   final _firestore = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
   String? _clientId;
+  bool _isSearching = false;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   Stream<List<DocumentSnapshot<Map<String, dynamic>>>> getConversations() {
     return _firestore
@@ -119,218 +416,245 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        title: const Text(
-          'Chats',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 29,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.black),
-            onPressed: () {
-              // Acción al presionar el ícono de lupa (opcional)
-            },
-          ),
-        ],
-      ),
-      backgroundColor: Colors.white,
-      body: StreamBuilder<List<DocumentSnapshot<Map<String, dynamic>>>>(
-        stream: getConversations(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const Center(child: Text('Error al cargar conversaciones'));
-          }
-
-          if (snapshot.hasData) {
-            final conversations = snapshot.data!;
-
-            return ListView.builder(
-              itemCount: conversations.length,
-              itemBuilder: (context, index) {
-                final conversation = conversations[index];
-                final clientID = conversation.data()?['clientID'];
-                final supplierID = conversation.data()?['supplierID'];
-                final supplierName = conversation.data()?['supplierName'];
-                final lastMessage = conversation.data()?['lastMessage'];
-                final lastMessageTimestamp =
-                    conversation.data()?['lastMessageTimestamp'] as Timestamp?;
-                final unreadCount =
-                    conversation.data()?['unreadCountClient'] ?? 0;
-                final isUnread = unreadCount > 0;
-
-                return ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ChatScreen(
-                          clientID: clientID,
-                          supplierID: supplierID,
-                          clientName: _clientId!,
-                          supplierName: supplierName,
-                          supplierProfileImageUrl: '',
-                        ),
-                      ),
-                    );
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          title: _isSearching
+              ? TextField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    hintText: 'Buscar chats...',
+                    border: InputBorder.none,
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    textStyle: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 14,
-                      fontWeight: FontWeight.normal,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10.0),
-                    ),
+                )
+              : const Text(
+                  'Chats',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 29,
                   ),
-                  child: ListTile(
-                    leading: GestureDetector(
-                      // Añadido GestureDetector para la foto de perfil
-                      onTap: () {
-                        // Mostrar foto de perfil ampliada
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            return AlertDialog(
-                              content: FutureBuilder<String?>(
-                                future: getSupplierProfileImageUrl(supplierID),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.done) {
-                                    final profileImageUrl = snapshot.data;
-                                    return profileImageUrl != null
-                                        ? Image.network(profileImageUrl)
-                                        : Image.asset(
-                                            'assets/images/ProfilePhoto_predetermined.png');
-                                  } else {
-                                    return const CupertinoActivityIndicator(
-                                      radius: 16,
-                                      color: Colors.green,
-                                    );
-                                  }
-                                },
-                              ),
-                            );
-                          },
-                        );
-                      },
-                      child: FutureBuilder<String?>(
-                        future: getSupplierProfileImageUrl(supplierID),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.done) {
-                            final profileImageUrl = snapshot.data;
-                            return CircleAvatar(
-                              radius: 25,
-                              backgroundImage: profileImageUrl != null
-                                  ? NetworkImage(profileImageUrl)
-                                  : const AssetImage(
-                                      'assets/images/ProfilePhoto_predetermined.png'),
-                            );
-                          } else {
-                            return const CupertinoActivityIndicator(
-                              radius: 16,
-                              color: Colors.green,
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                    title: Text(
-                      supplierName ?? '',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight:
-                            isUnread ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                    subtitle: Row(
-                      children: [
-                        if (conversation.data()?['lastMessageSender'] ==
-                            _clientId)
-                          Icon(
-                            conversation.data()?['lastMessageIsRead'] == true
-                                ? Icons.done_all
-                                : Icons.done,
-                            size: 16,
-                            color: conversation.data()?['lastMessageIsRead'] ==
-                                    true
-                                ? Colors.blue
-                                : Colors.grey,
-                          ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            lastMessage ?? '',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 12,
-                              fontWeight: isUnread
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    trailing: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          formatTimestamp(lastMessageTimestamp),
-                          style: TextStyle(
-                            color: isUnread ? Colors.green : Colors.grey,
-                            fontSize: 12,
-                            fontWeight: FontWeight.normal,
-                          ),
-                        ),
-                        if (unreadCount > 0)
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: Colors.green,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Text(
-                              unreadCount.toString(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
+                  textAlign: TextAlign.center,
+                ),
+          actions: [
+            IconButton(
+              icon: Icon(_isSearching ? Icons.close : Icons.search,
+                  color: Colors.black),
+              onPressed: () {
+                setState(() {
+                  _isSearching = !_isSearching;
+                  if (!_isSearching) {
+                    _searchQuery = '';
+                    _searchController.clear();
+                  }
+                });
               },
-            );
-          }
+            ),
+          ],
+        ),
+        backgroundColor: Colors.white,
+        body: StreamBuilder<List<DocumentSnapshot<Map<String, dynamic>>>>(
+          stream: getConversations(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return const Center(
+                  child: Text('Error al cargar conversaciones'));
+            }
 
-          return const Center(
-              child: CupertinoActivityIndicator(
-            radius: 16,
-            color: Colors.green,
-          ));
-        },
-      ),
-    );
+            if (snapshot.hasData) {
+              final conversations = snapshot.data!;
+              final filteredConversations = conversations.where((conversation) {
+                final supplierName =
+                    conversation.data()?['supplierName'] as String? ?? '';
+                return supplierName
+                    .toLowerCase()
+                    .contains(_searchQuery.toLowerCase());
+              }).toList();
+
+              return ListView.builder(
+                itemCount: filteredConversations.length,
+                itemBuilder: (context, index) {
+                  final conversation = filteredConversations[index];
+                  final clientID = conversation.data()?['clientID'];
+                  final supplierID = conversation.data()?['supplierID'];
+                  final supplierName = conversation.data()?['supplierName'];
+                  final lastMessage = conversation.data()?['lastMessage'];
+                  final lastMessageTimestamp = conversation
+                      .data()?['lastMessageTimestamp'] as Timestamp?;
+                  final unreadCount =
+                      conversation.data()?['unreadCountClient'] ?? 0;
+                  final isUnread = unreadCount > 0;
+
+                  return ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ChatScreen(
+                            clientID: clientID,
+                            supplierID: supplierID,
+                            clientName: _clientId!,
+                            supplierName: supplierName,
+                            supplierProfileImageUrl: '',
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      textStyle: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 14,
+                        fontWeight: FontWeight.normal,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                    ),
+                    child: ListTile(
+                      leading: GestureDetector(
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                content: FutureBuilder<String?>(
+                                  future:
+                                      getSupplierProfileImageUrl(supplierID),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.connectionState ==
+                                        ConnectionState.done) {
+                                      final profileImageUrl = snapshot.data;
+                                      return profileImageUrl != null
+                                          ? Image.network(profileImageUrl)
+                                          : Image.asset(
+                                              'assets/images/ProfilePhoto_predetermined.png');
+                                    } else {
+                                      return const CupertinoActivityIndicator(
+                                        radius: 16,
+                                        color: Colors.green,
+                                      );
+                                    }
+                                  },
+                                ),
+                              );
+                            },
+                          );
+                        },
+                        child: FutureBuilder<String?>(
+                          future: getSupplierProfileImageUrl(supplierID),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.done) {
+                              final profileImageUrl = snapshot.data;
+                              return CircleAvatar(
+                                radius: 25,
+                                backgroundImage: profileImageUrl != null
+                                    ? NetworkImage(profileImageUrl)
+                                    : const AssetImage(
+                                        'assets/images/ProfilePhoto_predetermined.png'),
+                              );
+                            } else {
+                              return const CupertinoActivityIndicator(
+                                radius: 16,
+                                color: Colors.green,
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                      title: Text(
+                        supplierName ?? '',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight:
+                              isUnread ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                      subtitle: Row(
+                        children: [
+                          if (conversation.data()?['lastMessageSender'] ==
+                              _clientId)
+                            Icon(
+                              conversation.data()?['lastMessageIsRead'] == true
+                                  ? Icons.done_all
+                                  : Icons.done,
+                              size: 16,
+                              color:
+                                  conversation.data()?['lastMessageIsRead'] ==
+                                          true
+                                      ? Colors.blue
+                                      : Colors.grey,
+                            ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              lastMessage ?? '',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                                fontWeight: isUnread
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      trailing: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            formatTimestamp(lastMessageTimestamp),
+                            style: TextStyle(
+                              color: isUnread ? Colors.green : Colors.grey,
+                              fontSize: 12,
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                          if (unreadCount > 0)
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                unreadCount.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            }
+
+            return const Center(
+                child: CupertinoActivityIndicator(
+              radius: 16,
+              color: Colors.green,
+            ));
+          },
+        ));
   }
 
   Future<String?> getSupplierProfileImageUrl(String supplierID) async {
@@ -420,8 +744,8 @@ class _ChatScreenState extends State<ChatScreen> {
     'instagram',
     'Instagram',
     'ig'
-    'Ig'
-    'IG',
+        'Ig'
+        'IG',
     'whatsapp',
     'Whatsapp',
     'twitter',
@@ -508,19 +832,19 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> sendMessage() async {
     final messageText = _messageController.text.trim();
-  if (messageText.isEmpty) return;
+    if (messageText.isEmpty) return;
 
-  final errorMessage = _containsRestrictedContent(messageText);
-  if (errorMessage != null) {
+    final errorMessage = _containsRestrictedContent(messageText);
+    if (errorMessage != null) {
+      setState(() {
+        _errorMessage = errorMessage;
+      });
+      return;
+    }
+
     setState(() {
-      _errorMessage = errorMessage;
+      _errorMessage = null;
     });
-    return;
-  }
-
-  setState(() {
-    _errorMessage = null;
-  });
 
     await _firestore
         .collection('chats')
@@ -566,25 +890,24 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendImageWithMessage() async {
     if (_selectedImage != null) {
-    final messageText = _imageMessageController.text.trim();
-    final errorMessage = _containsRestrictedContent(messageText);
-    if (errorMessage != null) {
-      setState(() {
-        _errorMessage = errorMessage;
-      });
-      return;
-    }
+      final messageText = _imageMessageController.text.trim();
+      final errorMessage = _containsRestrictedContent(messageText);
+      if (errorMessage != null) {
+        setState(() {
+          _errorMessage = errorMessage;
+        });
+        return;
+      }
 
-    setState(() {
-      _errorMessage = null;
-    });
+      setState(() {
+        _errorMessage = null;
+      });
 
       // Comprimir la imagen antes de subirla
       final compressedImage = await _compressImage(_selectedImage!);
 
-      final storageRef = firebase_storage.FirebaseStorage.instance
-          .ref()
-          .child('chat_images/$_chatID/${DateTime.now().millisecondsSinceEpoch}');
+      final storageRef = firebase_storage.FirebaseStorage.instance.ref().child(
+          'chat_images/$_chatID/${DateTime.now().millisecondsSinceEpoch}');
       final uploadTask = storageRef.putFile(compressedImage);
 
       await uploadTask.whenComplete(() async {
@@ -632,13 +955,12 @@ class _ChatScreenState extends State<ChatScreen> {
     final compressedImage = img.copyResize(
       decodedImage,
       width: (decodedImage.width * 0.7).toInt(), // Reducir el ancho en un 30%
-      height: (decodedImage.height * 0.7)
-          .toInt(), // Reducir la altura en un 30%
+      height:
+          (decodedImage.height * 0.7).toInt(), // Reducir la altura en un 30%
     );
 
-    final encodedImage = img.encodeJpg(
-        compressedImage,
-        quality: 70); // Reducir la calidad a 70
+    final encodedImage =
+        img.encodeJpg(compressedImage, quality: 70); // Reducir la calidad a 70
     final compressedFile = File(imageFile.path)..writeAsBytesSync(encodedImage);
     return compressedFile;
   }
@@ -893,38 +1215,38 @@ class _ChatScreenState extends State<ChatScreen> {
 
   // Función para validar el contenido del mensaje
   String? _containsRestrictedContent(String message) {
-  String messageLower = message.toLowerCase();
+    String messageLower = message.toLowerCase();
 
-  if (_phoneRegex.hasMatch(message)) {
-    return 'El mensaje contiene un número de teléfono no permitido.';
-  }
-
-  if (_emailRegex.hasMatch(message)) {
-    return 'El mensaje contiene una dirección de correo electrónico no permitida.';
-  }
-
-  if (_urlRegex.hasMatch(message)) {
-    return 'El mensaje contiene una URL no permitida.';
-  }
-
-  if (_cardNumberRegex.hasMatch(message)) {
-    return 'El mensaje contiene un número de tarjeta no permitido.';
-  }
-
-  for (String profanity in _profanities) {
-    if (messageLower.contains(profanity)) {
-      return 'El mensaje contiene lenguaje inapropiado.';
+    if (_phoneRegex.hasMatch(message)) {
+      return 'El mensaje contiene un número de teléfono no permitido.';
     }
-  }
 
-  for (String keyword in _socialMediaKeywords) {
-    if (messageLower.contains(keyword)) {
-      return 'El mensaje contiene referencias a redes sociales no permitidas.';
+    if (_emailRegex.hasMatch(message)) {
+      return 'El mensaje contiene una dirección de correo electrónico no permitida.';
     }
-  }
 
-  return null;
-}
+    if (_urlRegex.hasMatch(message)) {
+      return 'El mensaje contiene una URL no permitida.';
+    }
+
+    if (_cardNumberRegex.hasMatch(message)) {
+      return 'El mensaje contiene un número de tarjeta no permitido.';
+    }
+
+    for (String profanity in _profanities) {
+      if (messageLower.contains(profanity)) {
+        return 'El mensaje contiene lenguaje inapropiado.';
+      }
+    }
+
+    for (String keyword in _socialMediaKeywords) {
+      if (messageLower.contains(keyword)) {
+        return 'El mensaje contiene referencias a redes sociales no permitidas.';
+      }
+    }
+
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1126,77 +1448,81 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             if (_showChatInput)
               Container(
-  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-  decoration: const BoxDecoration(
-    color: Colors.white,
-  ),
-  child: Row(
-    children: [
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      _showImageSourceMenu();
-                    },
-                    icon: Image.asset(
-                      'assets/images/IconGallery.png',
-                      height: 24,
-                      width: 24,
-                    ),
-                  ),
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      maxLines: null,
-                      keyboardType: TextInputType.multiline,
-                      decoration: const InputDecoration(
-                        hintText: 'Escribe un mensaje',
-                        hintStyle: TextStyle(color: Colors.blueGrey),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 10.0,
-                        ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  onPressed: () {
+                                    _showImageSourceMenu();
+                                  },
+                                  icon: Image.asset(
+                                    'assets/images/IconGallery.png',
+                                    height: 24,
+                                    width: 24,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: TextField(
+                                    controller: _messageController,
+                                    maxLines: null,
+                                    keyboardType: TextInputType.multiline,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Escribe un mensaje',
+                                      hintStyle:
+                                          TextStyle(color: Colors.blueGrey),
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 16.0,
+                                        vertical: 10.0,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (_errorMessage != null)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(top: 8.0, left: 16.0),
+                              child: Text(
+                                _errorMessage!,
+                                style: const TextStyle(
+                                    color: Colors.red, fontSize: 12),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0, left: 16.0),
-                child: Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.red, fontSize: 12),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: () {
+                        sendMessage();
+                      },
+                      icon: Image.asset(
+                        'assets/images/IconSend.png',
+                        height: 40,
+                        width: 40,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-          ],
-        ),
-      ),
-      const SizedBox(width: 8),
-      IconButton(
-        onPressed: () {
-          sendMessage();
-        },
-        icon: Image.asset(
-          'assets/images/IconSend.png',
-          height: 40,
-          width: 40,
-        ),
-      ),
-    ],
-  ),
-)
+              )
           ],
         ),
       ),
@@ -1401,93 +1727,95 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _showPreviewImage() async {
-  if (_selectedImage != null) {
-    String? localErrorMessage;
-    await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: TextField(
-                        controller: _imageMessageController,
-                        decoration: const InputDecoration(
-                          hintText: 'Escribe un comentario',
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.all(10),
+    if (_selectedImage != null) {
+      String? localErrorMessage;
+      await showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return StatefulBuilder(
+            builder: (context, setState) {
+              return AlertDialog(
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        maxLines: 3,
-                      ),
-                    ),
-                    if (localErrorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          localErrorMessage!,
-                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                        child: TextField(
+                          controller: _imageMessageController,
+                          decoration: const InputDecoration(
+                            hintText: 'Escribe un comentario',
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.all(10),
+                          ),
+                          maxLines: 3,
                         ),
                       ),
+                      if (localErrorMessage != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            localErrorMessage!,
+                            style: const TextStyle(
+                                color: Colors.red, fontSize: 12),
+                          ),
+                        ),
                       const SizedBox(height: 10),
-                    if (_selectedImage != null)
-  ClipRRect(
-    borderRadius: BorderRadius.circular(20), // Define el radio de los bordes redondeados
-    child: SizedBox(
-      child: Image.file(_selectedImage!),
-    ),
-  ),
-                    const SizedBox(height: 10),
-                    
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _imageMessageController.clear();
-                  },
-                  child: const Text('Cancelar'),
-                ),
-                IconButton(
-                  onPressed: () {
-                    final errorMessage = _containsRestrictedContent(_imageMessageController.text.trim());
-                    if (errorMessage != null) {
-                      setState(() {
-                        localErrorMessage = errorMessage;
-                      });
-                    } else {
-                      _sendImageWithMessage();
-                      Navigator.of(context).pop();
-                    }
-                  },
-                  icon: Image.asset(
-                    'assets/images/IconSend.png',
-                    height: 40,
-                    width: 40,
+                      if (_selectedImage != null)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(
+                              20), // Define el radio de los bordes redondeados
+                          child: SizedBox(
+                            child: Image.file(_selectedImage!),
+                          ),
+                        ),
+                      const SizedBox(height: 10),
+                    ],
                   ),
                 ),
-              ],
-            );
-          },
-        );
-      },
-    );
-    // Limpia _selectedImage después de cerrar el diálogo
-    setState(() {
-      _selectedImage = null;
-    });
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      _imageMessageController.clear();
+                    },
+                    child: const Text('Cancelar'),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      final errorMessage = _containsRestrictedContent(
+                          _imageMessageController.text.trim());
+                      if (errorMessage != null) {
+                        setState(() {
+                          localErrorMessage = errorMessage;
+                        });
+                      } else {
+                        _sendImageWithMessage();
+                        Navigator.of(context).pop();
+                      }
+                    },
+                    icon: Image.asset(
+                      'assets/images/IconSend.png',
+                      height: 40,
+                      width: 40,
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+      // Limpia _selectedImage después de cerrar el diálogo
+      setState(() {
+        _selectedImage = null;
+      });
+    }
   }
-}
 }
 
 class MultimediaScreen extends StatelessWidget {

@@ -72,6 +72,8 @@ dependencies:
   camera: ^0.10.0+4
   path: ^1.8.2
   permission_handler: ^10.2.0
+  cached_network_image: ^3.3.1
+  timeago: ^3.7.0
   
 dev_dependencies:
   flutter_test:
