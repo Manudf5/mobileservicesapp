@@ -1,9 +1,15 @@
+import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/gestures.dart';
+import 'package:mobileservicesapp/screens/public/profile.dart';
 import 'login_screen.dart';
-import 'package:intl/intl.dart'; // Importa la biblioteca para formatear la fecha
+import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:sms_autofill/sms_autofill.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -13,152 +19,202 @@ class RegisterScreen extends StatefulWidget {
   _RegisterScreenState createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen>
-    with SingleTickerProviderStateMixin {
-  bool _acceptTerms = false; // Variable para el checkbox
-  late AnimationController _animationController;
-  // ignore: unused_field
-  late Animation<double> _animation;
-  DateTime? _selectedDate; // Variable para guardar la fecha seleccionada
-  String? _selectedGender; // Variable para guardar el género seleccionado
+class _RegisterScreenState extends State<RegisterScreen> {
+  // Páginas del formulario
+  final List<Widget> _pages = [];
+
+  // Controlador de la página actual
+  final _pageController = PageController();
+
+  // GlobalKey para el formulario
+  final _formKey = GlobalKey<FormState>();
+
+  // Variables para los datos del usuario
+  final _nameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  DateTime? _selectedDate;
+  String? _selectedGender;
+  String? _selectedIdType = 'V';
+  final _idNumberController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _phoneCountryCodeController = TextEditingController(text: '+58');
+  final _phoneNumberController = TextEditingController();
+  final _smsCodeController = TextEditingController();
+
+  // Variable para la imagen del documento
+  File? _image;
+
+  // Variables para la verificación por SMS
+  String _verificationId = '';
+  bool _codeSent = false;
+  Timer? _timer;
+  int _start = 60;
+
+  bool _pageViewBuilt = false;
+
+  // Variable para los términos y condiciones
+  bool _acceptTerms = false;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _animation = CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    );
+    // Inicializa las páginas del formulario
+    _pages.addAll([
+      _buildPersonalInfoPage(),
+      _buildDocumentInfoPage(),
+      _buildAccountInfoPage(),
+      _buildPhoneVerificationPage(),
+    ]);
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    // Libera los controladores al destruir el widget
+    _nameController.dispose();
+    _lastNameController.dispose();
+    _idNumberController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _phoneCountryCodeController.dispose();
+    _phoneNumberController.dispose();
+    _smsCodeController.dispose();
+    _timer?.cancel(); // Asegúrate de cancelar el temporizador
     super.dispose();
   }
 
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  final _idLetterController =
-      TextEditingController(); // Letra de identificación
-  final _idNumberController =
-      TextEditingController(); // Número de identificación
-  final _birthDateController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _phoneCountryCodeController =
-      TextEditingController(); // Código de país del teléfono
-  final _phoneNumberController = TextEditingController(); // Número de teléfono
-  final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
+  // Función para tomar una foto
+  Future<void> _takePicture() async {
+    final pickedImage =
+        await ImagePicker().pickImage(source: ImageSource.camera);
+    if (pickedImage != null) {
+      setState(() {
+        _image = File(pickedImage.path);
+      });
+    }
+  }
 
+  // Función para seleccionar una imagen de la galería
+  Future<void> _selectPicture() async {
+    final pickedImage =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedImage != null) {
+      setState(() {
+        _image = File(pickedImage.path);
+      });
+    }
+  }
+
+  // Función para mostrar el calendario
+  Future<void> _presentDatePicker() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
+  // Función para enviar el código de verificación por SMS
+  Future<void> _verifyPhoneNumber() async {
+    // Inicia el temporizador
+    _startTimer();
+
+    final phone =
+        '+${_phoneCountryCodeController.text.trim()}${_phoneNumberController.text.trim()}';
+
+    await FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: phone,
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        // Auto-retrieval of OTP in some cases
+      },
+      verificationFailed: (FirebaseAuthException e) {
+        if (e.code == 'invalid-phone-number') {
+          // ignore: avoid_print
+          print('The provided phone number is not valid.');
+          // Show error message to user
+        }
+        // Handle other errors
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        setState(() {
+          _verificationId = verificationId;
+          _codeSent = true;
+        });
+        // Navigate to OTP input page
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {},
+    );
+  }
+
+  // Función para registrar al usuario
   Future<void> _registerUser() async {
     try {
-      // 1. Validación de la casilla de términos y condiciones
-      if (!_acceptTerms) {
-        // Mostrar un mensaje de error
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Debes aceptar los términos y condiciones.',
-              style: TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
-        return;
+      // Validar si el código SMS es correcto
+      if (_verificationId.isNotEmpty && _smsCodeController.text.isNotEmpty) {
+        // Crea la credencial con el código SMS
+        PhoneAuthCredential credential = PhoneAuthProvider.credential(
+            verificationId: _verificationId,
+            smsCode: _smsCodeController.text.trim());
+
+        // Inicia sesión con la credencial del teléfono
+        await FirebaseAuth.instance.signInWithCredential(credential);
+      } else {
+        // Manejar el caso en el que no se requiere verificación por SMS
+        // ...
       }
 
-      // 2. Validación de la existencia del correo electrónico y número de identificación
-      final emailExists = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: _emailController.text.trim())
-          .get()
-          .then((value) => value.docs.isNotEmpty);
-
-      final idExists = await FirebaseFirestore.instance
-          .collection('users')
-          .where('id',
-              isEqualTo:
-                  '${_idLetterController.text.trim()}${_idNumberController.text.trim()}')
-          .get()
-          .then((value) => value.docs.isNotEmpty);
-
-      final phoneExists = await FirebaseFirestore.instance
-          .collection('users')
-          .where('phone',
-              isEqualTo:
-                  '${_phoneCountryCodeController.text.trim()}${_phoneNumberController.text.trim()}')
-          .get()
-          .then((value) => value.docs.isNotEmpty);
-
-      if (emailExists || idExists || phoneExists) {
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              'EL email, ID o número de telefono ya se encuentran registrados.',
-              style: TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
-        return;
-      }
-
-      // 3. Crea usuario con email y contraseña usando Firebase Authentication
+      // Crea usuario con email y contraseña usando Firebase Authentication
       UserCredential userCredential =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      // 4. Obtén el usuario que se acaba de registrar
+      // Obtén el usuario que se acaba de registrar
       User? user = userCredential.user;
 
-      // 5. Almacena los datos del usuario en Firestore
       if (user != null) {
+        // Subir la imagen del documento a Firebase Storage
+        final ref = FirebaseStorage.instance
+            .ref('identity_documents/${user.uid}.jpg');
+        await ref.putFile(_image!);
+        final photoUrl = await ref.getDownloadURL();
+
         String walletBalanceDefault = '0.00';
+
+        // Crea el documento del usuario en Firestore
         String combinedId =
-            '${_idLetterController.text.trim()}${_idNumberController.text.trim()}';
-        String combinedPhoneNumber =
-            '${_phoneCountryCodeController.text.trim()}${_phoneNumberController.text.trim()}'; // Concatenar código y número de teléfono
+            '$_selectedIdType${_idNumberController.text.trim()}';
 
         await FirebaseFirestore.instance
             .collection('users')
-            .doc(combinedId) // Usa el ID combinado como el ID del documento
+            .doc(combinedId)
             .set({
           'name': _nameController.text.trim(),
           'lastName': _lastNameController.text.trim(),
-          'id': combinedId, // Almacena el ID combinado como referencia
+          'id': combinedId,
           'birthDate': _selectedDate != null
               ? DateFormat('dd/MM/yyyy').format(_selectedDate!)
-              : '', // Almacena la fecha seleccionada en formato DD/MM/YYYY
+              : '',
           'email': _emailController.text.trim(),
           'phone':
-              combinedPhoneNumber, // Almacena el número de teléfono combinado
-          'uid': user.uid, // Almacena el UID del usuario para referencia futura
-          'password': _passwordController.text.trim(), // Almacena la contraseña
-          'gender': _selectedGender, // Almacena el género seleccionado
-          'acceptTerms':
-              _acceptTerms, // Almacena si el usuario aceptó los términos
-          'role': 0, // Añade el campo de rol con valor 0
-          'status': 0, // Añade el campo de permisos con valor 0
-          'registrationDate': DateTime.now(), // Almacena la fecha de registro
+              '+${_phoneCountryCodeController.text.trim()}${_phoneNumberController.text.trim()}',
+          'uid': user.uid,
+          'password': _passwordController.text.trim(),
+          'gender': _selectedGender,
+          'photoIdentityDocument': photoUrl,
+          'acceptTerms': _acceptTerms,
+          'role': 0,
+          'status': 0,
+          'registrationDate': DateTime.now(),
         });
 
         await FirebaseFirestore.instance
@@ -168,7 +224,7 @@ class _RegisterScreenState extends State<RegisterScreen>
           'walletBalance': walletBalanceDefault,
         });
 
-        // 6. Registro exitoso, navega a LoginScreen y muestra un mensaje
+        // Registro exitoso, navega a LoginScreen y muestra un mensaje
         // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -194,11 +250,15 @@ class _RegisterScreenState extends State<RegisterScreen>
       if (e.code == 'weak-password') {
         // ignore: avoid_print
         print('The password provided is too weak.');
-        // Mostrar mensaje de error al usuario (por ejemplo, con un SnackBar)
+        // Mostrar mensaje de error al usuario
       } else if (e.code == 'email-already-in-use') {
         // ignore: avoid_print
         print('The account already exists for that email.');
         // Mostrar mensaje de error al usuario
+      } else if (e.code == 'invalid-credential') {
+        // ignore: avoid_print
+        print('Invalid SMS code provided');
+        // Show error message to user
       }
     } catch (e) {
       // ignore: avoid_print
@@ -207,628 +267,428 @@ class _RegisterScreenState extends State<RegisterScreen>
     }
   }
 
-  Future<void> _presentDatePicker() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now(),
+  // Función para iniciar el temporizador
+  void _startTimer() {
+    _start = 60;
+    const oneSec = Duration(seconds: 1);
+    _timer = Timer.periodic(
+      oneSec,
+      (Timer timer) {
+        if (_start == 0) {
+          setState(() {
+            timer.cancel();
+            _codeSent = false;
+          });
+        } else {
+          setState(() {
+            _start--;
+          });
+        }
+      },
     );
-    if (picked != null && picked != _selectedDate) {
-      setState(() {
-        _selectedDate = picked;
-        _birthDateController.text =
-            DateFormat('dd/MM/yyyy').format(_selectedDate!);
-      });
-    }
   }
 
-  void _showTermsAndConditionsDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Términos y Condiciones'),
-          content: const SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Aquí agrega el contenido de los términos y condiciones
-                Text('Término 1: ...'),
-                Text('Término 2: ...'),
-                // ...
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
+  // Función para construir la página de información personal
+  Widget _buildPersonalInfoPage() {
+    return Column(
+      children: [
+        TextFormField(
+          controller: _nameController,
+          decoration: const InputDecoration(labelText: 'Nombre'),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Por favor, ingresa tu nombre';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16.0),
+        TextFormField(
+          controller: _lastNameController,
+          decoration: const InputDecoration(labelText: 'Apellido'),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Por favor, ingresa tu apellido';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 24.0),
+        Row(
+          children: [
+            Checkbox(
+              value: _acceptTerms,
+              onChanged: (value) {
+                setState(() {
+                  _acceptTerms = value!;
+                });
               },
-              child: const Icon(
-                Icons.close,
-                color: Colors.red,
-                size: 30.0,
-              ), // Icono de cierre en rojo
+            ),
+            const SizedBox(width: 4.0),
+            Expanded(
+              child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(color: Colors.black, fontSize: 13.0),
+                  children: [
+                    const TextSpan(
+                      text: 'Acepto los ',
+                    ),
+                    TextSpan(
+                      text: 'términos y condiciones',
+                      style: const TextStyle(
+                        color: Colors.blue,
+                        decoration: TextDecoration.underline,
+                      ),
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const TermsAndConditionsScreen(),
+                            ),
+                          );
+                        },
+                    ),
+                    const TextSpan(
+                      text: ' de la empresa',
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
-        );
-      },
+        ),
+      ],
+    );
+  }
+
+  // Función para construir la página de información del documento
+  Widget _buildDocumentInfoPage() {
+    return Column(
+      children: [
+        // Campo para la fecha de nacimiento
+        TextFormField(
+          readOnly: true,
+          onTap: _presentDatePicker,
+          decoration: const InputDecoration(
+            labelText: 'Fecha de nacimiento',
+            hintText: 'Selecciona tu fecha de nacimiento',
+          ),
+          validator: (value) {
+            if (_selectedDate == null) {
+              return 'Por favor, selecciona tu fecha de nacimiento';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16.0),
+
+        // Menú desplegable para el género
+        DropdownButtonFormField<String>(
+          decoration: const InputDecoration(
+            labelText: 'Género',
+            hintText: 'Selecciona tu género',
+          ),
+          value: _selectedGender,
+          onChanged: (value) {
+            setState(() {
+              _selectedGender = value;
+            });
+          },
+          items: const [
+            DropdownMenuItem(value: 'Masculino', child: Text('Masculino')),
+            DropdownMenuItem(value: 'Femenino', child: Text('Femenino')),
+            DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+          ],
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Por favor, selecciona tu género';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16.0),
+
+        // Fila para el tipo y número de identificación
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Tipo ID',
+                  hintText: 'Selecciona el tipo de ID',
+                ),
+                value: _selectedIdType,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedIdType = value;
+                  });
+                },
+                items: const [
+                  DropdownMenuItem(value: 'V', child: Text('V')),
+                  DropdownMenuItem(value: 'E', child: Text('E')),
+                  DropdownMenuItem(value: 'J', child: Text('J')),
+                  DropdownMenuItem(value: 'P', child: Text('P')),
+                ],
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor, selecciona el tipo de ID';
+                  }
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(width: 16.0),
+            Expanded(
+              flex: 3,
+              child: TextFormField(
+                controller: _idNumberController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Número de ID',
+                  hintText: 'Ingresa tu número de ID',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor, ingresa tu número de ID';
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16.0),
+
+        // Vista previa de la imagen del documento
+        if (_image != null)
+          Image.file(
+            _image!,
+            height: 200,
+            width: 200,
+          )
+        else
+          const Placeholder(
+            fallbackHeight: 200,
+            fallbackWidth: 200,
+          ),
+
+        // Botones para tomar o seleccionar una foto
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            ElevatedButton(
+              onPressed: _takePicture,
+              child: const Text('Tomar foto'),
+            ),
+            ElevatedButton(
+              onPressed: _selectPicture,
+              child: const Text('Seleccionar foto'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Función para construir la página de información de la cuenta
+  Widget _buildAccountInfoPage() {
+    return Column(
+      children: [
+        // Campo para el correo electrónico
+        TextFormField(
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            labelText: 'Correo electrónico',
+            hintText: 'Ingresa tu correo electrónico',
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Por favor, ingresa tu correo electrónico';
+            }
+            if (!value.contains('@') || !value.contains('.')) {
+              return 'Por favor, ingresa un correo electrónico válido';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16.0),
+        // Campo para la contraseña
+        TextFormField(
+          controller: _passwordController,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'Contraseña',
+            hintText: 'Ingresa una contraseña',
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Por favor, ingresa una contraseña';
+            }
+            if (value.length < 6) {
+              return 'La contraseña debe tener al menos 6 caracteres';
+            }
+            return null;
+          },
+        ),
+        const SizedBox(height: 16.0),
+
+        // Campo para confirmar la contraseña
+        TextFormField(
+          controller: _confirmPasswordController,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'Confirmar contraseña',
+            hintText: 'Repite tu contraseña',
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Por favor, repite tu contraseña';
+            }
+            if (value != _passwordController.text) {
+              return 'Las contraseñas no coinciden';
+            }
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  // Función para construir la página de verificación telefónica
+  Widget _buildPhoneVerificationPage() {
+    return Column(
+      children: [
+        // Fila para el código del país y el número de teléfono
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Código del país',
+                  hintText: 'Selecciona tu código de país',
+                ),
+                value: _phoneCountryCodeController.text,
+                onChanged: (value) {
+                  setState(() {
+                    _phoneCountryCodeController.text = value!;
+                  });
+                },
+                items: const [
+                  DropdownMenuItem(value: '+58', child: Text('+58')),
+                  // Agrega más códigos de país aquí
+                ],
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor, selecciona un código de país';
+                  }
+                  return null;
+                },
+              ),
+            ),
+            const SizedBox(width: 16.0),
+            Expanded(
+              flex: 3,
+              child: TextFormField(
+                controller: _phoneNumberController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Número de teléfono',
+                  hintText: 'Ingresa tu número de teléfono',
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Por favor, ingresa tu número de teléfono';
+                  }
+                  return null;
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16.0),
+
+        // Botón para recibir el código
+        ElevatedButton(
+          onPressed: _codeSent
+              ? null
+              : () async {
+                  if (_formKey.currentState!.validate()) {
+                    await _verifyPhoneNumber();
+                  }
+                },
+          child: Text(_codeSent
+              ? 'Código enviado ($_start)'
+              : 'Recibir código'),
+        ),
+
+        // Campo para ingresar el código SMS
+        if (_codeSent)
+          TextFormField(
+            controller: _smsCodeController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Código de verificación',
+              hintText: 'Ingresa el código',
+            ),
+          ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Set the background color to white
-      body: Center(
-        // Centra el formulario vertical y horizontalmente
+      appBar: AppBar(
+        title: const Text('Crear cuenta'),
+      ),
+      body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 46.0),
-                  const Text(
-                    'Crea una cuenta',
-                    style: TextStyle(
-                      fontSize: 28.0,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black, // Set the text color to black
-                    ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 400, // Ajusta la altura según sea necesario
+                  child: PageView(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: _pages,
                   ),
-                  const SizedBox(height: 24.0),
-                  // Nombre
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16.0),
-                    child: TextFormField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Nombre',
-                        labelStyle: const TextStyle(
-                            color: Colors
-                                .black), // Set the label text color to black
-                        hintText: 'Ingresa tu primer nombre',
-                        hintStyle: const TextStyle(
-                            color:
-                                Colors.grey), // Set the hint text color to grey
-                        filled: true,
-                        fillColor: Colors
-                            .transparent, // Set the fill color to transparent
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16.0),
-                          borderSide: const BorderSide(
-                              color:
-                                  Colors.blue), // Set the border color to blue
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 16.0,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, ingresa tu nombre';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  // Apellido
-                  const SizedBox(height: 16.0),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16.0),
-                    child: TextFormField(
-                      controller: _lastNameController,
-                      decoration: InputDecoration(
-                        labelText: 'Apellido',
-                        labelStyle: const TextStyle(
-                            color: Colors
-                                .black), // Set the label text color to black
-                        hintText: 'Ingresa tu primer apellido',
-                        hintStyle: const TextStyle(
-                            color:
-                                Colors.grey), // Set the hint text color to grey
-                        filled: true,
-                        fillColor: Colors
-                            .transparent, // Set the fill color to transparent
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16.0),
-                          borderSide: const BorderSide(
-                              color:
-                                  Colors.blue), // Set the border color to blue
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 16.0,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, ingresa tu apellido';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  // Tipo de Identificación
-                  const SizedBox(height: 16.0),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 4, // Reducir el espacio para el DropdownButton
-                          child: DropdownButtonFormField<String>(
-                            decoration: const InputDecoration(
-                              labelText: 'Tipo',
-                              labelStyle: TextStyle(
-                                  color: Colors
-                                      .black), // Set the label text color to black
-                              hintText: 'Tipo',
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 16.0, vertical: 16.0),
-                              border: OutlineInputBorder(
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
-                            value: _idLetterController.text.isEmpty
-                                ? null
-                                : _idLetterController.text,
-                            onChanged: (value) {
-                              setState(() {
-                                _idLetterController.text = value!;
-                              });
-                            },
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'V',
-                                child: Text('V'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'E',
-                                child: Text('E'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'J',
-                                child: Text('J'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'P',
-                                child: Text('P'),
-                              ),
-                            ],
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, selecciona un tipo de identificación';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16.0),
-                        Expanded(
-                          flex: 6, // Ampliar el espacio para el TextFormField
-                          child: TextFormField(
-                            controller: _idNumberController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              labelText: 'ID',
-                              labelStyle: const TextStyle(
-                                  color: Colors
-                                      .black), // Set the label text color to black
-                              hintText: 'ID',
-                              hintStyle: const TextStyle(
-                                  color: Colors
-                                      .grey), // Set the hint text color to grey
-                              filled: true,
-                              fillColor: Colors
-                                  .transparent, // Set the fill color to transparent
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16.0),
-                                borderSide: const BorderSide(
-                                    color: Colors
-                                        .blue), // Set the border color to blue
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
-                                vertical: 16.0,
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, ingresa tu número de identificación';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Fecha de nacimiento
-                  const SizedBox(height: 16.0),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16.0),
-                    child: TextFormField(
-                      controller: _birthDateController,
-                      readOnly: true,
-                      onTap: _presentDatePicker,
-                      decoration: InputDecoration(
-                        labelText: 'Fecha de nacimiento',
-                        labelStyle: const TextStyle(
-                            color: Colors
-                                .black), // Set the label text color to black
-                        hintText: 'Selecciona tu fecha de nacimiento',
-                        hintStyle: const TextStyle(
-                            color:
-                                Colors.grey), // Set the hint text color to grey
-                        filled: true,
-                        fillColor: Colors
-                            .transparent, // Set the fill color to transparent
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16.0),
-                          borderSide: const BorderSide(
-                              color:
-                                  Colors.blue), // Set the border color to blue
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 16.0,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, selecciona tu fecha de nacimiento';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  // Género
-                  const SizedBox(height: 18.0),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16.0),
-                    child: DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(
-                        labelText: 'Género',
-                        labelStyle: TextStyle(
-                            color: Colors
-                                .black), // Set the label text color to black
-                        hintText: 'Género',
-                        contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16.0, vertical: 16.0),
-                        border: OutlineInputBorder(
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      value: _selectedGender,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedGender = value;
-                        });
-                      },
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'Masculino',
-                          child: Text('Masculino'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Femenino',
-                          child: Text('Femenino'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Otro',
-                          child: Text('Otro'),
-                        ),
-                      ],
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, selecciona un género';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  // Correo electrónico
-                  const SizedBox(height: 16.0),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16.0),
-                    child: TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: InputDecoration(
-                        labelText: 'Correo electrónico',
-                        labelStyle: const TextStyle(
-                            color: Colors
-                                .black), // Set the label text color to black
-                        hintText: 'Ingresa tu correo electrónico',
-                        hintStyle: const TextStyle(
-                            color:
-                                Colors.grey), // Set the hint text color to grey
-                        filled: true,
-                        fillColor: Colors
-                            .transparent, // Set the fill color to transparent
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16.0),
-                          borderSide: const BorderSide(
-                              color:
-                                  Colors.blue), // Set the border color to blue
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 16.0,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, ingresa tu correo electrónico';
-                        }
-                        if (!value.contains('@') || !value.contains('.')) {
-                          return 'Por favor, ingresa un correo electrónico válido';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  // Código de país
-                  const SizedBox(height: 16.0),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 4, // Reducir el espacio para el DropdownButton
-                          child: DropdownButtonFormField<String>(
-                            decoration: const InputDecoration(
-                              labelText: 'País',
-                              labelStyle: TextStyle(
-                                  color: Colors
-                                      .black), // Set the label text color to black
-                              hintText: 'País',
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 16.0, vertical: 16.0),
-                              border: InputBorder.none,
-                            ),
-                            value: _phoneCountryCodeController.text.isEmpty
-                                ? '+58'
-                                : _phoneCountryCodeController.text,
-                            onChanged: (value) {
-                              setState(() {
-                                _phoneCountryCodeController.text = value!;
-                              });
-                            },
-                            items: const [
-                              DropdownMenuItem(
-                                value: '+58',
-                                child: Text('+58'),
-                              ),
-                              // Agrega más códigos de país aquí
-                            ],
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, selecciona un código de país';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16.0),
-                        Expanded(
-                          flex: 6, // Ampliar el espacio para el TextFormField
-                          child: TextFormField(
-                            controller: _phoneNumberController,
-                            keyboardType: TextInputType.phone,
-                            decoration: InputDecoration(
-                              labelText: 'N° Teléfono',
-                              labelStyle: const TextStyle(
-                                  color: Colors
-                                      .black), // Set the label text color to black
-                              hintText: 'N° Teléfono',
-                              hintStyle: const TextStyle(
-                                  color: Colors
-                                      .grey), // Set the hint text color to grey
-                              filled: true,
-                              fillColor: Colors
-                                  .transparent, // Set the fill color to transparent
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16.0),
-                                borderSide: const BorderSide(
-                                    color: Colors
-                                        .blue), // Set the border color to blue
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16.0,
-                                vertical: 16.0,
-                              ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, ingresa tu número de teléfono';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Contraseña
-                  const SizedBox(height: 16.0),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16.0),
-                    child: TextFormField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        labelText: 'Contraseña',
-                        labelStyle: const TextStyle(
-                            color: Colors
-                                .black), // Set the label text color to black
-                        hintText: 'Ingresa una contraseña mayor a 8 dígitos',
-                        hintStyle: const TextStyle(
-                            color:
-                                Colors.grey), // Set the hint text color to grey
-                        filled: true,
-                        fillColor: Colors
-                            .transparent, // Set the fill color to transparent
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16.0),
-                          borderSide: const BorderSide(
-                              color:
-                                  Colors.blue), // Set the border color to blue
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 16.0,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, ingresa tu contraseña';
-                        }
-                        if (value.length < 8) {
-                          return 'La contraseña debe tener al menos 8 caracteres';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  // Confirmar contraseña
-                  const SizedBox(height: 16.0),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16.0),
-                    child: TextFormField(
-                      controller: _confirmPasswordController,
-                      obscureText: true,
-                      decoration: InputDecoration(
-                        labelText: 'Confirmar contraseña',
-                        labelStyle: const TextStyle(
-                            color: Colors
-                                .black), // Set the label text color to black
-                        hintText: 'Repite tu contraseña ingresada',
-                        hintStyle: const TextStyle(
-                            color:
-                                Colors.grey), // Set the hint text color to grey
-                        filled: true,
-                        fillColor: Colors
-                            .transparent, // Set the fill color to transparent
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16.0),
-                          borderSide: const BorderSide(
-                              color:
-                                  Colors.blue), // Set the border color to blue
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 16.0,
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, confirma tu contraseña';
-                        }
-                        if (value != _passwordController.text) {
-                          return 'Las contraseñas no coinciden';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 24.0),
-                  // Casilla de verificación centrada horizontalmente
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0), // Añade padding a la fila
-                    child: Row(
-                      mainAxisAlignment:
-                          MainAxisAlignment.center, // Centrar horizontalmente
-                      children: [
-                        Checkbox(
-                          value:
-                              _acceptTerms, // Se utiliza la variable para el checkbox
-                          onChanged: (value) {
-                            setState(() {
-                              _acceptTerms = value!;
-                            });
-                          },
-                        ),
-                        const SizedBox(
-                            width: 4.0), // Espacio entre el checkbox y el texto
-                        Expanded(
-                          child: RichText(
-                            text: TextSpan(
-                              style: const TextStyle(
-                                  color: Colors.black,
-                                  fontSize: 13.0 // Reduce el tamaño del texto
-                                  ),
-                              children: [
-                                const TextSpan(
-                                  text: 'Acepto los ',
-                                ),
-                                TextSpan(
-                                  text: 'términos y condiciones',
-                                  style: const TextStyle(
-                                    color: Colors
-                                        .blue, // Color azul para el enlace
-                                    decoration:
-                                        TextDecoration.underline, // Subrayado
-                                  ),
-                                  recognizer: TapGestureRecognizer()
-                                    ..onTap = _showTermsAndConditionsDialog,
-                                ),
-                                const TextSpan(
-                                  text: ' de la empresa',
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24.0),
-                  ElevatedButton(
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
+                ),
+                const SizedBox(height: 16.0),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_formKey.currentState!.validate()) {
+                      if (_pageViewBuilt &&
+                          _pageController.page == _pages.length - 1) {
+                        // Registra al usuario solo si PageView está construido
                         _registerUser();
+                      } else {
+                        // Navega a la siguiente página
+                        _pageController.nextPage(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+
+                        // Marca PageView como construido después de la primera navegación
+                        _pageViewBuilt = true;
                       }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[600],
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20.0, vertical: 10.0),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                    ),
-                    child: const Text(
-                      'Registrarme',
-                      style: TextStyle(fontSize: 18.0),
-                    ),
+                    }
+                  },
+                  child: Text(
+                    (_pageViewBuilt &&
+                            _pageController.page == _pages.length - 1)
+                        ? 'Registrarme'
+                        : 'Siguiente',
                   ),
-                  const SizedBox(height: 5.0),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      '¿Ya tengo cuenta?',
-                      style: TextStyle(
-                          color: Colors.black), // Set the text color to black
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

@@ -202,7 +202,11 @@ class _SocialScreenState extends State<SocialScreen> {
           future: _fetchPosts(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(
+                  child: CupertinoActivityIndicator(
+                radius: 16,
+                color: Colors.green,
+              ));
             } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return const Center(child: Text('Aun no sigues a nadie'));
             } else {
@@ -225,7 +229,11 @@ class _SocialScreenState extends State<SocialScreen> {
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
-                              return const CircularProgressIndicator();
+                              return const Center(
+                                  child: CupertinoActivityIndicator(
+                                radius: 16,
+                                color: Colors.green,
+                              ));
                             } else if (snapshot.hasData) {
                               final data = snapshot.data!.data()
                                   as Map<String, dynamic>?;
@@ -277,8 +285,11 @@ class _SocialScreenState extends State<SocialScreen> {
                             borderRadius: BorderRadius.circular(10.0),
                             child: CachedNetworkImage(
                               imageUrl: post['PostImageUrl'],
-                              placeholder: (context, url) =>
-                                  const CircularProgressIndicator(),
+                              placeholder: (context, url) => const Center(
+                                  child: CupertinoActivityIndicator(
+                                radius: 16,
+                                color: Colors.green,
+                              )),
                               errorWidget: (context, url, error) =>
                                   const Icon(Icons.error),
                               fit: BoxFit.cover,
@@ -362,6 +373,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   bool _isSearching = false;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  Timer? _searchDelayTimer;
 
   Stream<List<DocumentSnapshot<Map<String, dynamic>>>> getConversations() {
     return _firestore
@@ -387,6 +399,26 @@ class _ChatListScreenState extends State<ChatListScreen> {
   void initState() {
     super.initState();
     _fetchClientId();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    _searchDelayTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (_searchDelayTimer?.isActive ?? false) {
+      _searchDelayTimer!.cancel();
+    }
+    _searchDelayTimer = Timer(const Duration(milliseconds: 500), () {
+      setState(() {
+        _searchQuery = _searchController.text;
+      });
+    });
   }
 
   Future _fetchClientId() async {
@@ -425,11 +457,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     hintText: 'Buscar chats...',
                     border: InputBorder.none,
                   ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
+                  onChanged: (value) {},
                 )
               : const Text(
                   'Chats',
@@ -528,50 +556,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             context: context,
                             builder: (context) {
                               return AlertDialog(
-                                content: FutureBuilder<String?>(
-                                  future:
-                                      getSupplierProfileImageUrl(supplierID),
-                                  builder: (context, snapshot) {
-                                    if (snapshot.connectionState ==
-                                        ConnectionState.done) {
-                                      final profileImageUrl = snapshot.data;
-                                      return profileImageUrl != null
-                                          ? Image.network(profileImageUrl)
-                                          : Image.asset(
-                                              'assets/images/ProfilePhoto_predetermined.png');
-                                    } else {
-                                      return const CupertinoActivityIndicator(
-                                        radius: 16,
-                                        color: Colors.green,
-                                      );
-                                    }
-                                  },
-                                ),
+                                content: getSupplierProfileImage(supplierID),
                               );
                             },
                           );
                         },
-                        child: FutureBuilder<String?>(
-                          future: getSupplierProfileImageUrl(supplierID),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.done) {
-                              final profileImageUrl = snapshot.data;
-                              return CircleAvatar(
-                                radius: 25,
-                                backgroundImage: profileImageUrl != null
-                                    ? NetworkImage(profileImageUrl)
-                                    : const AssetImage(
-                                        'assets/images/ProfilePhoto_predetermined.png'),
-                              );
-                            } else {
-                              return const CupertinoActivityIndicator(
-                                radius: 16,
-                                color: Colors.green,
-                              );
-                            }
-                          },
-                        ),
+                        child: getSupplierProfileImage(supplierID),
                       ),
                       title: Text(
                         supplierName ?? '',
@@ -657,7 +647,33 @@ class _ChatListScreenState extends State<ChatListScreen> {
         ));
   }
 
-  Future<String?> getSupplierProfileImageUrl(String supplierID) async {
+  Widget getSupplierProfileImage(String? supplierID) {
+    return FutureBuilder<String?>(
+      future: getSupplierProfileImageUrl(supplierID),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done) {
+          final profileImageUrl = snapshot.data;
+          return CircleAvatar(
+            radius: 25,
+            backgroundImage: profileImageUrl != null
+                ? CachedNetworkImageProvider(profileImageUrl) as ImageProvider
+                : const AssetImage(
+                    'assets/images/ProfilePhoto_predetermined.png'),
+          );
+        } else {
+          return const CupertinoActivityIndicator(
+            radius: 16,
+            color: Colors.green,
+          );
+        }
+      },
+    );
+  }
+
+  Future<String?> getSupplierProfileImageUrl(String? supplierID) async {
+    if (supplierID == null) {
+      return null;
+    }
     final supplierDocSnapshot =
         await _firestore.collection('users').doc(supplierID).get();
     return supplierDocSnapshot.data()?['profileImageUrl'];
@@ -1904,7 +1920,11 @@ class MultimediaScreen extends StatelessWidget {
             );
           }
 
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+              child: CupertinoActivityIndicator(
+            radius: 16,
+            color: Colors.green,
+          ));
         },
       ),
     );
