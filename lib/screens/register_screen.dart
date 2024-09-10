@@ -1,15 +1,18 @@
-import 'dart:async';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/gestures.dart';
-import 'package:mobileservicesapp/screens/public/profile.dart';
-import 'login_screen.dart';
-import 'package:intl/intl.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:sms_autofill/sms_autofill.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:mobileservicesapp/screens/public/homepage.dart';
+import 'package:mobileservicesapp/screens/public/profile.dart';
+import 'dart:io';
+import 'package:intl/intl.dart';
+import 'login_screen.dart';
+// Importa la biblioteca para formatear la fecha
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -20,94 +23,56 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // Páginas del formulario
-  final List<Widget> _pages = [];
-
-  // Controlador de la página actual
-  final _pageController = PageController();
-
-  // GlobalKey para el formulario
+  final PageController _pageController = PageController();
   final _formKey = GlobalKey<FormState>();
-
-  // Variables para los datos del usuario
   final _nameController = TextEditingController();
   final _lastNameController = TextEditingController();
-  DateTime? _selectedDate;
-  String? _selectedGender;
-  String? _selectedIdType = 'V';
   final _idNumberController = TextEditingController();
+  final _birthDateController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneNumberController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _phoneCountryCodeController = TextEditingController(text: '+58');
-  final _phoneNumberController = TextEditingController();
-  final _smsCodeController = TextEditingController();
+  final _bioController = TextEditingController(); // Controlador para la biografía
+  String? _idLetterController = 'V';
+  String? _phoneCountryCodeController = '+58';
 
-  // Variable para la imagen del documento
-  File? _image;
-
-  // Variables para la verificación por SMS
-  String _verificationId = '';
-  bool _codeSent = false;
-  Timer? _timer;
-  int _start = 60;
-
-  bool _pageViewBuilt = false;
-
-  // Variable para los términos y condiciones
+  DateTime? _selectedDate;
+  String? _selectedGender;
   bool _acceptTerms = false;
+  File? _idImage;
+  bool _isTimerRunning = false;
+  int _timerSeconds = 60;
+  bool _isLoading = false; // Variable de estado para el indicador de carga
+  // ignore: unused_field
+  final bool _isEmailVerified = false;
+  int _currentPage = 0; // Índice de la página actual
 
-  @override
-  void initState() {
-    super.initState();
-    // Inicializa las páginas del formulario
-    _pages.addAll([
-      _buildPersonalInfoPage(),
-      _buildDocumentInfoPage(),
-      _buildAccountInfoPage(),
-      _buildPhoneVerificationPage(),
-    ]);
-  }
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
+  // Parámetros de la contraseña
+  bool _hasUpperCase = false;
+  bool _hasLowerCase = false;
+  bool _hasDigits = false;
+  bool _hasSpecialCharacters = false;
+  bool _hasMinLength = false;
 
   @override
   void dispose() {
-    // Libera los controladores al destruir el widget
+    _pageController.dispose();
     _nameController.dispose();
     _lastNameController.dispose();
     _idNumberController.dispose();
+    _birthDateController.dispose();
     _emailController.dispose();
+    _phoneNumberController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _phoneCountryCodeController.dispose();
-    _phoneNumberController.dispose();
-    _smsCodeController.dispose();
-    _timer?.cancel(); // Asegúrate de cancelar el temporizador
+    _bioController.dispose(); // No olvides hacer dispose del controlador de biografía
     super.dispose();
   }
 
-  // Función para tomar una foto
-  Future<void> _takePicture() async {
-    final pickedImage =
-        await ImagePicker().pickImage(source: ImageSource.camera);
-    if (pickedImage != null) {
-      setState(() {
-        _image = File(pickedImage.path);
-      });
-    }
-  }
-
-  // Función para seleccionar una imagen de la galería
-  Future<void> _selectPicture() async {
-    final pickedImage =
-        await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (pickedImage != null) {
-      setState(() {
-        _image = File(pickedImage.path);
-      });
-    }
-  }
-
-  // Función para mostrar el calendario
   Future<void> _presentDatePicker() async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -118,97 +83,236 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
+        _birthDateController.text =
+            DateFormat('dd/MM/yyyy').format(_selectedDate!);
       });
     }
   }
 
-  // Función para enviar el código de verificación por SMS
-  Future<void> _verifyPhoneNumber() async {
-    // Inicia el temporizador
-    _startTimer();
-
-    final phone =
-        '+${_phoneCountryCodeController.text.trim()}${_phoneNumberController.text.trim()}';
-
-    await FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber: phone,
-      verificationCompleted: (PhoneAuthCredential credential) async {
-        // Auto-retrieval of OTP in some cases
-      },
-      verificationFailed: (FirebaseAuthException e) {
-        if (e.code == 'invalid-phone-number') {
-          // ignore: avoid_print
-          print('The provided phone number is not valid.');
-          // Show error message to user
-        }
-        // Handle other errors
-      },
-      codeSent: (String verificationId, int? resendToken) {
-        setState(() {
-          _verificationId = verificationId;
-          _codeSent = true;
-        });
-        // Navigate to OTP input page
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {},
-    );
+  Future<void> _takeIdPhoto() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image =
+        await picker.pickImage(source: ImageSource.camera);
+    if (image != null) {
+      setState(() {
+        _idImage = File(image.path);
+      });
+    }
   }
 
-  // Función para registrar al usuario
-  Future<void> _registerUser() async {
+  void _startTimer() {
+    setState(() {
+      _isTimerRunning = true;
+      _timerSeconds = 60;
+    });
+    _runTimer();
+  }
+
+  void _runTimer() {
+    if (_timerSeconds > 0) {
+      Future.delayed(const Duration(seconds: 1), () {
+        setState(() {
+          _timerSeconds--;
+        });
+        _runTimer();
+      });
+    } else {
+      setState(() {
+        _isTimerRunning = false;
+      });
+    }
+  }
+
+  Future<void> _sendEmailVerification() async {
+    if (_emailController.text.isEmpty) {
+      // Mostrar un mensaje si el campo de correo electrónico está vacío
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Por favor, ingresa tu correo electrónico.')));
+      return;
+    }
+
     try {
-      // Validar si el código SMS es correcto
-      if (_verificationId.isNotEmpty && _smsCodeController.text.isNotEmpty) {
-        // Crea la credencial con el código SMS
-        PhoneAuthCredential credential = PhoneAuthProvider.credential(
-            verificationId: _verificationId,
-            smsCode: _smsCodeController.text.trim());
-
-        // Inicia sesión con la credencial del teléfono
-        await FirebaseAuth.instance.signInWithCredential(credential);
-      } else {
-        // Manejar el caso en el que no se requiere verificación por SMS
-        // ...
-      }
-
-      // Crea usuario con email y contraseña usando Firebase Authentication
-      UserCredential userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      // Crear un usuario temporal
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      // Obtén el usuario que se acaba de registrar
-      User? user = userCredential.user;
+      // Enviar el correo de verificación
+      await userCredential.user!.sendEmailVerification();
 
-      if (user != null) {
-        // Subir la imagen del documento a Firebase Storage
-        final ref = FirebaseStorage.instance
-            .ref('identity_documents/${user.uid}.jpg');
-        await ref.putFile(_image!);
-        final photoUrl = await ref.getDownloadURL();
+      // Iniciar el temporizador
+      _startTimer();
 
-        String walletBalanceDefault = '0.00';
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Se ha enviado un correo de verificación. Por favor, revisa tu bandeja de entrada.')));
+    } catch (e) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+              Text('Error al enviar el correo de verificación: $e')));
+    }
+  }
+
+  Future<void> _registerUser() async {
+    // Validar el formulario actual antes de avanzar
+    if (_formKey.currentState!.validate()) {
+      // Mostrar el indicador de carga
+      setState(() {
+        _isLoading = true;
+      });
+
+      if (!_formKey.currentState!.validate() ||
+          !_acceptTerms) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Por favor, completa todos los campos y acepta los términos.')));
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      if (_currentPage < 3) {
+        // Si no estamos en la última página, avanzar a la siguiente
+        _pageController.nextPage(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut);
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Verificar si el correo electrónico ha sido verificado
+    try {
+  UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+    email: _emailController.text.trim(),
+    password: _passwordController.text.trim(),
+  );
+  User? user = userCredential.user;
+  await user?.reload();
+  if (user != null && !user.emailVerified) {
+    // ignore: use_build_context_synchronously
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'Por favor, verifica tu correo electrónico antes de registrarte.')));
+    setState(() {
+      _isLoading = false;
+    });
+    return;
+  }
+} catch (e) {
+  if (kDebugMode) {
+    print("Error al iniciar sesión: $e");
+  }
+  // Manejar el error según sea necesario
+}
+
+      try {
+        // Verificar si el correo electrónico ya está en uso
+        final list = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: _emailController.text.trim())
+            .get();
+        if (list.docs.isNotEmpty) {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('El correo electrónico ya está en uso.')));
+          setState(() {
+            _isLoading = false; // Ocultar el indicador de carga si hay un error
+          });
+          return;
+        }
+
+         // Crea el documento del usuario en Firestore
+        String combinedPhone =
+            '$_phoneCountryCodeController${_phoneNumberController.text.trim()}';
+
+        // Verificar si el número de teléfono ya está en uso
+        final phoneList = await FirebaseFirestore.instance
+            .collection('users')
+            .where('phone', isEqualTo: combinedPhone)
+            .get();
+        if (phoneList.docs.isNotEmpty) {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('El número de teléfono ya está en uso.')));
+          setState(() {
+            _isLoading = false; // Ocultar el indicador de carga si hay un error
+          });
+          return;
+        }
 
         // Crea el documento del usuario en Firestore
         String combinedId =
-            '$_selectedIdType${_idNumberController.text.trim()}';
+            '$_idLetterController${_idNumberController.text.trim()}';
 
+        // Verificar si el número de teléfono ya está en uso
+        final iDList = await FirebaseFirestore.instance
+            .collection('users')
+            .where('id', isEqualTo: combinedId)
+            .get();
+        if (iDList.docs.isNotEmpty) {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('El ID ya está en uso.')));
+          setState(() {
+            _isLoading = false; // Ocultar el indicador de carga si hay un error
+          });
+          return;
+        }
+
+        // El usuario puede que ya esté creado si se verificó el correo
+        // Intenta iniciar sesión con las credenciales proporcionadas
+        UserCredential? userCredential;
+        try {
+          userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
+        } catch (e) {
+          // Manejar el error si el usuario no existe o las credenciales son incorrectas
+          if (kDebugMode) {
+            print('Error al iniciar sesión: $e');
+          }
+          setState(() {
+            _isLoading = false; // Ocultar el indicador de carga si hay un error
+          });
+          // Mostrar un mensaje al usuario o realizar alguna acción apropiada
+          return;
+        }
+
+        User? user = userCredential.user;
+
+        // Upload ID image to Firebase Storage
+        String? photoUrl;
+        if (_idImage != null) {
+          Reference ref = FirebaseStorage.instance
+              .ref()
+              .child('id_images/${user!.uid}');
+          UploadTask uploadTask = ref.putFile(_idImage!);
+          TaskSnapshot snapshot = await uploadTask;
+          photoUrl = await snapshot.ref.getDownloadURL();
+        }
+
+        double walletBalanceDefault = 0.00;
+
+        // Store user data in Firestore
         await FirebaseFirestore.instance
             .collection('users')
             .doc(combinedId)
             .set({
           'name': _nameController.text.trim(),
           'lastName': _lastNameController.text.trim(),
+          'uid': user!.uid,
           'id': combinedId,
-          'birthDate': _selectedDate != null
-              ? DateFormat('dd/MM/yyyy').format(_selectedDate!)
-              : '',
+          'birthDate': _selectedDate, // Guardar como Timestamp
           'email': _emailController.text.trim(),
-          'phone':
-              '+${_phoneCountryCodeController.text.trim()}${_phoneNumberController.text.trim()}',
-          'uid': user.uid,
-          'password': _passwordController.text.trim(),
+          'phone': combinedPhone,
           'gender': _selectedGender,
           'photoIdentityDocument': photoUrl,
           'acceptTerms': _acceptTerms,
@@ -224,475 +328,789 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'walletBalance': walletBalanceDefault,
         });
 
-        // Registro exitoso, navega a LoginScreen y muestra un mensaje
+        // Recarga la información del usuario para obtener el estado actualizado del correo electrónico
+      await user.reload();
+
+        // Navega a la pantalla de personalización del perfil
         // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              '¡Registro exitoso! Inicie sesión.',
-              style: TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 5),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
         Navigator.pushReplacement(
-          // ignore: use_build_context_synchronously
-          context,
-          MaterialPageRoute(builder: (context) => const LoginScreen()),
-        );
+            // ignore: use_build_context_synchronously
+            context,
+            MaterialPageRoute(
+                builder: (context) => ProfileCustomizationScreen(
+                    userName: _nameController.text.trim())));
+      } catch (e) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Error al registrar usuario: $e')));
       }
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'weak-password') {
-        // ignore: avoid_print
-        print('The password provided is too weak.');
-        // Mostrar mensaje de error al usuario
-      } else if (e.code == 'email-already-in-use') {
-        // ignore: avoid_print
-        print('The account already exists for that email.');
-        // Mostrar mensaje de error al usuario
-      } else if (e.code == 'invalid-credential') {
-        // ignore: avoid_print
-        print('Invalid SMS code provided');
-        // Show error message to user
-      }
-    } catch (e) {
-      // ignore: avoid_print
-      print(e);
-      // Mostrar mensaje de error genérico al usuario
+      setState(() {
+        _isLoading = false; // Ocultar el indicador de carga al finalizar
+      });
     }
-  }
-
-  // Función para iniciar el temporizador
-  void _startTimer() {
-    _start = 60;
-    const oneSec = Duration(seconds: 1);
-    _timer = Timer.periodic(
-      oneSec,
-      (Timer timer) {
-        if (_start == 0) {
-          setState(() {
-            timer.cancel();
-            _codeSent = false;
-          });
-        } else {
-          setState(() {
-            _start--;
-          });
-        }
-      },
-    );
-  }
-
-  // Función para construir la página de información personal
-  Widget _buildPersonalInfoPage() {
-    return Column(
-      children: [
-        TextFormField(
-          controller: _nameController,
-          decoration: const InputDecoration(labelText: 'Nombre'),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Por favor, ingresa tu nombre';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 16.0),
-        TextFormField(
-          controller: _lastNameController,
-          decoration: const InputDecoration(labelText: 'Apellido'),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Por favor, ingresa tu apellido';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 24.0),
-        Row(
-          children: [
-            Checkbox(
-              value: _acceptTerms,
-              onChanged: (value) {
-                setState(() {
-                  _acceptTerms = value!;
-                });
-              },
-            ),
-            const SizedBox(width: 4.0),
-            Expanded(
-              child: RichText(
-                text: TextSpan(
-                  style: const TextStyle(color: Colors.black, fontSize: 13.0),
-                  children: [
-                    const TextSpan(
-                      text: 'Acepto los ',
-                    ),
-                    TextSpan(
-                      text: 'términos y condiciones',
-                      style: const TextStyle(
-                        color: Colors.blue,
-                        decoration: TextDecoration.underline,
-                      ),
-                      recognizer: TapGestureRecognizer()
-                        ..onTap = () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const TermsAndConditionsScreen(),
-                            ),
-                          );
-                        },
-                    ),
-                    const TextSpan(
-                      text: ' de la empresa',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // Función para construir la página de información del documento
-  Widget _buildDocumentInfoPage() {
-    return Column(
-      children: [
-        // Campo para la fecha de nacimiento
-        TextFormField(
-          readOnly: true,
-          onTap: _presentDatePicker,
-          decoration: const InputDecoration(
-            labelText: 'Fecha de nacimiento',
-            hintText: 'Selecciona tu fecha de nacimiento',
-          ),
-          validator: (value) {
-            if (_selectedDate == null) {
-              return 'Por favor, selecciona tu fecha de nacimiento';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 16.0),
-
-        // Menú desplegable para el género
-        DropdownButtonFormField<String>(
-          decoration: const InputDecoration(
-            labelText: 'Género',
-            hintText: 'Selecciona tu género',
-          ),
-          value: _selectedGender,
-          onChanged: (value) {
-            setState(() {
-              _selectedGender = value;
-            });
-          },
-          items: const [
-            DropdownMenuItem(value: 'Masculino', child: Text('Masculino')),
-            DropdownMenuItem(value: 'Femenino', child: Text('Femenino')),
-            DropdownMenuItem(value: 'Otro', child: Text('Otro')),
-          ],
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Por favor, selecciona tu género';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 16.0),
-
-        // Fila para el tipo y número de identificación
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Tipo ID',
-                  hintText: 'Selecciona el tipo de ID',
-                ),
-                value: _selectedIdType,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedIdType = value;
-                  });
-                },
-                items: const [
-                  DropdownMenuItem(value: 'V', child: Text('V')),
-                  DropdownMenuItem(value: 'E', child: Text('E')),
-                  DropdownMenuItem(value: 'J', child: Text('J')),
-                  DropdownMenuItem(value: 'P', child: Text('P')),
-                ],
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, selecciona el tipo de ID';
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(width: 16.0),
-            Expanded(
-              flex: 3,
-              child: TextFormField(
-                controller: _idNumberController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Número de ID',
-                  hintText: 'Ingresa tu número de ID',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, ingresa tu número de ID';
-                  }
-                  return null;
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16.0),
-
-        // Vista previa de la imagen del documento
-        if (_image != null)
-          Image.file(
-            _image!,
-            height: 200,
-            width: 200,
-          )
-        else
-          const Placeholder(
-            fallbackHeight: 200,
-            fallbackWidth: 200,
-          ),
-
-        // Botones para tomar o seleccionar una foto
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            ElevatedButton(
-              onPressed: _takePicture,
-              child: const Text('Tomar foto'),
-            ),
-            ElevatedButton(
-              onPressed: _selectPicture,
-              child: const Text('Seleccionar foto'),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // Función para construir la página de información de la cuenta
-  Widget _buildAccountInfoPage() {
-    return Column(
-      children: [
-        // Campo para el correo electrónico
-        TextFormField(
-          controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: 'Correo electrónico',
-            hintText: 'Ingresa tu correo electrónico',
-          ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Por favor, ingresa tu correo electrónico';
-            }
-            if (!value.contains('@') || !value.contains('.')) {
-              return 'Por favor, ingresa un correo electrónico válido';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 16.0),
-        // Campo para la contraseña
-        TextFormField(
-          controller: _passwordController,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Contraseña',
-            hintText: 'Ingresa una contraseña',
-          ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Por favor, ingresa una contraseña';
-            }
-            if (value.length < 6) {
-              return 'La contraseña debe tener al menos 6 caracteres';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: 16.0),
-
-        // Campo para confirmar la contraseña
-        TextFormField(
-          controller: _confirmPasswordController,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Confirmar contraseña',
-            hintText: 'Repite tu contraseña',
-          ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Por favor, repite tu contraseña';
-            }
-            if (value != _passwordController.text) {
-              return 'Las contraseñas no coinciden';
-            }
-            return null;
-          },
-        ),
-      ],
-    );
-  }
-
-  // Función para construir la página de verificación telefónica
-  Widget _buildPhoneVerificationPage() {
-    return Column(
-      children: [
-        // Fila para el código del país y el número de teléfono
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Código del país',
-                  hintText: 'Selecciona tu código de país',
-                ),
-                value: _phoneCountryCodeController.text,
-                onChanged: (value) {
-                  setState(() {
-                    _phoneCountryCodeController.text = value!;
-                  });
-                },
-                items: const [
-                  DropdownMenuItem(value: '+58', child: Text('+58')),
-                  // Agrega más códigos de país aquí
-                ],
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, selecciona un código de país';
-                  }
-                  return null;
-                },
-              ),
-            ),
-            const SizedBox(width: 16.0),
-            Expanded(
-              flex: 3,
-              child: TextFormField(
-                controller: _phoneNumberController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Número de teléfono',
-                  hintText: 'Ingresa tu número de teléfono',
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Por favor, ingresa tu número de teléfono';
-                  }
-                  return null;
-                },
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16.0),
-
-        // Botón para recibir el código
-        ElevatedButton(
-          onPressed: _codeSent
-              ? null
-              : () async {
-                  if (_formKey.currentState!.validate()) {
-                    await _verifyPhoneNumber();
-                  }
-                },
-          child: Text(_codeSent
-              ? 'Código enviado ($_start)'
-              : 'Recibir código'),
-        ),
-
-        // Campo para ingresar el código SMS
-        if (_codeSent)
-          TextFormField(
-            controller: _smsCodeController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Código de verificación',
-              hintText: 'Ingresa el código',
-            ),
-          ),
-      ],
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Crear cuenta'),
+      resizeToAvoidBottomInset: true,
+      backgroundColor: Colors.white,
+      appBar: _currentPage > 0
+          ? AppBar(
+              backgroundColor: Colors.white,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () {
+                  _pageController.previousPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                },
+              ),
+              elevation: 0,
+            )
+          : null,
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: PageView(
+            controller: _pageController,
+            physics:
+                const NeverScrollableScrollPhysics(), // Deshabilitar el deslizamiento manual
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+            children: [
+              _buildFirstPage(),
+              _buildSecondPage(),
+              _buildThirdPage(),
+              _buildFourthPage(),
+            ],
+          ),
+        ),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                SizedBox(
-                  height: 400, // Ajusta la altura según sea necesario
-                  child: PageView(
-                    controller: _pageController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: _pages,
+      floatingActionButton: _currentPage < 3
+          ? FloatingActionButton(
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  if (_currentPage == 2 &&
+                      !_hasMinLength &&
+                      !_hasUpperCase &&
+                      !_hasLowerCase &&
+                      !_hasDigits &&
+                      !_hasSpecialCharacters) {
+                    // Mostrar un mensaje si no se cumplen los requisitos de la contraseña
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text(
+                            'La contraseña debe cumplir con todos los requisitos.')));
+                    return;
+                  }
+                  _pageController.nextPage(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut);
+                }
+              },
+              backgroundColor: Colors.green,
+              child: const Icon(Icons.arrow_forward, color: Colors.white),
+            )
+          : _currentPage == 3
+              ? FloatingActionButton.extended(
+                  onPressed: _isLoading ? null : _registerUser, // Deshabilitar el botón mientras se carga
+                  backgroundColor: Colors.green,
+                  label: _isLoading
+                      ? const CupertinoActivityIndicator(color: Colors.white)
+                      : const Text('Registrarme',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
+                  icon: _isLoading
+                      ? const SizedBox.shrink()
+                      : const Icon(Icons.check, color: Colors.white),
+                )
+              : const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildFirstPage() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text(
+            '¡Bienvenido!',
+            style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          const Text(
+            'Cuéntanos un poco sobre ti',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.normal),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 30.0),
+          TextFormField(
+            controller: _nameController,
+            decoration: InputDecoration(
+              labelText: '¿Cuál es tu nombre?',
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(16.0)),
+            ),
+            validator: (value) =>
+                value!.isEmpty ? 'Por favor, ingresa tu nombre' : null,
+          ),
+          const SizedBox(height: 16.0),
+          TextFormField(
+            controller: _lastNameController,
+            decoration: InputDecoration(
+              labelText: '¿Y tu apellido?',
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(16.0)),
+            ),
+            validator: (value) =>
+                value!.isEmpty ? 'Por favor, ingresa tu apellido' : null,
+          ),
+          const SizedBox(height: 16.0),
+          Row(
+            children: [
+              Checkbox(
+                value: _acceptTerms,
+                onChanged: (value) {
+                  setState(() {
+                    _acceptTerms = value!;
+                  });
+                },
+                checkColor: Colors.white, // Color del check
+                activeColor:
+                    const Color(0xFF08143c), // Color del check cuando está activo
+              ),
+              Expanded(
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(color: Colors.black),
+                    children: [
+                      const TextSpan(text: 'Acepto los '),
+                      TextSpan(
+                        text: 'términos y condiciones',
+                        style: const TextStyle(
+                            color: Colors.blue,
+                            decoration: TextDecoration.underline),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) =>
+                                      const TermsAndConditionsScreen()),
+                            );
+                          },
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16.0),
-                ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      if (_pageViewBuilt &&
-                          _pageController.page == _pages.length - 1) {
-                        // Registra al usuario solo si PageView está construido
-                        _registerUser();
-                      } else {
-                        // Navega a la siguiente página
-                        _pageController.nextPage(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
+              ),
+            ],
+          ),
+          const SizedBox(height: 60.0),
+          const Text(
+            '¿Ya tienes una cuenta?',
+            style: TextStyle(fontWeight: FontWeight.normal),
+            textAlign: TextAlign.center,
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              );
+            },
+            child: const Text('Inicia Sesión',
+                style: TextStyle(color: Colors.green, fontSize: 18)),
+          ),
+        ],
+      ),
+    );
+  }
 
-                        // Marca PageView como construido después de la primera navegación
-                        _pageViewBuilt = true;
-                      }
-                    }
-                  },
-                  child: Text(
-                    (_pageViewBuilt &&
-                            _pageController.page == _pages.length - 1)
-                        ? 'Registrarme'
-                        : 'Siguiente',
+  Widget _buildSecondPage() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Cuéntanos más sobre ti',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24.0),
+            TextFormField(
+              controller: _birthDateController,
+              readOnly: true,
+              onTap: _presentDatePicker,
+              decoration: InputDecoration(
+                labelText: '¿Cuándo naciste?',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16.0)),
+              ),
+              validator: (value) => value!.isEmpty
+                  ? 'Por favor, selecciona tu fecha de nacimiento'
+                  : null,
+            ),
+            const SizedBox(height: 16.0),
+            DropdownButtonFormField<String>(
+              value: _selectedGender,
+              decoration: InputDecoration(
+                labelText: '¿Cuál es tu género?',
+                labelStyle: const TextStyle(color: Colors.black),
+                filled: true,
+                fillColor: Colors.transparent,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16.0),
+                  borderSide: const BorderSide(color: Colors.blue),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 16.0,
+                ),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'Masculino', child: Text('Masculino')),
+                DropdownMenuItem(value: 'Femenino', child: Text('Femenino')),
+                DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+              ],
+              onChanged: (String? newValue) {
+                setState(() {
+                  _selectedGender = newValue!;
+                });
+              },
+              dropdownColor: Colors.white,
+              borderRadius: BorderRadius.circular(16.0),
+            ),
+            const SizedBox(height: 16.0),
+            const Text(
+              '¿Cuál es tu número de identificación?',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 8.0),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: DropdownButtonFormField<String>(
+                    value: _idLetterController,
+                    decoration: InputDecoration(
+                      labelText: 'Tipo',
+                      labelStyle: const TextStyle(color: Colors.black),
+                      filled: true,
+                      fillColor: Colors.transparent,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16.0),
+                        borderSide: const BorderSide(color: Colors.blue),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 16.0,
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'V', child: Text('V')),
+                      DropdownMenuItem(value: 'E', child: Text('E')),
+                      DropdownMenuItem(value: 'J', child: Text('J')),
+                      DropdownMenuItem(value: 'P', child: Text('P')),
+                    ],
+                    onChanged: (String? value) {
+                      setState(() {
+                        _idLetterController = value;
+                      });
+                    },
+                    dropdownColor: Colors.white,
+                    borderRadius: BorderRadius.circular(16.0),
+                  ),
+                ),
+                const SizedBox(width: 16.0),
+                Expanded(
+                  flex: 5,
+                  child: TextFormField(
+                    controller: _idNumberController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Número',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16.0)),
+                    ),
+                    validator: (value) => value!.isEmpty
+                        ? 'Por favor, ingresa tu número de identificación'
+                        : null,
                   ),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 16.0),
+            ElevatedButton(
+              onPressed: _takeIdPhoto,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF08143c),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15.0),
+                ),
+              ),
+              child: Text(_idImage == null
+                  ? 'Tomar foto del documento'
+                  : 'Cambiar foto del documento'),
+            ),
+            if (_idImage != null) const SizedBox(height: 8.0),
+            if (_idImage != null) Image.file(_idImage!, height: 100),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildThirdPage() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Asegura tu cuenta',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24.0),
+            TextFormField(
+              controller: _passwordController,
+              obscureText: _obscurePassword,
+              onChanged: (value) {
+                _checkPasswordStrength(value);
+              },
+              decoration: InputDecoration(
+                labelText: 'Crea una contraseña segura',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16.0)),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
+              ),
+              validator: (value) {
+                if (value!.isEmpty) {
+                  return 'Por favor, ingresa tu contraseña';
+                }
+                if (value.length < 8) {
+                  return 'La contraseña debe tener al menos 8 caracteres';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16.0),
+            TextFormField(
+              controller: _confirmPasswordController,
+              obscureText: _obscureConfirmPassword,
+              decoration: InputDecoration(
+                labelText: 'Confirma tu contraseña',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16.0)),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscureConfirmPassword = !_obscureConfirmPassword;
+                    });
+                  },
+                ),
+              ),
+              validator: (value) {
+                if (value!.isEmpty) {
+                  return 'Por favor, confirma tu contraseña';
+                }
+                if (value != _passwordController.text) {
+                  return 'Las contraseñas no coinciden';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16.0),
+            // Mostrar los requisitos de la contraseña
+            const Text(
+              'Le recomendamos que contenga:',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.normal),
+              textAlign: TextAlign.center,
+            ),
+            Column(
+              children: [
+                _buildPasswordRequirement(
+                    'Mínimo 8 caracteres', _hasMinLength),
+                _buildPasswordRequirement('Una letra mayúscula', _hasUpperCase),
+                _buildPasswordRequirement('Una letra minúscula', _hasLowerCase),
+                _buildPasswordRequirement('Un número', _hasDigits),
+                _buildPasswordRequirement(
+                    'Un carácter especial', _hasSpecialCharacters),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFourthPage() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Último paso: tus datos de contacto',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24.0),
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: DropdownButtonFormField<String>(
+                    value: _phoneCountryCodeController,
+                    decoration: InputDecoration(
+                      labelText: 'Código',
+                      labelStyle: const TextStyle(color: Colors.black),
+                      filled: true,
+                      fillColor: Colors.transparent,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16.0),
+                        borderSide: const BorderSide(color: Colors.blue),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16.0,
+                        vertical: 16.0,
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: '+58', child: Text('+58')),
+                      // Add more country codes as needed
+                    ],
+                    onChanged: (String? value) {
+                      setState(() {
+                        _phoneCountryCodeController = value;
+                      });
+                    },
+                    dropdownColor: Colors.white,
+                    borderRadius: BorderRadius.circular(16.0),
+                  ),
+                ),
+                const SizedBox(width: 16.0),
+                Expanded(
+                  flex: 7,
+                  child: TextFormField(
+                    controller: _phoneNumberController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: '¿Cuál es tu número de teléfono?',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16.0)),
+                    ),
+                    validator: (value) => value!.isEmpty
+                        ? 'Por favor, ingresa tu número de teléfono'
+                        : null,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16.0),
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              onChanged: (value) {
+              // Habilita/Deshabilita el botón al escribir en el campo de correo electrónico
+              setState(() {});
+            },
+              decoration: InputDecoration(
+                labelText: '¿Cuál es tu correo electrónico?',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16.0)),
+              ),
+              validator: (value) {
+                if (value!.isEmpty) {
+                  return 'Por favor, ingresa tu correo electrónico';
+                }
+                if (!value.contains('@') || !value.contains('.')) {
+                  return 'Por favor, ingresa un correo electrónico válido';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16.0),
+            ElevatedButton(
+            onPressed: _emailController.text.isEmpty || _isTimerRunning
+                ? null
+                : _sendEmailVerification, // Deshabilita el botón si el campo de correo electrónico está vacío o el temporizador se está ejecutando
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF08143c),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15.0),
+                ),
+              ),
+              child: Text(_isTimerRunning
+                  ? 'Reenviar código en $_timerSeconds s'
+                  : 'Enviar correo de verificación'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Función para verificar la fuerza de la contraseña
+  void _checkPasswordStrength(String password) {
+    setState(() {
+      _hasUpperCase = password.contains(RegExp(r'[A-Z]'));
+      _hasLowerCase = password.contains(RegExp(r'[a-z]'));
+      _hasDigits = password.contains(RegExp(r'[0-9]'));
+      _hasSpecialCharacters =
+          password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+      _hasMinLength = password.length >= 8;
+    });
+  }
+
+  // Función para construir la fila de requisitos de contraseña
+  Widget _buildPasswordRequirement(String text, bool isChecked) {
+    return Row(
+      children: [
+        Icon(
+          isChecked ? Icons.check_circle : Icons.circle_outlined,
+          color: isChecked ? Colors.green : Colors.grey,
+          size: 16,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          text,
+          style: TextStyle(
+            color: isChecked ? Colors.green : Colors.grey,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class ProfileCustomizationScreen extends StatefulWidget {
+  final String userName;
+
+  const ProfileCustomizationScreen({super.key, required this.userName});
+
+  @override
+  State<ProfileCustomizationScreen> createState() =>
+      _ProfileCustomizationScreenState();
+}
+
+class _ProfileCustomizationScreenState
+    extends State<ProfileCustomizationScreen> {
+  final _bioController = TextEditingController();
+  File? _selectedImage;
+  String? _uploadedFileURL;
+
+  Future<void> _pickImage() async {
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      _cropImage(pickedFile.path);
+    }
+  }
+
+  Future<void> _cropImage(String imagePath) async {
+    CroppedFile? croppedImage = await ImageCropper().cropImage(
+      sourcePath: imagePath,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Recortar Imagen',
+          toolbarColor: Colors.deepOrange,
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.original,
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(
+          title: 'Recortar Imagen',
+        ),
+      ],
+    );
+    if (croppedImage != null) {
+      setState(() {
+        _selectedImage = File(croppedImage.path);
+      });
+    }
+  }
+
+  Future<void> _uploadImageToFirebaseStorage() async {
+    if (_selectedImage == null) {
+      return;
+    }
+
+    try {
+      // Obtén la referencia al usuario actual
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        // Manejar el caso donde el usuario no está autenticado
+        return;
+      }
+
+      // Sube la imagen a Firebase Storage
+      Reference ref = FirebaseStorage.instance
+          .ref()
+          .child('profile_images/${user.uid}');
+      UploadTask uploadTask = ref.putFile(_selectedImage!);
+      TaskSnapshot snapshot = await uploadTask;
+      _uploadedFileURL = await snapshot.ref.getDownloadURL();
+
+      // Actualiza el documento del usuario con la URL de la imagen en Firestore
+      String combinedId =
+          '${user.email!.substring(0, 1).toUpperCase()}${user.phoneNumber}';
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(combinedId)
+          .update({'profileImageUrl': _uploadedFileURL});
+    } catch (e) {
+      // Manejar errores de carga
+      if (kDebugMode) {
+        print('Error al subir la imagen: $e');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '¡Hola ${widget.userName}!',
+              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const Text(
+              'Personaliza tu perfil',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.normal),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: CircleAvatar(
+                    radius: 64,
+                    backgroundImage: _selectedImage != null
+                        ? FileImage(_selectedImage!)
+                        : const AssetImage(
+                                'assets/images/ProfilePhoto_predetermined.png')
+                            as ImageProvider,
+                  ),
+                ),
+                Container(
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.green,
+                  ),
+                  child: IconButton(
+                    onPressed: _pickImage,
+                    icon: const Icon(Icons.edit, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: TextFormField(
+                controller: _bioController, // Controlador para la biografía
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText: 'Escribe una biografía...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton(
+              onPressed: () async {
+                // Sube la biografía si no está vacía
+                if (_bioController.text.isNotEmpty) {
+                  await _uploadUserDataToFirestore();
+                }
+
+                // Sube la imagen
+                await _uploadImageToFirebaseStorage();
+
+                // Navega a HomePage con índice 0
+                Navigator.pushReplacement(
+                  // ignore: use_build_context_synchronously
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HomePage(selectedIndex: 0),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: const Text(
+                'Empezar',
+                style: TextStyle(fontSize: 18),
+                ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _uploadUserDataToFirestore() async {
+    try {
+      // Obtén la referencia al usuario actual
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        // Manejar el caso donde el usuario no está autenticado
+        return;
+      }
+
+      // Actualiza el documento del usuario con la biografía en Firestore
+      String combinedId =
+          '${user.email!.substring(0, 1).toUpperCase()}${user.phoneNumber}';
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(combinedId)
+          .update({'bio': _bioController.text});
+    } catch (e) {
+      // Manejar errores de carga
+      if (kDebugMode) {
+        print('Error al subir la biografía: $e');
+      }
+    }
   }
 }
