@@ -38,58 +38,58 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future _signInWithEmailAndPassword() async {
-    if (_formKey.currentState!.validate()) {
-      // Mostrar el indicador de carga
-      setState(() {
-        _isLoading = true;
-      });
+  if (_formKey.currentState!.validate()) {
+    setState(() {
+      _isLoading = true;
+    });
 
-      try {
-        // Primero, verificar el estado del usuario en Firestore
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .where('email', isEqualTo: emailController.text.trim())
-            .get();
+    try {
+      // Convertir el email a minúsculas
+      final emailLowerCase = emailController.text.trim().toLowerCase();
 
-        if (userDoc.docs.isNotEmpty) {
-          final userData = userDoc.docs.first.data();
-          final userStatus = userData['status'] as int;
+      // Verificar el estado del usuario en Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: emailLowerCase)
+          .get();
 
-          if (userStatus == 1) {
-            _showStatusDialog('Usuario suspendido temporalmente',
-                'Su cuenta ha sido suspendida temporalmente. Por favor, contacte a soporte para más información.');
-            setState(() {
-              _isLoading = false; // Ocultar el indicador de carga si hay un error
-            });
-            return;
-          } else if (userStatus == 2) {
-            _showStatusDialog('Usuario suspendido permanentemente',
-                'Su cuenta ha sido suspendida permanentemente. Por favor, contacte a soporte para más información.');
-            setState(() {
-              _isLoading = false; // Ocultar el indicador de carga si hay un error
-            });
-            return;
-          }
+      if (userDoc.docs.isNotEmpty) {
+        final userData = userDoc.docs.first.data();
+        final userStatus = userData['status'] as int;
 
-          // Si el estado es 0, proceder con el inicio de sesión
-          // ignore: unused_local_variable
-          UserCredential userCredential = await FirebaseAuth.instance
-              .signInWithEmailAndPassword(
-                  email: emailController.text.trim(),
-                  password: passwordController.text.trim());
-
-          // Ocultar el indicador de carga después de iniciar sesión exitosamente
+        if (userStatus == 1) {
+          _showStatusDialog('Usuario suspendido temporalmente',
+              'Su cuenta ha sido suspendida temporalmente. Por favor, contacte a soporte para más información.');
           setState(() {
             _isLoading = false;
           });
+          return;
+        } else if (userStatus == 2) {
+          _showStatusDialog('Usuario suspendido permanentemente',
+              'Su cuenta ha sido suspendida permanentemente. Por favor, contacte a soporte para más información.');
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
 
-          // Navegar a la página principal
-          Navigator.pushReplacement(
-            // ignore: use_build_context_synchronously
-            context,
-            MaterialPageRoute(
-                builder: (context) => const HomePage(selectedIndex: 0)),
-          );
+        // Si el estado es 0, proceder con el inicio de sesión
+        // ignore: unused_local_variable
+        UserCredential userCredential = await FirebaseAuth.instance
+            .signInWithEmailAndPassword(
+                email: emailLowerCase,
+                password: passwordController.text.trim());
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        Navigator.pushReplacement(
+          // ignore: use_build_context_synchronously
+          context,
+          MaterialPageRoute(
+              builder: (context) => const HomePage(selectedIndex: 0)),
+        );
         } else {
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
@@ -162,15 +162,18 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future _resetPassword(String email) async {
-    if (email.isNotEmpty) {
-      try {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .where('email', isEqualTo: email)
-            .get();
+  if (email.isNotEmpty) {
+    try {
+      // Convertir el email a minúsculas
+      final emailLowerCase = email.toLowerCase();
 
-        if (userDoc.docs.isNotEmpty) {
-          await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .where('email', isEqualTo: emailLowerCase)
+          .get();
+
+      if (userDoc.docs.isNotEmpty) {
+        await FirebaseAuth.instance.sendPasswordResetEmail(email: emailLowerCase);
           // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -364,6 +367,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(16.0),
                         borderSide: const BorderSide(color: Colors.blue),
                       ),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: const BorderSide(color: Color(0xFF08143c)),
+                        ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16.0,
                         vertical: 16.0,
@@ -394,6 +401,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(16.0),
                         borderSide: const BorderSide(color: Colors.blue),
                       ),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: const BorderSide(color: Color(0xFF08143c)),
+                        ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16.0,
                         vertical: 16.0,

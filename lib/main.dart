@@ -8,7 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:one_context/one_context.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Añadido
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,16 +16,26 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Obtener el token de registro FCM
-  String? fcmToken = await FirebaseMessaging.instance.getToken();
-  if (kDebugMode) {
-    print('Token de registro FCM: $fcmToken');
+  // Solo inicializar Firebase Messaging si no estamos en la web
+  if (!kIsWeb) {
+    await initializeFirebaseMessaging();
   }
 
-  // Actualizar el token FCM en Firestore
-  await updateFCMToken(fcmToken);
-
   runApp(const MyApp());
+}
+
+Future<void> initializeFirebaseMessaging() async {
+  try {
+    String? fcmToken = await FirebaseMessaging.instance.getToken();
+    if (kDebugMode) {
+      print('Token de registro FCM: $fcmToken');
+    }
+    await updateFCMToken(fcmToken);
+  } catch (e) {
+    if (kDebugMode) {
+      print('Error al inicializar Firebase Messaging: $e');
+    }
+  }
 }
 
 Future<void> updateFCMToken(String? fcmToken) async {
@@ -40,7 +50,6 @@ Future<void> updateFCMToken(String? fcmToken) async {
         if (querySnapshot.docs.isNotEmpty) {
           querySnapshot.docs.first.reference.update({'tokenFCM': fcmToken});
         } else {
-          // Si no existe el documento, lo creamos
           FirebaseFirestore.instance.collection('users').add({
             'uid': user.uid,
             'tokenFCM': fcmToken,
@@ -92,10 +101,8 @@ class MyApp extends StatelessWidget {
           stream: FirebaseAuth.instance.authStateChanges(),
           builder: (context, snapshot) {
             if (snapshot.hasData) {
-              // Usuario autenticado
               return const HomePage(selectedIndex: 0);
             } else {
-              // Usuario no autenticado
               return const IntroScreen();
             }
           },
@@ -104,6 +111,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-//#08143c Azul Oscuro Botones de navegacion
-//#1ca424 Verde Botones de navegacion

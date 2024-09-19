@@ -33,7 +33,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneNumberController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _bioController = TextEditingController(); // Controlador para la biografía
+  final _bioController =
+      TextEditingController(); // Controlador para la biografía
   String? _idLetterController = 'V';
   String? _phoneCountryCodeController = '+58';
 
@@ -69,7 +70,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneNumberController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _bioController.dispose(); // No olvides hacer dispose del controlador de biografía
+    _bioController
+        .dispose(); // No olvides hacer dispose del controlador de biografía
     super.dispose();
   }
 
@@ -91,8 +93,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _takeIdPhoto() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image =
-        await picker.pickImage(source: ImageSource.camera);
+    final XFile? image = await picker.pickImage(source: ImageSource.camera);
     if (image != null) {
       setState(() {
         _idImage = File(image.path);
@@ -133,8 +134,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     try {
       // Crear un usuario temporal
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
+      UserCredential userCredential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
@@ -152,8 +153,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text('Error al enviar el correo de verificación: $e')));
+          content: Text('Error al enviar el correo de verificación: $e')));
     }
   }
 
@@ -165,8 +165,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _isLoading = true;
       });
 
-      if (!_formKey.currentState!.validate() ||
-          !_acceptTerms) {
+      if (!_formKey.currentState!.validate() || !_acceptTerms) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text(
                 'Por favor, completa todos los campos y acepta los términos.')));
@@ -188,29 +187,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       // Verificar si el correo electrónico ha sido verificado
-    try {
-  UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-    email: _emailController.text.trim(),
-    password: _passwordController.text.trim(),
-  );
-  User? user = userCredential.user;
-  await user?.reload();
-  if (user != null && !user.emailVerified) {
-    // ignore: use_build_context_synchronously
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Por favor, verifica tu correo electrónico antes de registrarte.')));
-    setState(() {
-      _isLoading = false;
-    });
-    return;
-  }
-} catch (e) {
-  if (kDebugMode) {
-    print("Error al iniciar sesión: $e");
-  }
-  // Manejar el error según sea necesario
-}
+      try {
+        UserCredential userCredential =
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+        User? user = userCredential.user;
+        await user?.reload();
+        if (user != null && !user.emailVerified) {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text(
+                  'Por favor, verifica tu correo electrónico antes de registrarte.')));
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error al iniciar sesión: $e");
+        }
+        // Manejar el error según sea necesario
+      }
 
       try {
         // Verificar si el correo electrónico ya está en uso
@@ -228,7 +228,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           return;
         }
 
-         // Crea el documento del usuario en Firestore
+        // Crea el documento del usuario en Firestore
         String combinedPhone =
             '$_phoneCountryCodeController${_phoneNumberController.text.trim()}';
 
@@ -258,8 +258,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             .get();
         if (iDList.docs.isNotEmpty) {
           // ignore: use_build_context_synchronously
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('El ID ya está en uso.')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('El ID ya está en uso.')));
           setState(() {
             _isLoading = false; // Ocultar el indicador de carga si hay un error
           });
@@ -270,7 +270,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         // Intenta iniciar sesión con las credenciales proporcionadas
         UserCredential? userCredential;
         try {
-          userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          userCredential =
+              await FirebaseAuth.instance.signInWithEmailAndPassword(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
           );
@@ -291,9 +292,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         // Upload ID image to Firebase Storage
         String? photoUrl;
         if (_idImage != null) {
-          Reference ref = FirebaseStorage.instance
-              .ref()
-              .child('id_images/${user!.uid}');
+          Reference ref =
+              FirebaseStorage.instance.ref().child('id_images/${user!.uid}');
           UploadTask uploadTask = ref.putFile(_idImage!);
           TaskSnapshot snapshot = await uploadTask;
           photoUrl = await snapshot.ref.getDownloadURL();
@@ -329,20 +329,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
 
         // Recarga la información del usuario para obtener el estado actualizado del correo electrónico
-      await user.reload();
+        await user.reload();
 
         // Navega a la pantalla de personalización del perfil
         // ignore: use_build_context_synchronously
         Navigator.pushReplacement(
-            // ignore: use_build_context_synchronously
-            context,
-            MaterialPageRoute(
-                builder: (context) => ProfileCustomizationScreen(
-                    userName: _nameController.text.trim())));
+          // ignore: use_build_context_synchronously
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProfileCustomizationScreen(
+              userName: _nameController.text.trim(),
+              combinedId: combinedId,
+            ),
+          ),
+        );
       } catch (e) {
         // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Error al registrar usuario: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al registrar usuario: $e')));
       }
       setState(() {
         _isLoading = false; // Ocultar el indicador de carga al finalizar
@@ -417,7 +421,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             )
           : _currentPage == 3
               ? FloatingActionButton.extended(
-                  onPressed: _isLoading ? null : _registerUser, // Deshabilitar el botón mientras se carga
+                  onPressed: _isLoading
+                      ? null
+                      : _registerUser, // Deshabilitar el botón mientras se carga
                   backgroundColor: Colors.green,
                   label: _isLoading
                       ? const CupertinoActivityIndicator(color: Colors.white)
@@ -482,8 +488,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   });
                 },
                 checkColor: Colors.white, // Color del check
-                activeColor:
-                    const Color(0xFF08143c), // Color del check cuando está activo
+                activeColor: const Color(
+                    0xFF08143c), // Color del check cuando está activo
               ),
               Expanded(
                 child: RichText(
@@ -724,7 +730,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     borderRadius: BorderRadius.circular(16.0)),
                 suffixIcon: IconButton(
                   icon: Icon(
-                    _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                    _obscureConfirmPassword
+                        ? Icons.visibility
+                        : Icons.visibility_off,
                   ),
                   onPressed: () {
                     setState(() {
@@ -747,13 +755,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             // Mostrar los requisitos de la contraseña
             const Text(
               'Le recomendamos que contenga:',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.normal),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.normal),
               textAlign: TextAlign.center,
             ),
             Column(
               children: [
-                _buildPasswordRequirement(
-                    'Mínimo 8 caracteres', _hasMinLength),
+                _buildPasswordRequirement('Mínimo 8 caracteres', _hasMinLength),
                 _buildPasswordRequirement('Una letra mayúscula', _hasUpperCase),
                 _buildPasswordRequirement('Una letra minúscula', _hasLowerCase),
                 _buildPasswordRequirement('Un número', _hasDigits),
@@ -836,9 +843,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               onChanged: (value) {
-              // Habilita/Deshabilita el botón al escribir en el campo de correo electrónico
-              setState(() {});
-            },
+                // Habilita/Deshabilita el botón al escribir en el campo de correo electrónico
+                setState(() {});
+              },
               decoration: InputDecoration(
                 labelText: '¿Cuál es tu correo electrónico?',
                 border: OutlineInputBorder(
@@ -856,9 +863,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 16.0),
             ElevatedButton(
-            onPressed: _emailController.text.isEmpty || _isTimerRunning
-                ? null
-                : _sendEmailVerification, // Deshabilita el botón si el campo de correo electrónico está vacío o el temporizador se está ejecutando
+              onPressed: _emailController.text.isEmpty || _isTimerRunning
+                  ? null
+                  : _sendEmailVerification, // Deshabilita el botón si el campo de correo electrónico está vacío o el temporizador se está ejecutando
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF08143c),
                 foregroundColor: Colors.white,
@@ -911,8 +918,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
 class ProfileCustomizationScreen extends StatefulWidget {
   final String userName;
+  final String combinedId;
 
-  const ProfileCustomizationScreen({super.key, required this.userName});
+  const ProfileCustomizationScreen(
+      {super.key, required this.userName, required this.combinedId});
 
   @override
   State<ProfileCustomizationScreen> createState() =>
@@ -940,8 +949,14 @@ class _ProfileCustomizationScreenState
       uiSettings: [
         AndroidUiSettings(
           toolbarTitle: 'Recortar Imagen',
-          toolbarColor: Colors.deepOrange,
-          toolbarWidgetColor: Colors.white,
+          toolbarColor: Colors.white,
+          toolbarWidgetColor: Colors.black,
+          backgroundColor: Colors.white,
+          statusBarColor: Colors.white,
+          activeControlsWidgetColor: Colors.green,
+          cropFrameColor: Colors.green,
+          cropGridColor: Colors.grey[300],
+          hideBottomControls: false,
           initAspectRatio: CropAspectRatioPreset.original,
           lockAspectRatio: true,
         ),
@@ -963,32 +978,36 @@ class _ProfileCustomizationScreenState
     }
 
     try {
-      // Obtén la referencia al usuario actual
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        // Manejar el caso donde el usuario no está autenticado
-        return;
-      }
-
       // Sube la imagen a Firebase Storage
       Reference ref = FirebaseStorage.instance
           .ref()
-          .child('profile_images/${user.uid}');
+          .child('profileimages/${widget.combinedId}');
       UploadTask uploadTask = ref.putFile(_selectedImage!);
       TaskSnapshot snapshot = await uploadTask;
       _uploadedFileURL = await snapshot.ref.getDownloadURL();
 
       // Actualiza el documento del usuario con la URL de la imagen en Firestore
-      String combinedId =
-          '${user.email!.substring(0, 1).toUpperCase()}${user.phoneNumber}';
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(combinedId)
+          .doc(widget.combinedId)
           .update({'profileImageUrl': _uploadedFileURL});
     } catch (e) {
-      // Manejar errores de carga
       if (kDebugMode) {
         print('Error al subir la imagen: $e');
+      }
+    }
+  }
+
+  Future<void> _uploadUserDataToFirestore() async {
+    try {
+      // Actualiza el documento del usuario con la biografía en Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.combinedId)
+          .update({'bio': _bioController.text});
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al subir la biografía: $e');
       }
     }
   }
@@ -1049,16 +1068,18 @@ class _ProfileCustomizationScreenState
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: const BorderSide(color: Color(0xFF08143c)),
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: () async {
-                // Sube la biografía si no está vacía
-                if (_bioController.text.isNotEmpty) {
-                  await _uploadUserDataToFirestore();
-                }
+                // Sube la biografía
+                await _uploadUserDataToFirestore();
 
                 // Sube la imagen
                 await _uploadImageToFirebaseStorage();
@@ -1082,35 +1103,11 @@ class _ProfileCustomizationScreenState
               child: const Text(
                 'Empezar',
                 style: TextStyle(fontSize: 18),
-                ),
+              ),
             ),
           ],
         ),
       ),
     );
-  }
-
-  Future<void> _uploadUserDataToFirestore() async {
-    try {
-      // Obtén la referencia al usuario actual
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        // Manejar el caso donde el usuario no está autenticado
-        return;
-      }
-
-      // Actualiza el documento del usuario con la biografía en Firestore
-      String combinedId =
-          '${user.email!.substring(0, 1).toUpperCase()}${user.phoneNumber}';
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(combinedId)
-          .update({'bio': _bioController.text});
-    } catch (e) {
-      // Manejar errores de carga
-      if (kDebugMode) {
-        print('Error al subir la biografía: $e');
-      }
-    }
   }
 }
