@@ -6,11 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
 // ignore: unnecessary_import
 import 'package:geolocator_android/geolocator_android.dart';
+import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
@@ -18,7 +20,9 @@ import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:flutter_map_marker_popup/flutter_map_marker_popup.dart';
 // ignore: unused_import
 import 'package:geocoding/geocoding.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:mobileservicesapp/screens/public/homepage.dart';
+import 'package:mobileservicesapp/screens/public/profile.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -2051,10 +2055,10 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                         'Precios bajos', setDialogState, dialogContext),
                     _buildFilterOption(
                         'Precios altos', setDialogState, dialogContext),
-                    _buildFilterOption('Mayor cantidad de tareas completadas',
-                        setDialogState, dialogContext),
                     _buildFilterOption(
                         'Más cercanos', setDialogState, dialogContext),
+                    _buildFilterOption('Mayor cantidad de tareas completadas',
+                        setDialogState, dialogContext),
                   ],
                 ),
               ),
@@ -2081,15 +2085,18 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
         },
         style: ElevatedButton.styleFrom(
           backgroundColor:
-              _selectedFilter == filterName ? Colors.green : Colors.grey[300],
+              _selectedFilter == filterName ? Colors.green : Colors.blueGrey[50],
           foregroundColor:
               _selectedFilter == filterName ? Colors.white : Colors.black,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30),
           ),
+          side: const BorderSide(
+            color: Color(0xFF08143C),
+          ),
         ),
         child: Text(filterName,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
       ),
     );
   }
@@ -2766,7 +2773,6 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   final TextEditingController _reservationTextController =
       TextEditingController();
 
-  bool _showProfileImage = false;
   String clientIDString = "";
   String clientName = "";
 
@@ -2775,6 +2781,9 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   bool _hasZelle = false;
 
   late Future<void> _initFuture;
+
+  // Variable para almacenar la URL de la imagen de portada
+  String? _coverImageUrl;
 
   @override
   void initState() {
@@ -2797,6 +2806,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   Future<void> _initializeData() async {
     await _getUserInfo();
     await _checkPaymentMethods();
+    await _getUserCoverImage(); // Nueva función para obtener la imagen de portada
   }
 
   Future<void> _getUserInfo() async {
@@ -2837,6 +2847,46 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
         _hasZelle = zelleDoc.exists;
       });
     }
+  }
+
+  // Nueva función para obtener la imagen de portada del usuario
+  Future<void> _getUserCoverImage() async {
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.selectedSupplier.id)
+        .get();
+    if (userDoc.exists) {
+      setState(() {
+        _coverImageUrl = userDoc.data()?['coverImageUrl'];
+      });
+    }
+  }
+
+  Future<Map<String, dynamic>> _getSupplierRatings(String supplierID) async {
+    QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
+        await FirebaseFirestore.instance.collection('tasks').get();
+
+    int totalRatings = 0;
+    double totalScore = 0;
+    Map<int, int> ratingCounts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+
+    for (var taskDoc in tasksSnapshot.docs) {
+      if (taskDoc.data()['supplierID'] == supplierID &&
+          taskDoc.data()['clientEvaluation'] != null) {
+        int rating = taskDoc.data()['clientEvaluation'] as int;
+        totalRatings++;
+        totalScore += rating;
+        ratingCounts[rating] = (ratingCounts[rating] ?? 0) + 1;
+      }
+    }
+
+    double averageRating = totalRatings > 0 ? totalScore / totalRatings : 0;
+
+    return {
+      'averageRating': averageRating,
+      'totalRatings': totalRatings,
+      'ratingCounts': ratingCounts,
+    };
   }
 
   @override
@@ -2880,29 +2930,86 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          return Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(23.0),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Center(
+          return SingleChildScrollView(
+            child: Stack(
+              children: [
+                // Separado para que el padding no afecte la foto de perfil
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: <Widget>[
+                      GestureDetector(
+                        onTap: () {
+                          if (_coverImageUrl != null &&
+                              _coverImageUrl!.isNotEmpty) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ImagePreviewScreen(
+                                  imageUrl:
+                                      _coverImageUrl!, // Pasar la URL obtenida
+                                  isCoverImage: true,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: ClipRRect(
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(13.0),
+                            bottomRight: Radius.circular(13.0),
+                          ),
+                          child:
+                              _coverImageUrl == null || _coverImageUrl!.isEmpty
+                                  ? Container(
+                                      height: 165,
+                                      color: const Color(0xFF08143c),
+                                    )
+                                  : Container(
+                                      height: 165, // Ajustar la altura a 165
+                                      decoration: BoxDecoration(
+                                        image: DecorationImage(
+                                          image: NetworkImage(
+                                              _coverImageUrl!), // Usar la URL obtenida
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    ),
+                        ).animate().fadeIn().slideY(),
+                      ),
+                      Positioned(
+                        top: 105,
+                        left: 20,
                         child: GestureDetector(
                           onTap: () {
-                            setState(() {
-                              _showProfileImage = true;
-                            });
+                            final profileImageUrl = widget.selectedSupplier
+                                .data()?['profileImageUrl'];
+                            if (profileImageUrl != null &&
+                                profileImageUrl.isNotEmpty) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ImagePreviewScreen(
+                                    imageUrl: profileImageUrl,
+                                    isCoverImage: false,
+                                  ),
+                                ),
+                              );
+                            }
                           },
                           child: Hero(
                             tag: 'profileImage',
                             child: Container(
+                              width: 110,
+                              height: 110,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: const Color(0xFF08143C),
-                                  width: 3.0,
+                                  color: Colors.white,
+                                  width: 4.0,
                                 ),
                               ),
                               child: CircleAvatar(
@@ -2917,23 +3024,67 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                                         as ImageProvider,
                               ),
                             ),
-                          ),
+                          ).animate().fade().scale(),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding:
+                      const EdgeInsets.only(top: 141, left: 23.0, right: 23.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Botón Reservar servicio alineado a la derecha
+                      Padding(
+                        padding: const EdgeInsets.only(top: 0.0),
+                        child: Align(
+                          alignment: Alignment.topRight,
+                          child: TextButton.icon(
+                            onPressed: () {
+                              _showReservationBottomSheet();
+                            },
+                            style: TextButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 1),
+                              // Reduce el ancho y el alto del botón
+                              minimumSize: const Size(165.0, 41.0),
+                              textStyle: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              // Agrega esta línea para el borde blanco
+                              side: const BorderSide(
+                                  color: Colors.white, width: 2),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            icon: const Icon(Icons.shopping_cart,
+                                size: 20), // Icono de carrito de compras
+                            label: const Text('¡Reservar ahora!',
+                                style: TextStyle(fontSize: 15)),
+                          ).animate().fade().scale(),
+                        ),
+                      ),
+                      // Espacio para el botón
+                      const SizedBox(height: 30.0),
+                      // Nombre del proveedor
+                      Text(
+                        '${widget.selectedSupplier.data()?['name']}',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                '${widget.selectedSupplier.data()?['name']}',
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
                               Row(
                                 children: [
                                   FutureBuilder<List<int>>(
@@ -2996,7 +3147,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                                     horizontal: 10.0,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: Colors.blue[50],
                                     borderRadius: BorderRadius.circular(10.0),
                                     border: Border.all(
                                       color: const Color(0xFF08143C),
@@ -3047,32 +3198,79 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                                     const EdgeInsets.only(top: 10, bottom: 20),
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey[200],
+                                  color: Colors.grey[100],
                                   borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Colors.black,
+                                    width: 1.0,
+                                  ),
                                 ),
+                                width: double.infinity,
                                 child: Text(
                                   bio,
                                   style: const TextStyle(
-                                    fontSize: 14,
-                                    fontStyle: FontStyle.italic,
+                                    fontSize: 13,
                                   ),
                                 ),
                               );
                             }
                           }
-                          return const SizedBox.shrink();
+                          return const SizedBox
+                              .shrink(); // No mostrar el container si no hay biografía
                         },
                       ),
-                      Text(
-                        'Servicio: ${widget.serviceName}',
-                        style: const TextStyle(fontSize: 16),
-                      ),
+                      // Diseño mejorado para Servicio y Tarifa por hora
+                     Container(
+  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+  decoration: BoxDecoration(
+    color: Colors.blueGrey[50],
+    borderRadius: BorderRadius.circular(10),
+  ),
+  child: Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Servicio:',
+            style: TextStyle(color: Colors.black, fontSize: 16),
+          ),
+          SizedBox(height: 5),
+          Text(
+            'Tarifa por hora:',
+            style: TextStyle(color: Colors.black, fontSize: 16),
+          ),
+        ],
+      ),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            widget.serviceName.length > 25 
+                ? '${widget.serviceName.substring(0, 25)}...' 
+                : widget.serviceName,
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            _getHourlyRate(widget.selectedSupplier, widget.id),
+            style: const TextStyle(
+              color: Colors.black,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+),
                       const SizedBox(height: 10),
-                      Text(
-                        'Tarifa por hora: ${_getHourlyRate(widget.selectedSupplier, widget.id)}',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      const SizedBox(height: 20),
                       // Mostrar conteo de tareas completadas y clientes en fila
                       FutureBuilder<List<int>>(
                         future: _getTaskCounts(widget.selectedSupplier.id),
@@ -3091,53 +3289,78 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                             List<int> taskCounts = snapshot.data!;
                             int completedTasks = taskCounts[0];
                             int pendingTasks = taskCounts[1];
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            return Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 // Mostrar conteo de tareas completadas
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4.0),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.check_circle,
-                                        size: 16.0,
-                                        color: Colors.green,
-                                      ),
-                                      const SizedBox(width: 4.0),
-                                      Text(
-                                        '$completedTasks ${completedTasks == 1 ? 'tarea completada' : 'tareas completadas'}',
-                                        style: const TextStyle(fontSize: 12.0),
-                                      ),
-                                    ],
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF08143C),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(
+                                          Icons.check_circle,
+                                          size: 20.0,
+                                          color: Colors.green,
+                                        ),
+                                        const SizedBox(width: 4.0),
+                                        Text(
+                                          '$completedTasks ${completedTasks == 1 ? 'tarea completada' : 'tareas completadas'}',
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12.0),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
+
+                                const SizedBox(width: 8.0),
                                 // Mostrar conteo de clientes en fila o "DISPONIBLE"
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4.0),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.hourglass_empty,
-                                        size: 16.0,
-                                        color: Colors.orange,
-                                      ),
-                                      const SizedBox(width: 4.0),
-                                      if (pendingTasks > 0)
-                                        Text(
-                                          '$pendingTasks ${pendingTasks == 1 ? 'cliente' : 'clientes'} en espera',
-                                          style:
-                                              const TextStyle(fontSize: 12.0),
-                                        )
-                                      else
-                                        const Text(
-                                          'DISPONIBLE',
-                                          style: TextStyle(
-                                              fontSize: 12.0,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.green),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF08143C),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(
+                                          Icons.hourglass_empty,
+                                          size: 20.0,
+                                          color: Colors.orange,
                                         ),
-                                    ],
+                                        const SizedBox(width: 4.0),
+                                        if (pendingTasks > 0)
+                                          Text(
+                                            '$pendingTasks ${pendingTasks == 1 ? 'cliente' : 'clientes'} en espera',
+                                            style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12.0),
+                                          )
+                                        else
+                                          const Text(
+                                            'DISPONIBLE',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12.0,
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],
@@ -3149,7 +3372,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                           );
                         },
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 30),
                       const Text(
                         'Métodos de pago aceptados:',
                         style: TextStyle(
@@ -3181,60 +3404,540 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                         ],
                       ),
                       const SizedBox(height: 30),
-                      ElevatedButton(
-                        onPressed: () {
-                          _showReservationBottomSheet();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          minimumSize: const Size(double.infinity, 50),
-                          textStyle: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text('Reservar servicio'),
-                      ),
+                      _buildPublicationsCarousel(),
+                      const SizedBox(height: 30),
+                      _buildRatingsAndReviews(),
+                      const SizedBox(height: 30),
                     ],
                   ),
                 ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // Nuevo método para mostrar la lista de publicaciones en un BottomSheet
+  void _showPublicationsBottomSheet() {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (context) {
+      return Container(
+        // Ajustar la altura del contenedor
+        height: MediaQuery.of(context).size.height *
+            0.60, // 60% de la altura de la pantalla
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-              if (_showProfileImage)
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _showProfileImage = false;
-                    });
-                  },
-                  child: Container(
-                    color: Colors.black.withOpacity(0.5),
-                    child: Center(
-                      child: Hero(
-                        tag: 'profileImage',
-                        child: CircleAvatar(
-                          radius: 175,
-                          backgroundImage: widget.selectedSupplier
-                                      .data()?['profileImageUrl'] !=
-                                  null
-                              ? NetworkImage(widget.selectedSupplier
-                                  .data()?['profileImageUrl'])
-                              : const AssetImage(
-                                      'assets/images/ProfilePhoto_predetermined.png')
-                                  as ImageProvider,
+            ),
+            const SizedBox(height: 30),
+            // Titulo del BottomSheet
+            const Text(
+              'Publicaciones relacionadas',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            // GridView para mostrar las publicaciones
+            Expanded(
+              child: FutureBuilder<QuerySnapshot>(
+                future: FirebaseFirestore.instance
+                    .collection('suppliers')
+                    .doc(widget.selectedSupplier.id)
+                    .collection('publications')
+                    .where('serviceName', isEqualTo: widget.serviceName)
+                    .get(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CupertinoActivityIndicator(
+                        radius: 20,
+                        color: Colors.green,
+                      ),
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return Text('Error: ${snapshot.error}');
+                  }
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    return const Center(
+                      child: Text('No hay publicaciones disponibles'),
+                    );
+                  }
+
+                  List<QueryDocumentSnapshot> publications =
+                      snapshot.data!.docs;
+
+                  return GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 5,
+                      mainAxisSpacing: 5,
+                    ),
+                    itemCount: publications.length,
+                    itemBuilder: (context, index) {
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ImagePreviewScreen(
+                                imageUrl: publications[index]
+                                    ['PostImageUrl'], // Pasa la URL de la imagen
+                                isCoverImage: false,
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          // Agrega esquinas redondeadas al contenedor de la imagen
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            image: DecorationImage(
+                              image: NetworkImage(
+                                  publications[index]['PostImageUrl']),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+  Widget _buildPublicationsCarousel() {
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('suppliers')
+          .doc(widget.selectedSupplier.id)
+          .collection('publications')
+          .where('serviceName', isEqualTo: widget.serviceName)
+          .get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CupertinoActivityIndicator(
+            radius: 16,
+            color: Colors.green,
+          );
+        }
+        if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}');
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox(height: 0);
+        }
+
+        List<QueryDocumentSnapshot> publications = snapshot.data!.docs;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Publicaciones relacionadas',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                // Botón para mostrar el BottomSheet con la lista de publicaciones
+                IconButton(
+                  onPressed: () {
+                    _showPublicationsBottomSheet();
+                  },
+                  icon: const Icon(Icons.grid_view),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (publications.length == 1)
+              _buildSinglePublication(publications.first)
+            else
+              _buildMultiplePublications(publications),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSinglePublication(QueryDocumentSnapshot publication) {
+    return GestureDetector(
+      onTap: () {
+        // Navega a ImagePreviewScreen cuando se toca la imagen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ImagePreviewScreen(
+              imageUrl: publication['PostImageUrl'], // Pasa la URL de la imagen
+              isCoverImage: false,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        height: 200,
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(horizontal: 5.0),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.5),
+              spreadRadius: 2,
+              blurRadius: 7,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: Image.network(
+            publication['PostImageUrl'],
+            fit: BoxFit.cover,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMultiplePublications(List<QueryDocumentSnapshot> publications) {
+    return CarouselSlider(
+      options: CarouselOptions(
+        height: 200,
+        aspectRatio: 16 / 9,
+        viewportFraction: 0.8,
+        initialPage: 0,
+        enableInfiniteScroll: publications.length > 1,
+        reverse: false,
+        autoPlay: publications.length > 1,
+        autoPlayInterval: const Duration(seconds: 3),
+        autoPlayAnimationDuration: const Duration(milliseconds: 800),
+        autoPlayCurve: Curves.fastOutSlowIn,
+        enlargeCenterPage: true,
+        scrollDirection: Axis.horizontal,
+      ),
+      items: publications.map((publication) {
+        return Builder(
+          builder: (BuildContext context) {
+            return GestureDetector(
+              onTap: () {
+                // Navega a ImagePreviewScreen cuando se toca la imagen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ImagePreviewScreen(
+                      imageUrl: publication['PostImageUrl'], // Pasa la URL de la imagen
+                      isCoverImage: false,
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                width: MediaQuery.of(context).size.width,
+                margin: const EdgeInsets.symmetric(horizontal: 5.0),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.5),
+                      spreadRadius: 2,
+                      blurRadius: 7,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: Image.network(
+                    publication['PostImageUrl'],
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildRatingsAndReviews() {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _getSupplierRatings(widget.selectedSupplier.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CupertinoActivityIndicator(
+            radius: 16,
+            color: Colors.green,
+          );
+        }
+        if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}');
+        }
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+
+        Map<String, dynamic> ratingsData = snapshot.data!;
+        double averageRating = ratingsData['averageRating'];
+        int totalRatings = ratingsData['totalRatings'];
+        Map<int, int> ratingCounts = ratingsData['ratingCounts'];
+
+        return Container(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.2),
+                spreadRadius: 2,
+                blurRadius: 7,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Título de Calificaciones y Opiniones
+              const Text(
+                'Calificaciones y Opiniones',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF08143C),
+                ),
+              ),
+              const SizedBox(height: 15),
+              // Puntuación y Número de Calificaciones
+              Row(
+                children: [
+                  // Puntuación en grande
+                  Text(
+                    averageRating.toStringAsFixed(1),
+                    style: const TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF08143C),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Número de calificaciones
+                  Text(
+                    '($totalRatings)',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Barra de progreso para cada estrella
+              for (int i = 5; i >= 1; i--)
+                _buildStarRating(i, ratingCounts[i] ?? 0, totalRatings),
+              const SizedBox(height: 20),
+              // Mostrar las 10 opiniones más recientes
+              FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                future: FirebaseFirestore.instance
+                    .collection('tasks')
+                    .orderBy('end', descending: true)
+                    .limit(10)
+                    .get(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const CupertinoActivityIndicator(
+                      radius: 16,
+                      color: Colors.green,
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return Text('Error: ${snapshot.error}');
+                  }
+                  if (!snapshot.hasData) {
+                    return const SizedBox.shrink();
+                  }
+
+                  List<QueryDocumentSnapshot<Map<String, dynamic>>> tasks =
+                      snapshot.data!.docs;
+
+                  return Column(
+                    children: tasks
+                        .where((task) =>
+                            task.data()['supplierID'] ==
+                                widget.selectedSupplier.id &&
+                            task.data()['clientEvaluation'] != null &&
+                            task.data()['clientComment'] != null)
+                        .map((task) => _buildClientReview(task))
+                        .toList(),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+              // Botón para mostrar todas las opiniones
+              if (totalRatings > 0)
+                Center(
+                  child: TextButton(
+                    onPressed: () {
+                      _showFullReviewsBottomSheet();
+                    },
+                    child: const Text(
+                      'Ver todas las opiniones',
+                      style: TextStyle(
+                        color: Color(0xFF08143C),
+                        decoration: TextDecoration.underline,
                       ),
                     ),
                   ),
                 ),
             ],
-          );
-        },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStarRating(int stars, int count, int total) {
+    double percentage = total > 0 ? (count / total) * 100 : 0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          // Número de estrellas
+          Text('$stars'),
+          const SizedBox(width: 5),
+          // Estrella llena
+          const Icon(Icons.star, size: 16, color: Colors.green),
+          const SizedBox(width: 5),
+          // Barra de progreso
+          Expanded(
+            child: LinearProgressIndicator(
+                value: percentage / 100,
+                backgroundColor: Colors.grey[300],
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(30)),
+          ),
+          const SizedBox(width: 5),
+          // Porcentaje de votos
+          Text('${percentage.toStringAsFixed(1)}%'),
+        ],
       ),
+    );
+  }
+
+  Widget _buildClientReview(QueryDocumentSnapshot<Map<String, dynamic>> task) {
+    final clientID = task.data()['clientID'];
+    final clientEvaluation = task.data()['clientEvaluation'];
+    final clientComment = task.data()['clientComment'];
+    final taskEndDate = task.data()['end'] as Timestamp?;
+
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future:
+          FirebaseFirestore.instance.collection('users').doc(clientID).get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CupertinoActivityIndicator(
+            radius: 16,
+            color: Colors.green,
+          );
+        }
+        if (snapshot.hasError) {
+          return Text('Error: ${snapshot.error}');
+        }
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+
+        final clientData = snapshot.data!.data();
+        final clientName = '${clientData?['name']} ${clientData?['lastName']}';
+        final profileImageUrl = clientData?['profileImageUrl'];
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundImage: profileImageUrl != null &&
+                            profileImageUrl.isNotEmpty
+                        ? NetworkImage(profileImageUrl)
+                        : const AssetImage(
+                                'assets/images/ProfilePhoto_predetermined.png')
+                            as ImageProvider,
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        clientName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          for (int i = 0; i < clientEvaluation; i++)
+                            const Icon(Icons.star,
+                                size: 16, color: Colors.green),
+                          for (int i = 0; i < (5 - clientEvaluation); i++)
+                            const Icon(Icons.star,
+                                size: 16, color: Colors.grey),
+                          const SizedBox(width: 5),
+                          if (taskEndDate != null)
+                            Text(
+                              DateFormat('dd/MM/yyyy')
+                                  .format(taskEndDate.toDate()),
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                clientComment,
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 15),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -3242,7 +3945,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: Colors.green[50],
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -3272,100 +3975,327 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
     );
   }
 
+  // Función para mostrar todas las opiniones en un BottomSheet
+  void _showFullReviewsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height *
+              0.80, // 80% de la altura de la pantalla
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(30.0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+              // Título del BottomSheet
+              const Text(
+                'Todas las opiniones',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF08143C),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Mostrar todas las opiniones
+              FutureBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                future: FirebaseFirestore.instance
+                    .collection('tasks')
+                    .orderBy('end', descending: true)
+                    .where('supplierID', isEqualTo: widget.selectedSupplier.id)
+                    .get(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CupertinoActivityIndicator(
+                        radius: 20,
+                        color: Colors.green,
+                      ),
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return Text('Error: ${snapshot.error}');
+                  }
+                  if (!snapshot.hasData) {
+                    return const SizedBox.shrink();
+                  }
+
+                  List<QueryDocumentSnapshot<Map<String, dynamic>>> tasks =
+                      snapshot.data!.docs;
+
+                  return Expanded(
+                    child: ListView.builder(
+                      itemCount: tasks.length,
+                      itemBuilder: (context, index) {
+                        final task = tasks[index];
+                        if (task.data()['clientEvaluation'] != null &&
+                            task.data()['clientComment'] != null) {
+                          return _buildClientReview(task);
+                        } else {
+                          return const SizedBox.shrink();
+                        }
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _showReservationBottomSheet() {
     _animationController.forward();
+    List<String> selectedDays = [];
+    DateTime selectedTime = DateTime.now();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => AnimatedBuilder(
-        animation: _animationController,
-        builder: (context, child) {
-          return SlideTransition(
-            position: _slideAnimation,
-            child: Container(
-              height: MediaQuery.of(context).size.height * 0.8,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
-              ),
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2.5),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Text(
-                        'CONFIRMAR RESERVA',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF08143C),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      const Text(
-                        '¿Por qué requiere del servicio?',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF08143C),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: TextField(
-                          controller: _reservationTextController,
-                          maxLines: 4,
-                          style: const TextStyle(color: Color(0xFF08143C)),
-                          decoration: const InputDecoration(
-                            hintText:
-                                'Indica brevemente qué problema o situación le lleva a solicitar del servicio. Esta información ayudará al agente a entender tus necesidades y ofrecerle una solución óptima.',
-                            hintStyle:
-                                TextStyle(color: Color.fromARGB(129, 0, 0, 0)),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.all(15),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () => _confirmReservation(),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1ca424),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 40,
-                            vertical: 15,
-                          ),
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: const Text('Confirmar reserva'),
+      builder: (context) => StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AnimatedBuilder(
+            animation: _animationController,
+            builder: (context, child) {
+              return SlideTransition(
+                position: _slideAnimation,
+                child: Container(
+                  height: MediaQuery.of(context).size.height * 0.80,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(30.0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, -5),
                       ),
                     ],
                   ),
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(30.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                          const Text(
+                            'Detalles de la reserva',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF08143C),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          TextField(
+                            controller: _reservationTextController,
+                            maxLines: 4,
+                            style: const TextStyle(color: Color(0xFF08143C)),
+                            decoration: InputDecoration(
+                              hintText: '¿Por qué requiere del servicio?',
+                              hintStyle: TextStyle(color: Colors.grey[600]),
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(15),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.all(20),
+                            ),
+                          ),
+                          const SizedBox(height: 30),
+                          const Text(
+                            'Días preferidos',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF08143C),
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children:
+                                ['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day) {
+                              bool isSelected = selectedDays.contains(day);
+                              return GestureDetector(
+                                onTap: () => setState(() {
+                                  isSelected
+                                      ? selectedDays.remove(day)
+                                      : selectedDays.add(day);
+                                }),
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? const Color(0xFF08143C)
+                                        : Colors.transparent,
+                                    border: Border.all(
+                                        color: const Color(0xFF08143C)),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      day,
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : const Color(0xFF08143C),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 30),
+                          const Text(
+                            'Hora preferida',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF08143C),
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+                          InkWell(
+                            onTap: () async {
+                              final TimeOfDay? picked = await showTimePicker(
+                                context: context,
+                                initialTime:
+                                    TimeOfDay.fromDateTime(selectedTime),
+                                builder: (BuildContext context, Widget? child) {
+                                  return Theme(
+                                    data: ThemeData.light().copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                        primary: Color.fromRGBO(200, 230, 201,
+                                            1), // Color principal
+                                        onPrimary: Color(
+                                            0xFF08143C), // Color del texto sobre el color principal
+                                        surface: Colors
+                                            .white, // Color de fondo para el dial
+                                        onSurface: Color(
+                                            0xFF08143C), // Color del texto y números
+                                      ),
+                                      textButtonTheme: TextButtonThemeData(
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: const Color(
+                                              0xFF08143C), // Color para los botones de texto
+                                        ),
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
+                              );
+                              if (picked != null) {
+                                setState(() {
+                                  selectedTime = DateTime(
+                                    DateTime.now().year,
+                                    DateTime.now().month,
+                                    DateTime.now().day,
+                                    picked.hour,
+                                    picked.minute,
+                                  );
+                                });
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 15),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    DateFormat('hh:mm a').format(selectedTime),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: Color(0xFF08143C),
+                                    ),
+                                  ),
+                                  const Icon(Icons.access_time,
+                                      color: Color(0xFF08143C)),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () => _confirmReservation(
+                                  selectedDays, selectedTime),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1ca424),
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 15),
+                                textStyle: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                              ),
+                              child: const Text('Confirmar reserva'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       ),
@@ -3374,7 +4304,8 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
     });
   }
 
-  void _confirmReservation() async {
+  void _confirmReservation(
+      List<String> selectedDays, DateTime selectedTime) async {
     // Primero, obtenemos el ID del usuario actual
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
@@ -3433,6 +4364,8 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
       'supplierID': widget.selectedSupplier.id,
       'supplierName': widget.selectedSupplier.data()?['name'],
       'paymentMethods': selectedPaymentMethods,
+      'preferredDays': selectedDays,
+      'preferredTime': Timestamp.fromDate(selectedTime),
     };
 
     try {

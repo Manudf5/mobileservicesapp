@@ -155,12 +155,41 @@ class _WalletScreenState extends State<WalletScreen> {
     return '';
   }
 
-  void _navigateToTransferFundsScreen() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-          builder: (context) => TransferFundsScreen(userId: _userDocId)),
-    );
+  void _navigateToTransferFundsScreen() async {
+    // Obtener el rol del usuario actual
+    final User? user = _auth.currentUser;
+    if (user != null) {
+      final combinedId = await _getCombinedIdFromFirestore(user.uid);
+      final userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(combinedId).get();
+      final userRole = userDoc.data()?['role'];
+
+      // Validar el rol
+      if (userRole == 1) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Restringido para agentes activos.',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      } else {
+        Navigator.push(
+          // ignore: use_build_context_synchronously
+          context,
+          MaterialPageRoute(
+              builder: (context) => TransferFundsScreen(userId: _userDocId)),
+        );
+      }
+    }
   }
 
   void _navigateToTransactionHistoryScreen() {
@@ -1298,7 +1327,10 @@ class _UserSearch_TransferFundsScreenState
   }
 
   void _loadUsers() async {
-    QuerySnapshot querySnapshot = await _firestore.collection('users').get();
+    QuerySnapshot querySnapshot = await _firestore
+        .collection('users')
+        .where('role', isNotEqualTo: 1) // Filtra por usuarios con role != 1
+        .get();
     setState(() {
       _users = querySnapshot.docs
           .map((doc) => doc.data() as Map<String, dynamic>)
@@ -1380,7 +1412,12 @@ class _UserSearch_TransferFundsScreenState
             child: ListView.builder(
               itemCount: _filteredUsers.length,
               itemBuilder: (context, index) {
-                return _buildUserTile(_filteredUsers[index]);
+                // Verifica si el usuario tiene rol != 1 antes de mostrarlo
+                if (_filteredUsers[index]['role'] != 1) {
+                  return _buildUserTile(_filteredUsers[index]);
+                } else {
+                  return const SizedBox.shrink(); // Oculta el usuario si tiene rol 1
+                }
               },
             ),
           ),

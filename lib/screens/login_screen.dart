@@ -18,6 +18,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -44,102 +45,90 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Convertir el email a minúsculas
       final emailLowerCase = emailController.text.trim().toLowerCase();
 
-      // Verificar el estado del usuario en Firestore
+      // Verificar si el usuario existe en Firestore
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .where('email', isEqualTo: emailLowerCase)
           .get();
 
-      if (userDoc.docs.isNotEmpty) {
-        final userData = userDoc.docs.first.data();
-        final userStatus = userData['status'] as int;
-
-        if (userStatus == 1) {
-          _showStatusDialog('Usuario suspendido temporalmente',
-              'Su cuenta ha sido suspendida temporalmente. Por favor, contacte a soporte para más información.');
-          setState(() {
-            _isLoading = false;
-          });
-          return;
-        } else if (userStatus == 2) {
-          _showStatusDialog('Usuario suspendido permanentemente',
-              'Su cuenta ha sido suspendida permanentemente. Por favor, contacte a soporte para más información.');
-          setState(() {
-            _isLoading = false;
-          });
-          return;
-        }
-
-        // Si el estado es 0, proceder con el inicio de sesión
-        // ignore: unused_local_variable
-        UserCredential userCredential = await FirebaseAuth.instance
-            .signInWithEmailAndPassword(
-                email: emailLowerCase,
-                password: passwordController.text.trim());
-
-        setState(() {
-          _isLoading = false;
-        });
-
-        Navigator.pushReplacement(
-          // ignore: use_build_context_synchronously
-          context,
-          MaterialPageRoute(
-              builder: (context) => const HomePage(selectedIndex: 0)),
-        );
-        } else {
-          // ignore: use_build_context_synchronously
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Correo o contraseña incorrectos.',
-                style: TextStyle(color: Colors.white),
-              ),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          );
-          setState(() {
-            _isLoading = false; // Ocultar el indicador de carga si hay un error
-          });
-        }
-      } on FirebaseAuthException catch (e) {
-        String errorMessage;
-        if (e.code == 'user-not-found') {
-          errorMessage = 'No se encontró ningún usuario con ese correo electrónico.';
-        } else if (e.code == 'wrong-password') {
-          errorMessage = 'Contraseña incorrecta.';
-        } else {
-          errorMessage = 'Error al iniciar sesión.';
-        }
-        // ignore: use_build_context_synchronously
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              errorMessage,
-              style: const TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
-        setState(() {
-          _isLoading = false; // Ocultar el indicador de carga si hay un error
-        });
+      if (userDoc.docs.isEmpty) {
+        _showErrorSnackBar('No se encontró ningún usuario con ese correo electrónico.');
+        return;
       }
-    }
+
+      final userData = userDoc.docs.first.data();
+      final userStatus = userData['status'] as int;
+
+      if (userStatus == 1 || userStatus == 2) {
+        _showStatusDialog(
+          userStatus == 1 ? 'Usuario suspendido temporalmente' : 'Usuario suspendido permanentemente',
+          'Su cuenta ha sido suspendida. Por favor, contacte a soporte para más información.'
+        );
+        return;
+      }
+
+      // Intentar iniciar sesión
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailLowerCase,
+        password: passwordController.text.trim()
+      );
+
+      Navigator.pushReplacement(
+        // ignore: use_build_context_synchronously
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage(selectedIndex: 0)),
+      );
+    } on FirebaseAuthException catch (e) {
+  String errorMessage;
+  if (e.code == 'user-not-found') {
+    errorMessage = 'No se encontró ningún usuario con ese correo electrónico.';
+  } else if (e.code == 'wrong-password') {
+    errorMessage = 'Contraseña incorrecta.';
+  } else if (e.code == 'invalid-credential') {
+    errorMessage = 'Las credenciales proporcionadas son inválidas o han expirado.';
+  } else if (e.code == 'too-many-requests') {
+    errorMessage = 'Demasiados intentos fallidos. Esta cuenta ha sido temporalmente suspendida. '
+        'Puede restaurarla inmediatamente restableciendo su contraseña o intentarlo más tarde.';
+  } else {
+    errorMessage = 'Error al iniciar sesión: ${e.message}';
   }
+  _showErrorSnackBar(errorMessage);
+} catch (e) {
+  if (e.toString().contains('We have blocked all requests from this device due to unusual activity')) {
+    _showErrorSnackBar('Se han bloqueado las solicitudes de este dispositivo debido a actividad inusual. '
+        'Intente nuevamente más tarde o restablezca su contraseña.');
+  } else {
+    _showErrorSnackBar('Error inesperado al iniciar sesión.');
+  }
+} finally {
+  setState(() {
+    _isLoading = false;
+  });
+}
+  }
+}
+
+void _showErrorSnackBar(String message) {
+  // Verifica si el contexto está montado y si el ScaffoldMessenger está disponible
+  if (_scaffoldMessengerKey.currentState != null) {
+    _scaffoldMessengerKey.currentState!.showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 8),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+}
 
   void _showStatusDialog(String title, String content) {
     showDialog(
@@ -150,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
           content: Text(content),
           actions: <Widget>[
             TextButton(
-              child: const Text('Entendido'),
+              child: const Text('Entendido', style: TextStyle(color: Color(0xFF08143c)),),
               onPressed: () {
                 Navigator.of(context).pop();
               },
@@ -323,7 +312,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ScaffoldMessenger(
+    key: _scaffoldMessengerKey,
+    child: Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -529,6 +520,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

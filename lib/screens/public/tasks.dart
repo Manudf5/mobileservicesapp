@@ -109,14 +109,6 @@ class _TasksScreenState extends State<TasksScreen> {
               fontSize: 28,
             ),
           ),
-          actions: [
-            IconButton(
-              onPressed: () {
-                // Implementa la lógica de búsqueda
-              },
-              icon: const Icon(Icons.search),
-            ),
-          ],
           bottom: const TabBar(
             labelColor:
                 Color(0xFF08143C), // Color del texto de la pestaña activa
@@ -151,8 +143,10 @@ class _TasksScreenState extends State<TasksScreen> {
                       stream: FirebaseFirestore.instance
                           .collection('tasks')
                           .where('clientID', isEqualTo: _clientId)
-                          .where('state', isEqualTo: 'Pendiente')
-                          .snapshots(),
+                          .where('state', whereIn: [
+                        'Pendiente',
+                        'Agendado',
+                      ]).snapshots(),
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
                           return const Center(
@@ -374,54 +368,51 @@ class _TasksScreenState extends State<TasksScreen> {
                                                         ),
                                                       ),
                                                       Padding(
-                                                        padding:
-                                                            const EdgeInsets.only(
-                                                                left: 16.0),
-                                                        child: Column(
-                                                          // Use a Column to stack the text widgets
-                                                          crossAxisAlignment:
-                                                              CrossAxisAlignment
-                                                                  .start, // Align text to the start
-                                                          children: [
-                                                            Text(
-                                                              '${task.data()['state']}',
-                                                              style:
-                                                                  const TextStyle(
-                                                                fontSize: 14.0,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                                color: Color(
-                                                                    0xFFE65100),
-                                                              ),
-                                                            ),
-                                                            const SizedBox(
-                                                                height:
-                                                                    1), // Add some space between the text widgets
-                                                            Text(
-                                                              // Formatea la fecha desde Timestamp a DD/MM/YYYY
-                                                              task.data()[
-                                                                          'reservation'] !=
-                                                                      null
-                                                                  ? DateFormat(
-                                                                          'dd/MM/yyyy')
-                                                                      .format((task
-                                                                              .data()[
-                                                                                  'reservation']
-                                                                          as Timestamp)
-                                                                      .toDate())
-                                                                  : 'Sin fecha',
-                                                              style:
-                                                                  const TextStyle(
-                                                                fontSize:
-                                                                    10.0, // Smaller font size for the date
-                                                                color: Color(
-                                                                    0xFF08143C),
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ),
+  padding: const EdgeInsets.only(left: 16.0),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Text(
+        '${task.data()['state']}',
+        style: TextStyle(
+          fontSize: 14.0,
+          fontWeight: FontWeight.bold,
+          color: task.data()['state'] == 'Pendiente'
+              ? const Color(0xFFE65100) // Red for Pendiente
+              : Colors.amber, // LightGreen for Agendado
+        ),
+      ),
+      const SizedBox(height: 1),
+      Text(
+        task.data()['state'] == 'Pendiente'
+            ? // Display reservation date if state is 'Pendiente'
+            task.data()['reservation'] != null
+                ? DateFormat('dd/MM/yyyy')
+                    .format((task.data()['reservation'] as Timestamp).toDate())
+                : 'Sin fecha'
+            : // Display scheduled date if state is 'Agendado'
+            task.data()['scheduled'] != null
+                ? DateFormat('dd/MM/yyyy')
+                    .format((task.data()['scheduled'] as Timestamp).toDate())
+                : 'Sin fecha',
+        style: const TextStyle(
+          fontSize: 10.0,
+          color: Color(0xFF08143C),
+        ),
+      ),
+      // Show time below the date
+      if (task.data()['scheduled'] != null)
+        Text(
+          DateFormat('hh:mm a') // Show time with AM/PM
+              .format((task.data()['scheduled'] as Timestamp).toDate()),
+          style: const TextStyle(
+            fontSize: 10.0,
+            color: Color(0xFF08143C),
+          ),
+        ),
+    ],
+  ),
+),
                                                     ],
                                                   ),
                                                 ),
@@ -2808,7 +2799,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                 if (taskData?['state'] == 'Pendiente' ||
                                     taskData?['state'] == 'En proceso' ||
                                     taskData?['state'] == 'Cotizando' ||
-                                    taskData?['state'] == 'Finalizada')
+                                    taskData?['state'] == 'Finalizada' ||
+                                    taskData?['scheduled'] != null)
                                   Row(
                                     children: [
                                       Container(
@@ -4029,7 +4021,34 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
                                 const SizedBox(height: 10),
 
+                                // Agendado
+                                if (taskData?['scheduled'] != null)
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(4.0),
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(5.0),
+                                          color: Colors.blueGrey[600],
+                                        ),
+                                        child: const Icon(
+                                          Icons.calendar_today,
+                                          size: 18.0,
+                                          color:
+                                              Color.fromRGBO(209, 196, 233, 1),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        'Agendado: ${formatDateTime(widget.task.data()['scheduled'] as Timestamp?)}',
+                                        style: const TextStyle(fontSize: 15),
+                                      ),
+                                    ],
+                                  ),
+
                                 // Reservado
+                                if (taskData?['scheduled'] == null)
                                 Row(
                                   children: [
                                     Container(
@@ -4116,7 +4135,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                 // Punto de referencia
                                 if (taskData?['state'] == 'Pendiente' ||
                                     taskData?['state'] == 'En proceso' ||
-                                    taskData?['state'] == 'Finalizada')
+                                    taskData?['state'] == 'Finalizada' ||
+                                    taskData?['scheduled'] != null)
                                   Row(
                                     children: [
                                       Container(
@@ -4232,7 +4252,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                 if (taskData?['clientLocation'] != null)
                                   if (taskData?['state'] == 'Pendiente' ||
                                       taskData?['state'] == 'En proceso' ||
-                                      taskData?['state'] == 'Finalizada')
+                                      taskData?['state'] == 'Finalizada' ||
+                                      taskData?['scheduled'] != null)
                                     Column(
                                       children: [
                                         const Text(
@@ -4315,7 +4336,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                           ),
                         ),
                         // Botón "Cancelar reservación" (solo si el estado es "Pendiente")
-                        if (taskData?['state'] == 'Pendiente')
+                        if (taskData?['state'] == 'Pendiente' ||
+                            taskData?['scheduled'] != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 20.0),
                             child: SizedBox(
@@ -4660,11 +4682,17 @@ Icon getColoredIcon(String state) {
         size: 18.0,
         color: Color.fromRGBO(230, 81, 0, 1),
       );
-    case 'En proceso':
+      case 'Agendado':
       return const Icon(
         Icons.circle,
         size: 18.0,
         color: Colors.amber,
+      );
+    case 'En proceso':
+      return const Icon(
+        Icons.circle,
+        size: 18.0,
+        color: Colors.lightGreen,
       );
     case 'Finalizada':
       return const Icon(
@@ -4762,7 +4790,7 @@ class ServiceTransactionReceiptScreen extends StatefulWidget {
 class _ServiceTransactionReceiptScreenState
     extends State<ServiceTransactionReceiptScreen> {
   final ScreenshotController screenshotController = ScreenshotController();
-  double _rating = 0;
+  int _rating = 0; // Ahora es un entero
   final TextEditingController _commentController = TextEditingController();
   bool _hasClientEvaluation = false;
 
@@ -4906,10 +4934,11 @@ class _ServiceTransactionReceiptScreenState
                       const SizedBox(height: 15),
                       Center(
                         child: RatingBar.builder(
-                          initialRating: _rating,
+                          initialRating: _rating.toDouble(), // Convierte a double
                           minRating: 1,
+                          maxRating: 5, // Ajusta el máximo a 5
                           direction: Axis.horizontal,
-                          allowHalfRating: true,
+                          allowHalfRating: false, // Desactiva la selección de medios
                           itemCount: 5,
                           itemPadding:
                               const EdgeInsets.symmetric(horizontal: 4.0),
@@ -4920,7 +4949,7 @@ class _ServiceTransactionReceiptScreenState
                           ),
                           onRatingUpdate: (rating) {
                             setState(() {
-                              _rating = rating;
+                              _rating = rating.toInt(); // Guarda el valor entero
                             });
                           },
                         ),
@@ -5168,7 +5197,7 @@ class _ServiceTransactionReceiptScreenState
         .collection('tasks')
         .doc(widget.taskId)
         .update({
-      'clientEvaluation': _rating,
+      'clientEvaluation': _rating, // Guarda el rating como entero
       'clientComment': _commentController.text,
     });
 

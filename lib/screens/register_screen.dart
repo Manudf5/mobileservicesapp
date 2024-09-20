@@ -126,17 +126,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _sendEmailVerification() async {
     if (_emailController.text.isEmpty) {
-      // Mostrar un mensaje si el campo de correo electrónico está vacío
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Por favor, ingresa tu correo electrónico.')));
       return;
     }
 
     try {
+      // Convertir el correo a minúsculas
+      String emailLowerCase = _emailController.text.trim().toLowerCase();
+
       // Crear un usuario temporal
       UserCredential userCredential =
           await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
+        email: emailLowerCase,
         password: _passwordController.text.trim(),
       );
 
@@ -213,10 +215,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       try {
+        // Convertir el correo a minúsculas
+        String emailLowerCase = _emailController.text.trim().toLowerCase();
+
         // Verificar si el correo electrónico ya está en uso
         final list = await FirebaseFirestore.instance
             .collection('users')
-            .where('email', isEqualTo: _emailController.text.trim())
+            .where('email', isEqualTo: emailLowerCase)
             .get();
         if (list.docs.isNotEmpty) {
           // ignore: use_build_context_synchronously
@@ -272,7 +277,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         try {
           userCredential =
               await FirebaseAuth.instance.signInWithEmailAndPassword(
-            email: _emailController.text.trim(),
+            email: emailLowerCase,
             password: _passwordController.text.trim(),
           );
         } catch (e) {
@@ -311,7 +316,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'uid': user!.uid,
           'id': combinedId,
           'birthDate': _selectedDate, // Guardar como Timestamp
-          'email': _emailController.text.trim(),
+          'email': emailLowerCase,
           'phone': combinedPhone,
           'gender': _selectedGender,
           'photoIdentityDocument': photoUrl,
@@ -843,7 +848,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               onChanged: (value) {
-                // Habilita/Deshabilita el botón al escribir en el campo de correo electrónico
+                // Convertir a minúsculas mientras el usuario escribe
+                _emailController.text = value.toLowerCase();
+                _emailController.selection = TextSelection.fromPosition(
+                  TextPosition(offset: _emailController.text.length),
+                );
                 setState(() {});
               },
               decoration: InputDecoration(
