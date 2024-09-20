@@ -2785,6 +2785,19 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   // Variable para almacenar la URL de la imagen de portada
   String? _coverImageUrl;
 
+  final Map<String, Color> _labelColors = {};
+
+  // Método para obtener un color aleatorio para un servicio
+  Color _getLabelColor(String service) {
+    if (_labelColors.containsKey(service)) {
+      return _labelColors[service]!;
+    } else {
+      Color randomColor = Color(Random().nextInt(0xFFFFFFFF)).withOpacity(0.7); // Ajusta la opacidad según sea necesario
+      _labelColors[service] = randomColor;
+      return randomColor;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -3859,6 +3872,8 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
     final clientComment = task.data()['clientComment'];
     final taskEndDate = task.data()['end'] as Timestamp?;
 
+    final serviceName = task.data()['service'] ?? 'General'; // Obtener el nombre del servicio
+
     return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       future:
           FirebaseFirestore.instance.collection('users').doc(clientID).get(),
@@ -3888,7 +3903,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
               Row(
                 children: [
                   CircleAvatar(
-                    radius: 25,
+                    radius: 30,
                     backgroundImage: profileImageUrl != null &&
                             profileImageUrl.isNotEmpty
                         ? NetworkImage(profileImageUrl)
@@ -3906,7 +3921,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 1),
                       Row(
                         children: [
                           for (int i = 0; i < clientEvaluation; i++)
@@ -3924,6 +3939,22 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                             ),
                         ],
                       ),
+                      const SizedBox(height: 3), // Agregar espacio entre el comentario y la etiqueta
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getLabelColor(serviceName),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Text(
+                  serviceName,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
                     ],
                   ),
                 ],
