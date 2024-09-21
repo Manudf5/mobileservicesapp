@@ -16,6 +16,7 @@ import 'package:flutter_paypal/flutter_paypal.dart';
 import 'package:mobileservicesapp/screens/public/homepage.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' show parse;
+import 'package:mobileservicesapp/screens/public/social.dart';
 import 'package:one_context/one_context.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:screenshot/screenshot.dart';
@@ -1087,7 +1088,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
   File? _comprobante;
 
-  bool _isFollowing = false;
   double _averageEvaluation = 0.0;
   int _evaluationCount = 0;
 
@@ -1444,7 +1444,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     _startTimer();
     _initializeStartTime();
     _selectedReason = null;
-    _checkFollowStatus();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -1462,156 +1461,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     _messageController.dispose();
     super.dispose();
   }
-
-  Future<void> _checkFollowStatus() async {
-    if (clientIDString.isNotEmpty && widget.supplier != null) {
-      final followDoc = await FirebaseFirestore.instance
-          .collection('suppliers')
-          .doc(widget.supplier!.id)
-          .collection('followers')
-          .doc(clientIDString)
-          .get();
-
-      setState(() {
-        _isFollowing = followDoc.exists;
-      });
-    }
-  }
-
-  Future<void> _toggleFollow() async {
-    if (clientIDString.isEmpty || widget.supplier == null) return;
-
-    final followersRef = FirebaseFirestore.instance
-        .collection('suppliers')
-        .doc(widget.supplier!.id)
-        .collection('followers');
-
-    setState(() {
-      _isFollowing = !_isFollowing;
-    });
-
-    if (_isFollowing) {
-      // Seguir al supplier
-      await followersRef.doc(clientIDString).set({
-        'followedAt': FieldValue.serverTimestamp(),
-        'firstTaskID': widget.task.id,
-      });
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Empezaste a seguir a ${widget.supplier!.data()?['name'] ?? 'este proveedor'}'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-    } else {
-      // Dejar de seguir
-      await followersRef.doc(clientIDString).delete();
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Has dejado de seguir a ${widget.supplier!.data()?['name'] ?? 'este proveedor'}'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-    }
-  }
-
-  Future<void> _showUnfollowDialog() async {
-  return showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: Text(
-          '¿Dejar de seguir a ${widget.supplier!.data()?['name'] ?? 'este proveedor'}?',
-          style: const TextStyle(
-            fontSize: 20, 
-            fontWeight: FontWeight.bold
-          ),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        content: const Text(
-          'Ya no podrás visualizar sus publicaciones en el apartado de Social',
-        ),
-        actionsPadding: EdgeInsets.zero,
-        actions: [
-          Container(
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: Colors.grey)),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(20),
-                          bottomRight: Radius.zero,
-                          topLeft: Radius.zero,
-                          topRight: Radius.zero,
-                        ),
-                      ),
-                    ),
-                    child: const Text(
-                      'Cancelar',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold, 
-                        color: Color(0xFF08143C),
-                      ),
-                    ),
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 48,
-                  color: Colors.grey,
-                ),
-                Expanded(
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      _toggleFollow();
-                    },
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.zero,
-                          bottomRight: Radius.circular(20),
-                          topLeft: Radius.zero,
-                          topRight: Radius.zero,
-                        ),
-                      ),
-                    ),
-                    child: const Text(
-                      'Confirmar',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold, 
-                        color: Color(0xFF08143C),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    },
-  );
-}
 
 
   Future<void> _getAverageSupplierEvaluation() async {
@@ -2461,10 +2310,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   @override
   Widget build(BuildContext context) {
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-    _checkFollowStatus();
-  });
-  
     return Scaffold(
       backgroundColor: Colors.blueGrey[50],
       appBar: AppBar(
@@ -2699,57 +2544,37 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                               ),
                             if (widget.task.data()['state'] == 'Finalizada')
                               Align(
-                                alignment: Alignment.bottomRight,
-                                child: SizedBox(
-                                  height: 35,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF08143C),
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 4,
-                                      ),
-                                      textStyle: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(10.0),
-                                      ),
+                              alignment: Alignment.topRight,
+                              child: TextButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ProfileViewScreen(
+                                          supplierId: widget.supplier!.id),
                                     ),
-                                    onPressed: _isFollowing
-                                        ? _showUnfollowDialog
-                                        : _toggleFollow,
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _isFollowing
-                                            ? const Icon(Icons.check,
-                                                size: 20,
-                                                color: Color(0xFF00C853))
-                                            : const Text(
-                                                "+",
-                                                style: TextStyle(
-                                                    fontSize: 20.0,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Color(0xFF00C853)),
-                                              ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          _isFollowing ? 'Siguiendo' : 'Seguir',
-                                          style: const TextStyle(
-                                              fontSize: 14.0,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF00C853)),
-                                        ),
-                                      ],
-                                    ),
+                                  );
+                                },
+                                style: TextButton.styleFrom(
+                                  backgroundColor: Colors.green,
+                                  foregroundColor: Colors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 1),
+                                  minimumSize: const Size(120.0, 41.0),
+                                  textStyle: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  side: const BorderSide(
+                                      color: Colors.white, width: 2),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
                                   ),
                                 ),
-                              )
+                                label: const Text('Ver perfil',
+                                    style: TextStyle(fontSize: 15)),
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 20),

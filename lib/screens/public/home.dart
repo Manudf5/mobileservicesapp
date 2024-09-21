@@ -2780,6 +2780,10 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   bool _hasBinance = false;
   bool _hasZelle = false;
 
+  bool _isSupplierVerified = false;
+  String supplierName = '';
+  String supplierLastName = '';
+
   late Future<void> _initFuture;
 
   // Variable para almacenar la URL de la imagen de portada
@@ -2830,13 +2834,24 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
           .where('uid', isEqualTo: user.uid)
           .get();
 
+    // Obtenemos el documento del usuario
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.selectedSupplier.id)
+        .get();
+
       if (snapshot.docs.isNotEmpty) {
         final doc = snapshot.docs.first;
         setState(() {
           clientName = '${doc['name']} ${doc['lastName']}';
           clientIDString = doc['id'];
+          _isSupplierVerified = userDoc.data()?['verified'] ?? false;
+          supplierName = userDoc.data()?['name'];
+          supplierLastName = userDoc.data()?['lastName'];
         });
       }
+
+      
     }
   }
 
@@ -2902,6 +2917,193 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
     };
   }
 
+  void _showReportBottomSheet() {
+  String selectedReason = '';
+  String otherReason = '';
+  bool isOtherSelected = false;
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+    ),
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Reportar usuario',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  Wrap(
+                    spacing: 8.0,
+                    children: [
+                      'Comportamiento inapropiado',
+                      'Contenido indebido',
+                      'Información falsa',
+                      'Incitación negativa',
+                      'Ventas ilícitas',
+                      'Spam',
+                      'Otro',
+                    ].map((String reason) {
+                      return ChoiceChip(
+                        label: Text(
+                          reason,
+                          style: TextStyle(
+                            color: selectedReason == reason
+                                ? Colors.white
+                                : Colors.black,
+                          ),
+                        ),
+                        selectedColor: selectedReason == reason
+                            ? const Color(0xFF08143C)
+                            : null,
+                        selected: selectedReason == reason,
+                        onSelected: (bool selected) {
+                          setState(() {
+                            selectedReason = selected ? reason : '';
+                            isOtherSelected = reason == 'Otro';
+                          });
+                        },
+                        // Add this to change checkmark color
+                        selectedShadowColor: Colors.transparent,
+                        disabledColor: Colors.transparent,
+                        checkmarkColor: Colors.green,
+                      );
+                    }).toList(),
+                  ),
+                  if (isOtherSelected) ...[
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      onChanged: (value) {
+                        otherReason = value;
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Especifique el motivo',
+                        labelStyle: const TextStyle(color: Colors.black),
+                        hintText: 'Ingresa el motivo',
+                        hintStyle: const TextStyle(color: Colors.grey),
+                        filled: true,
+                              fillColor: Colors.blueGrey[100],
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(15),
+                                borderSide: BorderSide.none,
+                              ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: const BorderSide(color: Color(0xFF08143c)),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 16.0,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Por favor, ingresa el motivo';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                  const SizedBox(height: 30),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1ca424),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        textStyle: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                      onPressed: () => _submitReport(selectedReason, otherReason),
+                      child: const Text('Enviar reporte'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+void _submitReport(String selectedReason, String otherReason) async {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Error: Usuario no autenticado')),
+    );
+    return;
+  }
+
+  final reporterDoc = await FirebaseFirestore.instance
+      .collection('users')
+      .where('uid', isEqualTo: currentUser.uid)
+      .get();
+
+  if (reporterDoc.docs.isEmpty) {
+    // ignore: use_build_context_synchronously
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Error: No se pudo obtener la información del usuario')),
+    );
+    return;
+  }
+
+  final reporterData = reporterDoc.docs.first.data();
+  final reportData = {
+    'timestamp': FieldValue.serverTimestamp(),
+    'reportedUserName': '$supplierName $supplierLastName',
+    'reportedUserId': widget.selectedSupplier.id,
+    'reason': selectedReason == 'Otro' ? otherReason : selectedReason,
+    'category': 'Usuario',
+    'reporterName': '${reporterData['name']} ${reporterData['lastName']}',
+    'reporterId': reporterDoc.docs.first.id,
+  };
+
+  // Generar el ID del documento
+  final DateTime now = DateTime.now();
+  final String documentId =
+      '${widget.selectedSupplier.id}_${now.year}${now.month}${now.day}${now.hour}${now.minute}${now.second}';
+
+  try {
+    await FirebaseFirestore.instance
+        .collection('reports')
+        .doc(documentId)
+        .set(reportData);
+    // ignore: use_build_context_synchronously
+    Navigator.pop(context);
+    // ignore: use_build_context_synchronously
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Reporte enviado')),
+    );
+  } catch (e) {
+    // ignore: use_build_context_synchronously
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Error al enviar el reporte')),
+    );
+  }
+}
+
   @override
   void dispose() {
     _animationController.dispose();
@@ -2917,7 +3119,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
         backgroundColor: Colors.white,
         title: const Text(
           'Agente seleccionado',
-          style: TextStyle(color: Colors.black),
+          style: TextStyle(color: Colors.black, fontSize: 17),
         ),
         // Cambiar la flecha de retroceso
         leading: IconButton(
@@ -2928,6 +3130,22 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
             Navigator.pop(context); // Regresar a la pantalla anterior
           },
         ),
+        actions: <Widget>[
+          PopupMenuButton<String>(
+  icon: const Icon(Icons.more_vert, color: Colors.black),
+  onSelected: (String result) {
+    if (result == 'Reportar usuario') {
+      _showReportBottomSheet();
+    }
+  },
+  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+    const PopupMenuItem<String>(
+      value: 'Reportar usuario',
+      child: Text('Reportar usuario'),
+    ),
+  ],
+),
+        ],
       ),
       body: FutureBuilder<void>(
         future: _initFuture,
@@ -3085,13 +3303,24 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                       // Espacio para el botón
                       const SizedBox(height: 30.0),
                       // Nombre del proveedor
-                      Text(
-                        '${widget.selectedSupplier.data()?['name']}',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      Row(
+  children: [
+    Text(
+      '$supplierName $supplierLastName', // Concatenate the names
+      style: const TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+    const SizedBox(width: 5),
+    if (_isSupplierVerified)
+      const Icon(
+        Icons.check_circle,
+        color: Colors.blue,
+        size: 22,
+      ),
+  ],
+),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -3139,55 +3368,10 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                               ),
                             ],
                           ),
-                          FutureBuilder<List<dynamic>>(
-                            future: _getAverageClientEvaluation(
-                                widget.selectedSupplier.id),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return const CupertinoActivityIndicator(
-                                  radius: 16,
-                                  color: Colors.green,
-                                );
-                              }
-                              if (snapshot.hasData) {
-                                String averageEvaluation = snapshot.data![0];
-                                // ignore: unused_local_variable
-                                int evaluationCount = snapshot.data![1];
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 5.0,
-                                    horizontal: 10.0,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.blue[50],
-                                    borderRadius: BorderRadius.circular(10.0),
-                                    border: Border.all(
-                                      color: const Color(0xFF08143C),
-                                      width: 1.0,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.star,
-                                        size: 18.0,
-                                        color: Colors.blue,
-                                      ),
-                                      const SizedBox(width: 4.0),
-                                      Text(
-                                        averageEvaluation,
-                                        style: const TextStyle(fontSize: 16),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }
-                              return const SizedBox.shrink();
-                            },
-                          ),
                         ],
                       ),
+                      const SizedBox(height: 3),
+                      _buildFollowerCount(),
                       const SizedBox(height: 10),
                       // Agregar la biografía aquí
                       FutureBuilder<DocumentSnapshot>(
@@ -3941,6 +4125,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                       ),
                       const SizedBox(height: 3), // Agregar espacio entre el comentario y la etiqueta
               Container(
+                constraints: const BoxConstraints(maxWidth: 250),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: _getLabelColor(serviceName),
@@ -3949,7 +4134,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                 child: Text(
                   serviceName,
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
@@ -4005,6 +4190,70 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
       ),
     );
   }
+
+  // Widget para mostrar la cantidad de seguidores de manera elegante
+  Widget _buildFollowerCount() {
+  return StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('suppliers')
+        .doc(widget.selectedSupplier.id)
+        .collection('followers')
+        .snapshots(),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const CupertinoActivityIndicator();
+      }
+      if (snapshot.hasError) {
+        return const Text('Error');
+      }
+      final followerCount = snapshot.data?.docs.length ?? 0;
+
+      return Container(
+        padding: const EdgeInsets.symmetric(
+          vertical: 8.0,
+          horizontal: 12.0,
+        ),
+        width: 170,
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(20.0),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.people,
+              size: 18.0,
+              color: Colors.black,
+            ),
+            const SizedBox(width: 4.0),
+            // Modificaciones para el tamaño del texto
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$followerCount ',
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 18.0,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const TextSpan(
+                    text: 'seguidores',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 14.0,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
   // Función para mostrar todas las opiniones en un BottomSheet
   void _showFullReviewsBottomSheet() {
@@ -4493,28 +4742,4 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   }
 
   // Función para obtener el promedio de evaluaciones del cliente
-  Future<List<dynamic>> _getAverageClientEvaluation(String supplierID) async {
-    QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
-        await FirebaseFirestore.instance.collection('tasks').get();
-
-    double totalEvaluation = 0;
-    int evaluationCount = 0;
-
-    for (var taskDoc in tasksSnapshot.docs) {
-      if (taskDoc.data()['supplierID'] == supplierID &&
-          taskDoc.data()['clientEvaluation'] != null) {
-        totalEvaluation +=
-            double.tryParse(taskDoc.data()['clientEvaluation'].toString()) ??
-                0.0;
-        evaluationCount++;
-      }
-    }
-
-    if (evaluationCount == 0) {
-      return ['No disponible', 0];
-    } else {
-      double averageEvaluation = totalEvaluation / evaluationCount;
-      return [averageEvaluation.toStringAsFixed(1), evaluationCount];
-    }
-  }
 }

@@ -22,6 +22,7 @@ class SocialScreen extends StatefulWidget {
   const SocialScreen({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _SocialScreenState createState() => _SocialScreenState();
 }
 
@@ -72,6 +73,13 @@ class _SocialScreenState extends State<SocialScreen> {
           await supplier.reference.collection('followers').doc(_clientId).get();
 
       if (followerSnapshot.exists) {
+        // Get the profileImageUrl from the 'users' collection
+        final userSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(supplier.id)
+            .get();
+        final profileImageUrl = userSnapshot.data()?['profileImageUrl'];
+
         final publicationsSnapshot =
             await supplier.reference.collection('publications').get();
 
@@ -88,6 +96,8 @@ class _SocialScreenState extends State<SocialScreen> {
             'postId': post.id,
             'isLiked': isLiked,
             'likesCount': likesSnapshot.docs.length,
+            // Add profileImageUrl to the post data
+            'profileImageUrl': profileImageUrl,
           });
         }
       }
@@ -136,7 +146,8 @@ class _SocialScreenState extends State<SocialScreen> {
     }
   }
 
-  void _showOptionsBottomSheet(BuildContext context, String supplierId) {
+  void _showOptionsBottomSheet(
+      BuildContext context, String supplierId, String postId) {
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -144,14 +155,6 @@ class _SocialScreenState extends State<SocialScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.report),
-                title: const Text('Reportar'),
-                onTap: () {
-                  // Implementar lógica para reportar
-                  Navigator.pop(context);
-                },
-              ),
               ListTile(
                 leading: const Icon(Icons.person),
                 title: const Text('Ver perfil'),
@@ -163,6 +166,25 @@ class _SocialScreenState extends State<SocialScreen> {
                           ProfileViewScreen(supplierId: supplierId),
                     ),
                   );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.share),
+                title: const Text('Compartir'),
+                onTap: () {
+                  // Agrega aquí la lógica para compartir la publicación
+                  // Puedes usar el paquete share_plus para compartir en diferentes plataformas.
+                  // Ejemplo:
+                  // Share.share('Mira esta publicación!');
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.report),
+                title: const Text('Reportar publicación'),
+                onTap: () {
+                  Navigator.pop(context);
+                  showPublicationReportBottomSheet(context, supplierId, postId);
                 },
               ),
             ],
@@ -467,6 +489,224 @@ class _SocialScreenState extends State<SocialScreen> {
     );
   }
 
+  void showPublicationReportBottomSheet(
+      BuildContext context, String supplierId, String postId) {
+    String selectedReason = '';
+    String otherReason = '';
+    bool isOtherSelected = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Reportar publicación',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 8.0,
+                      children: [
+                        'Comportamiento inapropiado',
+                        'Estafa',
+                        'Genera desconfianza',
+                        'Contenido indebido',
+                        'Información falsa',
+                        'Incitación al odio',
+                        'Ventas ilícitas',
+                        'Spam',
+                        'Otro',
+                      ].map((String reason) {
+                        return ChoiceChip(
+                          label: Text(
+                            reason,
+                            style: TextStyle(
+                              color: selectedReason == reason
+                                  ? Colors.white
+                                  : Colors.black,
+                            ),
+                          ),
+                          selectedColor: selectedReason == reason
+                              ? const Color(0xFF08143C)
+                              : null,
+                          selected: selectedReason == reason,
+                          onSelected: (bool selected) {
+                            setState(() {
+                              selectedReason = selected ? reason : '';
+                              isOtherSelected = reason == 'Otro';
+                            });
+                          },
+                          // Add this to change checkmark color
+                          selectedShadowColor: Colors.transparent,
+                          disabledColor: Colors.transparent,
+                          checkmarkColor: Colors.green,
+                        );
+                      }).toList(),
+                    ),
+                    if (isOtherSelected) ...[
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        onChanged: (value) {
+                          otherReason = value;
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Especifique el motivo',
+                          labelStyle: const TextStyle(color: Colors.black),
+                          hintText: 'Ingresa el motivo',
+                          hintStyle: const TextStyle(color: Colors.grey),
+                          filled: true,
+                          fillColor: Colors.blueGrey[100],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide:
+                                const BorderSide(color: Color(0xFF08143c)),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 16.0,
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Por favor, ingresa el motivo';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 30),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1ca424),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          textStyle: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                        onPressed: () => _submitPublicationReport(
+                            selectedReason, otherReason, supplierId, postId),
+                        child: const Text('Enviar reporte'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _submitPublicationReport(String selectedReason, String otherReason,
+      String supplierId, String postId) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Usuario no autenticado')),
+      );
+      return;
+    }
+
+    final reporterDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .where('uid', isEqualTo: currentUser.uid)
+        .get();
+
+    if (reporterDoc.docs.isEmpty) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Error: No se pudo obtener la información del usuario')),
+      );
+      return;
+    }
+
+    final reporterData = reporterDoc.docs.first.data();
+
+    // Obtener el nombre y apellido del usuario reportado
+    final reportedUserDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(supplierId)
+        .get();
+
+    if (reportedUserDoc.exists) {
+      final reportedUserData = reportedUserDoc.data()!;
+      final reportedUserName =
+          '${reportedUserData['name']} ${reportedUserData['lastName']}';
+
+      final reportData = {
+        'timestamp': FieldValue.serverTimestamp(),
+        'reportedUserName':
+            reportedUserName, // Usar el nombre del usuario reportado
+        'reportedUserId': supplierId,
+        'reason': selectedReason == 'Otro' ? otherReason : selectedReason,
+        'category': 'Publicación',
+        'reporterName': '${reporterData['name']} ${reporterData['lastName']}',
+        'reporterId': reporterDoc.docs.first.id,
+        'postId': postId,
+      };
+
+      // Generar el ID del documento
+      final DateTime now = DateTime.now();
+      final String documentId =
+          '${supplierId}_${now.year}${now.month}${now.day}${now.hour}${now.minute}${now.second}';
+
+      try {
+        await FirebaseFirestore.instance
+            .collection('reports')
+            .doc(documentId)
+            .set(reportData);
+        // ignore: use_build_context_synchronously
+        Navigator.pop(context);
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reporte enviado')),
+        );
+      } catch (e) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al enviar el reporte')),
+        );
+      }
+    } else {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Error: No se pudo obtener la información del usuario reportado')),
+      );
+    }
+  }
+
   Future<List<int>> _getTaskCounts(String supplierID) async {
     QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
         await FirebaseFirestore.instance.collection('tasks').get();
@@ -502,9 +742,9 @@ class _SocialScreenState extends State<SocialScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.blueGrey[50],
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.blueGrey[50],
+        backgroundColor: Colors.white,
         title: const Text(
           'Social',
           style: TextStyle(
@@ -551,151 +791,198 @@ class _SocialScreenState extends State<SocialScreen> {
                 itemCount: posts.length,
                 itemBuilder: (context, index) {
                   final post = posts[index];
-                  return Card(
-                    color: Colors.white,
-                    margin: const EdgeInsets.all(10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        FutureBuilder<DocumentSnapshot>(
-                          future: FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(post['supplierId'])
-                              .get(),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const Center(
-                                  child: CupertinoActivityIndicator(
-                                radius: 16,
-                                color: Colors.green,
-                              ));
-                            } else if (snapshot.hasData) {
-                              final data = snapshot.data!.data()
-                                  as Map<String, dynamic>?;
-                              final profileImageUrl = data != null &&
-                                      data.containsKey('profileImageUrl') &&
-                                      data['profileImageUrl'] != null
-                                  ? data['profileImageUrl']
-                                  : 'assets/images/ProfilePhoto_predetermined.png';
-
-                              return ListTile(
-                                leading: GestureDetector(
-                                  onTap: () => _showSupplierProfileBottomSheet(
-                                      context,
-                                      post['supplierId'],
-                                      post['name']),
-                                  child: CircleAvatar(
-                                    backgroundImage:
-                                        profileImageUrl.startsWith('http')
-                                            ? CachedNetworkImageProvider(
-                                                profileImageUrl)
-                                            : AssetImage(profileImageUrl)
-                                                as ImageProvider,
-                                  ),
-                                ),
-                                title: GestureDetector(
-                                  onTap: () => _showSupplierProfileBottomSheet(
-                                      context,
-                                      post['supplierId'],
-                                      post['name']),
-                                  child: Text(
-                                    post['name'],
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                    ),
-                                  ),
-                                ),
-                                subtitle: Text(post['serviceName']),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.more_vert),
-                                  onPressed: () {
-                                    _showOptionsBottomSheet(
-                                        context, post['supplierId']);
-                                  },
-                                ),
-                              );
-                            } else {
-                              return const Text('Error al cargar perfil');
-                            }
-                          },
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(post['description']),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal:
-                                  5.0), // Ajusta el valor según el espacio deseado
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10.0),
-                            child: CachedNetworkImage(
-                              imageUrl: post['PostImageUrl'],
-                              placeholder: (context, url) => const Center(
-                                  child: CupertinoActivityIndicator(
-                                radius: 16,
-                                color: Colors.green,
-                              )),
-                              errorWidget: (context, url, error) =>
-                                  const Icon(Icons.error),
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 8),
-                          child: Text(
-                            _formatTimeAgo(post['publicationDate']),
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
+                  return StatefulBuilder(
+                    builder: (BuildContext context, StateSetter setPostState) {
+                      return Card(
+                        color: Colors.white,
+                        elevation: 0,
+                        margin: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 15),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            StatefulBuilder(
-                              builder:
-                                  (BuildContext context, StateSetter setState) {
-                                return Row(
-                                  children: [
-                                    Text(
-                                      '${post['likesCount']}',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold),
+                            Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () =>
+                                        _showSupplierProfileBottomSheet(
+                                      context,
+                                      post['supplierId'],
+                                      post['name'],
                                     ),
-                                    IconButton(
-                                      icon: Icon(
-                                        post['isLiked']
-                                            ? Icons.thumb_up
-                                            : Icons.thumb_up_alt_outlined,
-                                        color: post['isLiked']
-                                            ? Colors.green
-                                            : null,
-                                      ),
-                                      onPressed: () async {
-                                        await _toggleLike(post['supplierId'],
-                                            post['postId'], post['isLiked']);
-                                        setState(() {
-                                          post['isLiked'] = !post['isLiked'];
-                                          post['likesCount'] +=
-                                              post['isLiked'] ? 1 : -1;
-                                        });
-                                      },
+                                    child: CircleAvatar(
+                                      radius: 25,
+                                      backgroundImage: post[
+                                                  'profileImageUrl'] !=
+                                              null
+                                          ? NetworkImage(
+                                              post['profileImageUrl'])
+                                          : const AssetImage(
+                                              'assets/images/ProfilePhoto_predetermined.png'),
                                     ),
-                                  ],
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          post['name'],
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        Text(
+                                          post['serviceName'],
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.more_horiz),
+                                    onPressed: () => _showOptionsBottomSheet(
+                                      context,
+                                      post['supplierId'],
+                                      post['postId'],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Imagen con doble tap para dar like
+                            GestureDetector(
+                              onDoubleTap: () async {
+                                // Dar like al post
+                                await _toggleLike(post['supplierId'],
+                                    post['postId'], post['isLiked']);
+                                setPostState(() {
+                                  post['isLiked'] = !post['isLiked'];
+                                  post['likesCount'] +=
+                                      post['isLiked'] ? 1 : -1;
+                                });
+                                // Mostrar feedback visual (opcional)
+                                // ignore: use_build_context_synchronously
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(post['isLiked']
+                                        ? '¡Te gusta!'
+                                        : 'No te gusta'),
+                                    duration: const Duration(milliseconds: 500),
+                                  ),
                                 );
                               },
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(15),
+                                child: CachedNetworkImage(
+                                  imageUrl: post['PostImageUrl'],
+                                  placeholder: (context, url) => const Center(
+                                    child: CupertinoActivityIndicator(
+                                      radius: 16,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) =>
+                                      const Icon(Icons.error),
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${post['name']}:', // Nombre y apellido del supplier en negrita
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14),
+                                  ),
+                                  const SizedBox(
+                                      height:
+                                          4), // Espacio entre el nombre y la descripción
+                                  Text(
+                                    post['description'], // Descripción del post
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        _formatTimeAgo(post['publicationDate']),
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            '${post['likesCount']}',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                          IconButton(
+                                            icon: Icon(
+                                              post['isLiked']
+                                                  ? Icons.favorite
+                                                  : Icons.favorite_border,
+                                              color: post['isLiked']
+                                                  ? Colors.red
+                                                  : null,
+                                              size: post['isLiked']
+                                                  ? 30
+                                                  : 25,
+                                            ),
+                                            onPressed: () async {
+                                              await _toggleLike(
+                                                post['supplierId'],
+                                                post['postId'],
+                                                post['isLiked'],
+                                              );
+                                              setPostState(() {
+                                                post['isLiked'] =
+                                                    !post['isLiked'];
+                                                post['likesCount'] +=
+                                                    post['isLiked'] ? 1 : -1;
+                                              });
+                                            },
+                                          ),
+                                          // Aquí va el nuevo botón del avioncito de papel
+                                          IconButton(
+                                            icon: const Icon(Icons
+                                                .send_rounded), // Puedes cambiar el icono si lo deseas
+                                            onPressed: () {
+                                              // Agrega aquí la lógica para compartir la publicación
+                                              // Puedes usar el paquete share_plus para compartir en diferentes plataformas.
+                                              // Ejemplo:
+                                              // Share.share('Mira esta publicación!');
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
               );
@@ -721,11 +1008,11 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
   late AnimationController _animationController;
   // ignore: unused_field
   late Animation<Offset> _slideAnimation;
-
   String clientIDString = "";
   String clientName = "";
-
   late Future<void> _initFuture;
+  // ignore: unused_field
+  bool _isFollowing = false;
 
   // Variable para almacenar la URL de la imagen de portada
   String? _coverImageUrl;
@@ -737,7 +1024,8 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
     if (_labelColors.containsKey(service)) {
       return _labelColors[service]!;
     } else {
-      Color randomColor = Color(Random().nextInt(0xFFFFFFFF)).withOpacity(0.7); // Ajusta la opacidad según sea necesario
+      Color randomColor = Color(Random().nextInt(0xFFFFFFFF))
+          .withOpacity(0.7); // Ajusta la opacidad según sea necesario
       _labelColors[service] = randomColor;
       return randomColor;
     }
@@ -746,6 +1034,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
   @override
   void initState() {
     super.initState();
+    _checkFollowStatus();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -932,6 +1221,371 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
     );
   }
 
+  Future<void> _checkFollowStatus() async {
+    if (clientIDString.isNotEmpty) {
+      final followDoc = await FirebaseFirestore.instance
+          .collection('suppliers')
+          .doc(widget.supplierId)
+          .collection('followers')
+          .doc(clientIDString)
+          .get();
+
+      setState(() {
+        _isFollowing = followDoc.exists;
+      });
+    }
+  }
+
+  Future<bool> _toggleFollow() async {
+    if (clientIDString.isEmpty) return false;
+
+    final followersRef = FirebaseFirestore.instance
+        .collection('suppliers')
+        .doc(widget.supplierId)
+        .collection('followers');
+
+    final followDoc = await followersRef.doc(clientIDString).get();
+    final isCurrentlyFollowing = followDoc.exists;
+
+    if (!isCurrentlyFollowing) {
+      // Seguir al supplier
+      await followersRef.doc(clientIDString).set({
+        'followedAt': FieldValue.serverTimestamp(),
+      });
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Empezaste a seguir a este agente'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    } else {
+      // Dejar de seguir
+      await followersRef.doc(clientIDString).delete();
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Has dejado de seguir a este agente'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+
+    return !isCurrentlyFollowing;
+  }
+
+  Future<void> _showUnfollowDialog() async {
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            '¿Dejar de seguir a este agente?',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          content: const Text(
+            'Ya no podrás visualizar sus publicaciones en el apartado de Social',
+          ),
+          actionsPadding: EdgeInsets.zero,
+          actions: [
+            Container(
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.grey)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(20),
+                            bottomRight: Radius.zero,
+                            topLeft: Radius.zero,
+                            topRight: Radius.zero,
+                          ),
+                        ),
+                      ),
+                      child: const Text(
+                        'Cancelar',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF08143C),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 48,
+                    color: Colors.grey,
+                  ),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.zero,
+                            bottomRight: Radius.circular(20),
+                            topLeft: Radius.zero,
+                            topRight: Radius.zero,
+                          ),
+                        ),
+                      ),
+                      child: const Text(
+                        'Confirmar',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF08143C),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showUserReportBottomSheet() {
+    String selectedReason = '';
+    String otherReason = '';
+    bool isOtherSelected = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Reportar usuario',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 8.0,
+                      children: [
+                        'Comportamiento inapropiado',
+                        'Impuntual',
+                        'Pésimo servicio',
+                        'Estafa',
+                        'Deficit en herramientas de trabajo',
+                        'Genera desconfianza',
+                        'Irresponsable',
+                        'Contenido indebido',
+                        'Información falsa',
+                        'Dificultad al pagar',
+                        'Incitación negativa',
+                        'Poca experiencia laboral',
+                        'Ventas ilícitas',
+                        'Spam',
+                        'Otro',
+                      ].map((String reason) {
+                        return ChoiceChip(
+                          label: Text(
+                            reason,
+                            style: TextStyle(
+                              color: selectedReason == reason
+                                  ? Colors.white
+                                  : Colors.black,
+                            ),
+                          ),
+                          selectedColor: selectedReason == reason
+                              ? const Color(0xFF08143C)
+                              : null,
+                          selected: selectedReason == reason,
+                          onSelected: (bool selected) {
+                            setState(() {
+                              selectedReason = selected ? reason : '';
+                              isOtherSelected = reason == 'Otro';
+                            });
+                          },
+                          // Add this to change checkmark color
+                          selectedShadowColor: Colors.transparent,
+                          disabledColor: Colors.transparent,
+                          checkmarkColor: Colors.green,
+                        );
+                      }).toList(),
+                    ),
+                    if (isOtherSelected) ...[
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        onChanged: (value) {
+                          otherReason = value;
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Especifique el motivo',
+                          labelStyle: const TextStyle(color: Colors.black),
+                          hintText: 'Ingresa el motivo',
+                          hintStyle: const TextStyle(color: Colors.grey),
+                          filled: true,
+                          fillColor: Colors.blueGrey[100],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide:
+                                const BorderSide(color: Color(0xFF08143c)),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 16.0,
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Por favor, ingresa el motivo';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 30),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1ca424),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          textStyle: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                        onPressed: () =>
+                            _submitUserReport(selectedReason, otherReason),
+                        child: const Text('Enviar reporte'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _submitUserReport(String selectedReason, String otherReason) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Usuario no autenticado')),
+      );
+      return;
+    }
+
+    final reporterDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .where('uid', isEqualTo: currentUser.uid)
+        .get();
+
+    if (reporterDoc.docs.isEmpty) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Error: No se pudo obtener la información del usuario')),
+      );
+      return;
+    }
+
+    final reporterData = reporterDoc.docs.first.data();
+
+    // Obtener el nombre y apellido del usuario reportado
+    final reportedUserDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.supplierId)
+        .get();
+
+    if (reportedUserDoc.exists) {
+      final reportedUserData = reportedUserDoc.data()!;
+      final reportedUserName =
+          '${reportedUserData['name']} ${reportedUserData['lastName']}';
+
+      final reportData = {
+        'timestamp': FieldValue.serverTimestamp(),
+        'reportedUserName':
+            reportedUserName, // Usar el nombre del usuario reportado
+        'reportedUserId': widget.supplierId,
+        'reason': selectedReason == 'Otro' ? otherReason : selectedReason,
+        'category': 'Usuario',
+        'reporterName': '${reporterData['name']} ${reporterData['lastName']}',
+        'reporterId': reporterDoc.docs.first.id,
+      };
+
+      // Generar el ID del documento
+      final DateTime now = DateTime.now();
+      final String documentId =
+          '${widget.supplierId}_${now.year}${now.month}${now.day}${now.hour}${now.minute}${now.second}';
+
+      try {
+        await FirebaseFirestore.instance
+            .collection('reports')
+            .doc(documentId)
+            .set(reportData);
+        // ignore: use_build_context_synchronously
+        Navigator.pop(context);
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reporte enviado')),
+        );
+      } catch (e) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al enviar el reporte')),
+        );
+      }
+    } else {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Error: No se pudo obtener la información del usuario reportado')),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _animationController.dispose();
@@ -945,8 +1599,8 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
       appBar: AppBar(
         backgroundColor: Colors.white,
         title: const Text(
-          'Perfil del proveedor',
-          style: TextStyle(color: Colors.black),
+          'Perfil del agente',
+          style: TextStyle(color: Colors.black, fontSize: 20),
         ),
         leading: IconButton(
           icon:
@@ -955,6 +1609,22 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
             Navigator.pop(context);
           },
         ),
+        actions: <Widget>[
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.black),
+            onSelected: (String result) {
+              if (result == 'Reportar usuario') {
+                _showUserReportBottomSheet();
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'Reportar usuario',
+                child: Text('Reportar usuario'),
+              ),
+            ],
+          ),
+        ],
       ),
       body: FutureBuilder<void>(
         future: _initFuture,
@@ -1096,48 +1766,106 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 0.0),
-                            child: Align(
-                              alignment: Alignment.topRight,
-                              child: TextButton.icon(
-                                onPressed: () {
-                                  // TODO: Implementar lógica para seguir
-                                },
-                                style: TextButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 1),
-                                  minimumSize: const Size(120.0, 41.0),
-                                  textStyle: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  side: const BorderSide(
-                                      color: Colors.white, width: 2),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Espacio vacío para empujar el botón a la derecha
+                              const SizedBox(width: 250),
+                              Expanded(
+                                child: StatefulBuilder(
+                                  builder: (BuildContext context,
+                                      StateSetter setState) {
+                                    return FutureBuilder<bool>(
+                                      future: FirebaseFirestore.instance
+                                          .collection('suppliers')
+                                          .doc(widget.supplierId)
+                                          .collection('followers')
+                                          .doc(clientIDString)
+                                          .get()
+                                          .then((doc) => doc.exists),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.connectionState ==
+                                            ConnectionState.waiting) {
+                                          return const CupertinoActivityIndicator();
+                                        }
+                                        bool isFollowing =
+                                            snapshot.data ?? false;
+                                        return TextButton.icon(
+                                          onPressed: () async {
+                                            if (isFollowing) {
+                                              await _showUnfollowDialog();
+                                            }
+                                            bool newFollowStatus =
+                                                await _toggleFollow();
+                                            setState(() {
+                                              isFollowing = newFollowStatus;
+                                            });
+                                          },
+                                          style: TextButton.styleFrom(
+                                            backgroundColor: isFollowing
+                                                ? Colors.white
+                                                : Colors.green,
+                                            foregroundColor: isFollowing
+                                                ? Colors.green
+                                                : Colors.white,
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 1),
+                                            minimumSize:
+                                                const Size(120.0, 41.0),
+                                            textStyle: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            side: BorderSide(
+                                                color: isFollowing
+                                                    ? Colors.green
+                                                    : Colors.white,
+                                                width: 2),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(30),
+                                            ),
+                                          ),
+                                          icon: Icon(
+                                            isFollowing
+                                                ? Icons.check
+                                                : Icons.person_add,
+                                            size: 20,
+                                          ),
+                                          label: Text(
+                                            isFollowing
+                                                ? 'Siguiendo'
+                                                : 'Seguir',
+                                            style:
+                                                const TextStyle(fontSize: 15),
+                                          ),
+                                        ).animate().fade().scale();
+                                      },
+                                    );
+                                  },
                                 ),
-                                icon: const Icon(
-                                  Icons.person_add,
-                                  size: 20,
-                                ),
-                                label: const Text(
-                                  'Seguir',
-                                  style: TextStyle(fontSize: 15),
-                                ),
-                              ).animate().fade().scale(),
-                            ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 30.0),
-                          Text(
-                            '${supplierData['name']} ${supplierData['lastName']}',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
+
+                          const SizedBox(height: 35.0),
+                          Row(
+                            children: [
+                              Text(
+                                '${supplierData['name']} ${supplierData['lastName']}',
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              if (supplierData['verified'] == true)
+                                const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.blue,
+                                  size: 22,
+                                ),
+                            ],
                           ),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1188,56 +1916,10 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
                                   ),
                                 ],
                               ),
-                              FutureBuilder<List<dynamic>>(
-                                future: _getAverageClientEvaluation(
-                                    widget.supplierId),
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return const CupertinoActivityIndicator(
-                                      radius: 16,
-                                      color: Colors.green,
-                                    );
-                                  }
-                                  if (snapshot.hasData) {
-                                    String averageEvaluation =
-                                        snapshot.data![0];
-                                    return Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 5.0,
-                                        horizontal: 10.0,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.blue[50],
-                                        borderRadius:
-                                            BorderRadius.circular(10.0),
-                                        border: Border.all(
-                                          color: const Color(0xFF08143c),
-                                          width: 1.0,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          const Icon(
-                                            Icons.star,
-                                            size: 18.0,
-                                            color: Colors.blue,
-                                          ),
-                                          const SizedBox(width: 4.0),
-                                          Text(
-                                            averageEvaluation,
-                                            style:
-                                                const TextStyle(fontSize: 16),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  }
-                                  return const SizedBox.shrink();
-                                },
-                              ),
                             ],
                           ),
+                          const SizedBox(height: 3),
+                          _buildFollowerCount(),
                           const SizedBox(height: 10),
                           FutureBuilder<DocumentSnapshot>(
                             future: FirebaseFirestore.instance
@@ -1794,7 +2476,8 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
     final clientEvaluation = task.data()['clientEvaluation'];
     final clientComment = task.data()['clientComment'];
     final taskEndDate = task.data()['end'] as Timestamp?;
-    final serviceName = task.data()['service'] ?? 'General'; // Obtener el nombre del servicio
+    final serviceName =
+        task.data()['service'] ?? 'General'; // Obtener el nombre del servicio
 
     return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       future:
@@ -1861,9 +2544,11 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
                             ),
                         ],
                       ),
-                      const SizedBox(height: 3), 
+                      const SizedBox(height: 3),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        constraints: const BoxConstraints(maxWidth: 250),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: _getLabelColor(serviceName),
                           borderRadius: BorderRadius.circular(15),
@@ -1871,7 +2556,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
                         child: Text(
                           serviceName,
                           style: const TextStyle(
-                            fontSize: 10,
+                            fontSize: 9,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -1887,6 +2572,70 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
                 style: const TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 15),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Widget para mostrar la cantidad de seguidores de manera elegante
+  Widget _buildFollowerCount() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('suppliers')
+          .doc(widget.supplierId)
+          .collection('followers')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CupertinoActivityIndicator();
+        }
+        if (snapshot.hasError) {
+          return const Text('Error');
+        }
+        final followerCount = snapshot.data?.docs.length ?? 0;
+
+        return Container(
+          padding: const EdgeInsets.symmetric(
+            vertical: 8.0,
+            horizontal: 12.0,
+          ),
+          width: 170,
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.people,
+                size: 18.0,
+                color: Colors.black,
+              ),
+              const SizedBox(width: 4.0),
+              // Modificaciones para el tamaño del texto
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '$followerCount ',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 18.0,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const TextSpan(
+                      text: 'seguidores',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 14.0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         );
@@ -2005,31 +2754,6 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
     }
 
     return [completedTasks, pendingTasks];
-  }
-
-  Future<List<dynamic>> _getAverageClientEvaluation(String supplierID) async {
-    QuerySnapshot<Map<String, dynamic>> tasksSnapshot =
-        await FirebaseFirestore.instance.collection('tasks').get();
-
-    double totalEvaluation = 0;
-    int evaluationCount = 0;
-
-    for (var taskDoc in tasksSnapshot.docs) {
-      if (taskDoc.data()['supplierID'] == supplierID &&
-          taskDoc.data()['clientEvaluation'] != null) {
-        totalEvaluation +=
-            double.tryParse(taskDoc.data()['clientEvaluation'].toString()) ??
-                0.0;
-        evaluationCount++;
-      }
-    }
-
-    if (evaluationCount == 0) {
-      return ['No disponible', 0];
-    } else {
-      double averageEvaluation = totalEvaluation / evaluationCount;
-      return [averageEvaluation.toStringAsFixed(1), evaluationCount];
-    }
   }
 }
 
@@ -2938,6 +3662,226 @@ class _ChatScreenState extends State<ChatScreen> {
     return null;
   }
 
+  void _showChatReportBottomSheet() {
+    String selectedReason = '';
+    String otherReason = '';
+    bool isOtherSelected = false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Reportar chat',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 8.0,
+                      children: [
+                        'Lenguaje inapropiado',
+                        'Información personal',
+                        'Acoso',
+                        'Estafa',
+                        'Imagenes indebidas',
+                        'Genera desconfianza',
+                        'Tiempo prolongado de espera',
+                        'Información falsa',
+                        'Malos hábitos',
+                        'Poca experiencia laboral',
+                        'Ventas ilícitas',
+                        'Spam',
+                        'Otro',
+                      ].map((String reason) {
+                        return ChoiceChip(
+                          label: Text(
+                            reason,
+                            style: TextStyle(
+                              color: selectedReason == reason
+                                  ? Colors.white
+                                  : Colors.black,
+                            ),
+                          ),
+                          selectedColor: selectedReason == reason
+                              ? const Color(0xFF08143C)
+                              : null,
+                          selected: selectedReason == reason,
+                          onSelected: (bool selected) {
+                            setState(() {
+                              selectedReason = selected ? reason : '';
+                              isOtherSelected = reason == 'Otro';
+                            });
+                          },
+                          // Add this to change checkmark color
+                          selectedShadowColor: Colors.transparent,
+                          disabledColor: Colors.transparent,
+                          checkmarkColor: Colors.green,
+                        );
+                      }).toList(),
+                    ),
+                    if (isOtherSelected) ...[
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        onChanged: (value) {
+                          otherReason = value;
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Especifique el motivo',
+                          labelStyle: const TextStyle(color: Colors.black),
+                          hintText: 'Ingresa el motivo',
+                          hintStyle: const TextStyle(color: Colors.grey),
+                          filled: true,
+                          fillColor: Colors.blueGrey[100],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide:
+                                const BorderSide(color: Color(0xFF08143c)),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 16.0,
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Por favor, ingresa el motivo';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 30),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1ca424),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          textStyle: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                        onPressed: () =>
+                            _submitChatReport(selectedReason, otherReason),
+                        child: const Text('Enviar reporte'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _submitChatReport(String selectedReason, String otherReason) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Usuario no autenticado')),
+      );
+      return;
+    }
+
+    final reporterDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .where('uid', isEqualTo: currentUser.uid)
+        .get();
+
+    if (reporterDoc.docs.isEmpty) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Error: No se pudo obtener la información del usuario')),
+      );
+      return;
+    }
+
+    final reporterData = reporterDoc.docs.first.data();
+
+    // Obtener el nombre y apellido del usuario reportado
+    final reportedUserDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.supplierID)
+        .get();
+
+    if (reportedUserDoc.exists) {
+      final reportedUserData = reportedUserDoc.data()!;
+      final reportedUserName =
+          '${reportedUserData['name']} ${reportedUserData['lastName']}';
+
+      final reportData = {
+        'timestamp': FieldValue.serverTimestamp(),
+        'reportedUserName':
+            reportedUserName, // Usar el nombre del usuario reportado
+        'reportedUserId': widget.supplierID,
+        'reason': selectedReason == 'Otro' ? otherReason : selectedReason,
+        'category': 'Chat',
+        'reporterName': '${reporterData['name']} ${reporterData['lastName']}',
+        'reporterId': reporterDoc.docs.first.id,
+        'chatId': _chatID,
+      };
+
+      // Generar el ID del documento
+      final DateTime now = DateTime.now();
+      final String documentId =
+          '${widget.supplierID}_${now.year}${now.month}${now.day}${now.hour}${now.minute}${now.second}';
+
+      try {
+        await FirebaseFirestore.instance
+            .collection('reports')
+            .doc(documentId)
+            .set(reportData);
+        // ignore: use_build_context_synchronously
+        Navigator.pop(context);
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reporte enviado')),
+        );
+      } catch (e) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error al enviar el reporte')),
+        );
+      }
+    } else {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Error: No se pudo obtener la información del usuario reportado')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2960,26 +3904,38 @@ class _ChatScreenState extends State<ChatScreen> {
                   border: InputBorder.none,
                 ),
               )
-            : Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundImage: _supplierProfileImageUrl != null
-                        ? NetworkImage(_supplierProfileImageUrl!)
-                        : const AssetImage(
-                                'assets/images/ProfilePhoto_predetermined.png')
-                            as ImageProvider,
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    widget.supplierName,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+            : InkWell(
+                // Se añade InkWell aquí
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ProfileViewScreen(supplierId: widget.supplierID),
                     ),
-                  ),
-                ],
+                  );
+                },
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundImage: _supplierProfileImageUrl != null
+                          ? NetworkImage(_supplierProfileImageUrl!)
+                          : const AssetImage(
+                                  'assets/images/ProfilePhoto_predetermined.png')
+                              as ImageProvider,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      widget.supplierName,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
         actions: [
           if (!_isSearching)
@@ -3003,17 +3959,23 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: Text('Multimedia'),
               ),
               const PopupMenuItem<String>(
-                value: 'Reportar usuario',
-                child: Text('Reportar usuario'),
+                value: 'Reportar chat',
+                child: Text('Reportar chat'),
               ),
             ],
             onSelected: (value) {
               if (value == 'Ver perfil') {
-                // Navegar a la pantalla de perfil
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ProfileViewScreen(supplierId: widget.supplierID),
+                  ),
+                );
               } else if (value == 'Multimedia') {
                 _showMultimediaScreen();
-              } else if (value == 'Reportar usuario') {
-                // Navegar a la pantalla de reporte de usuario
+              } else if (value == 'Reportar chat') {
+                _showChatReportBottomSheet();
               }
             },
           ),
