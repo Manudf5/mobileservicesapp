@@ -2299,7 +2299,7 @@ class AboutAppScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              'assets/images/LogoPrueba.png',
+              'assets/images/MSA_LogoTemporal.png',
               width: 100,
               height: 100,
             ),
