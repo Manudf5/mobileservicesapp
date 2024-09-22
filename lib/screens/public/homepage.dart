@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'profile.dart';
 import 'tasks.dart';
 import 'home.dart';
@@ -18,11 +20,43 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   DateTime? _lastPressedAt;
+  int _unreadChatsCount = 0;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.selectedIndex;
+    _fetchUnreadChatsCount(); 
+  }
+
+  Future<void> _fetchUnreadChatsCount() async {
+    String combinedId = await _getCombinedIdFromFirestore(
+        FirebaseAuth.instance.currentUser!.uid);
+
+    FirebaseFirestore.instance
+        .collection('chats')
+        .where('clientID', isEqualTo: combinedId)
+        .where('unreadCountClient', isGreaterThan: 0) 
+        .snapshots()
+        .listen((snapshot) {
+      setState(() {
+        _unreadChatsCount = snapshot.docs.length;
+      });
+    });
+  }
+
+  Future<String> _getCombinedIdFromFirestore(String uid) async {
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+        .instance
+        .collection('users')
+        .where('uid', isEqualTo: uid)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      return querySnapshot.docs.first.id;
+    }
+
+    return '';
   }
 
   final List<Widget> _screens = [
@@ -79,12 +113,33 @@ class _HomePageState extends State<HomePage> {
               label: 'Inicio',
             ),
             BottomNavigationBarItem(
-              icon: Image.asset(
-                _selectedIndex == 1
-                    ? 'assets/images/IconSocial_selected.png'
-                    : 'assets/images/IconSocial.png',
-                width: 24,
-                height: 24,
+              icon: Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  Image.asset(
+                    _selectedIndex == 1
+                        ? 'assets/images/IconSocial_selected.png'
+                        : 'assets/images/IconSocial.png',
+                    width: 24,
+                    height: 24,
+                  ),
+                  if (_unreadChatsCount > 0)
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.red,
+                      ),
+                      child: Text(
+                        '$_unreadChatsCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 6,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
               ),
               label: 'Social',
             ),

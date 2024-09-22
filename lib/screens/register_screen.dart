@@ -324,6 +324,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'role': 0,
           'status': 0,
           'registrationDate': DateTime.now(),
+          'verified': false,
         });
 
         await FirebaseFirestore.instance
@@ -379,24 +380,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
               elevation: 0,
             )
           : null,
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: PageView(
-            controller: _pageController,
-            physics:
-                const NeverScrollableScrollPhysics(), // Deshabilitar el deslizamiento manual
-            onPageChanged: (index) {
-              setState(() {
-                _currentPage = index;
-              });
-            },
-            children: [
-              _buildFirstPage(),
-              _buildSecondPage(),
-              _buildThirdPage(),
-              _buildFourthPage(),
-            ],
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.white, Color(0xFFE0F2F1)],
+          ),
+        ),
+        child: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: PageView(
+              controller: _pageController,
+              physics:
+                  const NeverScrollableScrollPhysics(), // Deshabilitar el deslizamiento manual
+              onPageChanged: (index) {
+                setState(() {
+                  _currentPage = index;
+                });
+              },
+              children: [
+                _buildFirstPage(),
+                _buildSecondPage(),
+                _buildThirdPage(),
+                _buildFourthPage(),
+              ],
+            ),
           ),
         ),
       ),
@@ -445,448 +455,487 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildFirstPage() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text(
-            '¡Bienvenido!',
-            style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
-          ),
-          const Text(
-            'Cuéntanos un poco sobre ti',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.normal),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 30.0),
-          TextFormField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              labelText: '¿Cuál es tu nombre?',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(16.0)),
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.white, Color(0xFFE0F2F1)],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset('assets/images/MSA_LogoTemporal.png',
+                        height: 100),
+                    const SizedBox(height: 35.0),
+            const Text(
+              '¡Bienvenido!',
+              style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
             ),
-            validator: (value) =>
-                value!.isEmpty ? 'Por favor, ingresa tu nombre' : null,
-          ),
-          const SizedBox(height: 16.0),
-          TextFormField(
-            controller: _lastNameController,
-            decoration: InputDecoration(
-              labelText: '¿Y tu apellido?',
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(16.0)),
+            const Text(
+              'Cuéntanos un poco sobre ti',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.normal),
+              textAlign: TextAlign.center,
             ),
-            validator: (value) =>
-                value!.isEmpty ? 'Por favor, ingresa tu apellido' : null,
-          ),
-          const SizedBox(height: 16.0),
-          Row(
-            children: [
-              Checkbox(
-                value: _acceptTerms,
-                onChanged: (value) {
-                  setState(() {
-                    _acceptTerms = value!;
-                  });
-                },
-                checkColor: Colors.white, // Color del check
-                activeColor: const Color(
-                    0xFF08143c), // Color del check cuando está activo
+            const SizedBox(height: 30.0),
+            TextFormField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: '¿Cuál es tu nombre?',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(16.0)),
               ),
-              Expanded(
-                child: RichText(
-                  text: TextSpan(
-                    style: const TextStyle(color: Colors.black),
-                    children: [
-                      const TextSpan(text: 'Acepto los '),
-                      TextSpan(
-                        text: 'términos y condiciones',
-                        style: const TextStyle(
-                            color: Colors.blue,
-                            decoration: TextDecoration.underline),
-                        recognizer: TapGestureRecognizer()
-                          ..onTap = () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) =>
-                                      const TermsAndConditionsScreen()),
-                            );
-                          },
-                      ),
-                    ],
+              validator: (value) =>
+                  value!.isEmpty ? 'Por favor, ingresa tu nombre' : null,
+            ),
+            const SizedBox(height: 16.0),
+            TextFormField(
+              controller: _lastNameController,
+              decoration: InputDecoration(
+                labelText: '¿Y tu apellido?',
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(16.0)),
+              ),
+              validator: (value) =>
+                  value!.isEmpty ? 'Por favor, ingresa tu apellido' : null,
+            ),
+            const SizedBox(height: 16.0),
+            Row(
+              children: [
+                Checkbox(
+                  value: _acceptTerms,
+                  onChanged: (value) {
+                    setState(() {
+                      _acceptTerms = value!;
+                    });
+                  },
+                  checkColor: Colors.white, // Color del check
+                  activeColor: const Color(
+                      0xFF08143c), // Color del check cuando está activo
+                ),
+                Expanded(
+                  child: RichText(
+                    text: TextSpan(
+                      style: const TextStyle(color: Colors.black),
+                      children: [
+                        const TextSpan(text: 'Acepto los '),
+                        TextSpan(
+                          text: 'términos y condiciones',
+                          style: const TextStyle(
+                              color: Colors.blue,
+                              decoration: TextDecoration.underline),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) =>
+                                        const TermsAndConditionsScreen()),
+                              );
+                            },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 60.0),
-          const Text(
-            '¿Ya tienes una cuenta?',
-            style: TextStyle(fontWeight: FontWeight.normal),
-            textAlign: TextAlign.center,
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-              );
-            },
-            child: const Text('Inicia Sesión',
-                style: TextStyle(color: Colors.green, fontSize: 18)),
-          ),
-        ],
+              ],
+            ),
+            const SizedBox(height: 60.0),
+            const Text(
+              '¿Ya tienes una cuenta?',
+              style: TextStyle(fontWeight: FontWeight.normal),
+              textAlign: TextAlign.center,
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
+              },
+              child: const Text('Inicia Sesión',
+                  style: TextStyle(color: Colors.green, fontSize: 18)),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildSecondPage() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Cuéntanos más sobre ti',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24.0),
-            TextFormField(
-              controller: _birthDateController,
-              readOnly: true,
-              onTap: _presentDatePicker,
-              decoration: InputDecoration(
-                labelText: '¿Cuándo naciste?',
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0)),
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.white, Color(0xFFE0F2F1)],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Cuéntanos más sobre ti',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
-              validator: (value) => value!.isEmpty
-                  ? 'Por favor, selecciona tu fecha de nacimiento'
-                  : null,
-            ),
-            const SizedBox(height: 16.0),
-            DropdownButtonFormField<String>(
-              value: _selectedGender,
-              decoration: InputDecoration(
-                labelText: '¿Cuál es tu género?',
-                labelStyle: const TextStyle(color: Colors.black),
-                filled: true,
-                fillColor: Colors.transparent,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16.0),
-                  borderSide: const BorderSide(color: Colors.blue),
+              const SizedBox(height: 24.0),
+              TextFormField(
+                controller: _birthDateController,
+                readOnly: true,
+                onTap: _presentDatePicker,
+                decoration: InputDecoration(
+                  labelText: '¿Cuándo naciste?',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0)),
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 16.0,
-                ),
+                validator: (value) => value!.isEmpty
+                    ? 'Por favor, selecciona tu fecha de nacimiento'
+                    : null,
               ),
-              items: const [
-                DropdownMenuItem(value: 'Masculino', child: Text('Masculino')),
-                DropdownMenuItem(value: 'Femenino', child: Text('Femenino')),
-                DropdownMenuItem(value: 'Otro', child: Text('Otro')),
-              ],
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedGender = newValue!;
-                });
-              },
-              dropdownColor: Colors.white,
-              borderRadius: BorderRadius.circular(16.0),
-            ),
-            const SizedBox(height: 16.0),
-            const Text(
-              '¿Cuál es tu número de identificación?',
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 8.0),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: DropdownButtonFormField<String>(
-                    value: _idLetterController,
-                    decoration: InputDecoration(
-                      labelText: 'Tipo',
-                      labelStyle: const TextStyle(color: Colors.black),
-                      filled: true,
-                      fillColor: Colors.transparent,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16.0),
-                        borderSide: const BorderSide(color: Colors.blue),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 16.0,
-                      ),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'V', child: Text('V')),
-                      DropdownMenuItem(value: 'E', child: Text('E')),
-                      DropdownMenuItem(value: 'J', child: Text('J')),
-                      DropdownMenuItem(value: 'P', child: Text('P')),
-                    ],
-                    onChanged: (String? value) {
-                      setState(() {
-                        _idLetterController = value;
-                      });
-                    },
-                    dropdownColor: Colors.white,
+              const SizedBox(height: 16.0),
+              DropdownButtonFormField<String>(
+                value: _selectedGender,
+                decoration: InputDecoration(
+                  labelText: '¿Cuál es tu género?',
+                  labelStyle: const TextStyle(color: Colors.black),
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16.0),
+                    borderSide: const BorderSide(color: Colors.blue),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 16.0,
                   ),
                 ),
-                const SizedBox(width: 16.0),
-                Expanded(
-                  flex: 5,
-                  child: TextFormField(
-                    controller: _idNumberController,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: 'Número',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16.0)),
-                    ),
-                    validator: (value) => value!.isEmpty
-                        ? 'Por favor, ingresa tu número de identificación'
-                        : null,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16.0),
-            ElevatedButton(
-              onPressed: _takeIdPhoto,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF08143c),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15.0),
-                ),
+                items: const [
+                  DropdownMenuItem(value: 'Masculino', child: Text('Masculino')),
+                  DropdownMenuItem(value: 'Femenino', child: Text('Femenino')),
+                  DropdownMenuItem(value: 'Otro', child: Text('Otro')),
+                ],
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedGender = newValue!;
+                  });
+                },
+                dropdownColor: Colors.white,
+                borderRadius: BorderRadius.circular(16.0),
               ),
-              child: Text(_idImage == null
-                  ? 'Tomar foto del documento'
-                  : 'Cambiar foto del documento'),
-            ),
-            if (_idImage != null) const SizedBox(height: 8.0),
-            if (_idImage != null) Image.file(_idImage!, height: 100),
-          ],
+              const SizedBox(height: 16.0),
+              const Text(
+                '¿Cuál es tu número de identificación?',
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 8.0),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: DropdownButtonFormField<String>(
+                      value: _idLetterController,
+                      decoration: InputDecoration(
+                        labelText: 'Tipo',
+                        labelStyle: const TextStyle(color: Colors.black),
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16.0),
+                          borderSide: const BorderSide(color: Colors.blue),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 16.0,
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'V', child: Text('V')),
+                        DropdownMenuItem(value: 'E', child: Text('E')),
+                        DropdownMenuItem(value: 'J', child: Text('J')),
+                        DropdownMenuItem(value: 'P', child: Text('P')),
+                      ],
+                      onChanged: (String? value) {
+                        setState(() {
+                          _idLetterController = value;
+                        });
+                      },
+                      dropdownColor: Colors.white,
+                      borderRadius: BorderRadius.circular(16.0),
+                    ),
+                  ),
+                  const SizedBox(width: 16.0),
+                  Expanded(
+                    flex: 5,
+                    child: TextFormField(
+                      controller: _idNumberController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        labelText: 'Número',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16.0)),
+                      ),
+                      validator: (value) => value!.isEmpty
+                          ? 'Por favor, ingresa tu número de identificación'
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16.0),
+              ElevatedButton(
+                onPressed: _takeIdPhoto,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF08143c),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15.0),
+                  ),
+                ),
+                child: Text(_idImage == null
+                    ? 'Tomar foto del documento'
+                    : 'Cambiar foto del documento'),
+              ),
+              if (_idImage != null) const SizedBox(height: 8.0),
+              if (_idImage != null) Image.file(_idImage!, height: 100),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildThirdPage() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Asegura tu cuenta',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24.0),
-            TextFormField(
-              controller: _passwordController,
-              obscureText: _obscurePassword,
-              onChanged: (value) {
-                _checkPasswordStrength(value);
-              },
-              decoration: InputDecoration(
-                labelText: 'Crea una contraseña segura',
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0)),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _obscurePassword = !_obscurePassword;
-                    });
-                  },
-                ),
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.white, Color(0xFFE0F2F1)],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Asegura tu cuenta',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
-              validator: (value) {
-                if (value!.isEmpty) {
-                  return 'Por favor, ingresa tu contraseña';
-                }
-                if (value.length < 8) {
-                  return 'La contraseña debe tener al menos 8 caracteres';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16.0),
-            TextFormField(
-              controller: _confirmPasswordController,
-              obscureText: _obscureConfirmPassword,
-              decoration: InputDecoration(
-                labelText: 'Confirma tu contraseña',
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0)),
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureConfirmPassword
-                        ? Icons.visibility
-                        : Icons.visibility_off,
+              const SizedBox(height: 24.0),
+              TextFormField(
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                onChanged: (value) {
+                  _checkPasswordStrength(value);
+                },
+                decoration: InputDecoration(
+                  labelText: 'Crea una contraseña segura',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0)),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _obscureConfirmPassword = !_obscureConfirmPassword;
-                    });
-                  },
                 ),
+                validator: (value) {
+                  if (value!.isEmpty) {
+                    return 'Por favor, ingresa tu contraseña';
+                  }
+                  if (value.length < 8) {
+                    return 'La contraseña debe tener al menos 8 caracteres';
+                  }
+                  return null;
+                },
               ),
-              validator: (value) {
-                if (value!.isEmpty) {
-                  return 'Por favor, confirma tu contraseña';
-                }
-                if (value != _passwordController.text) {
-                  return 'Las contraseñas no coinciden';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16.0),
-            // Mostrar los requisitos de la contraseña
-            const Text(
-              'Le recomendamos que contenga:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.normal),
-              textAlign: TextAlign.center,
-            ),
-            Column(
-              children: [
-                _buildPasswordRequirement('Mínimo 8 caracteres', _hasMinLength),
-                _buildPasswordRequirement('Una letra mayúscula', _hasUpperCase),
-                _buildPasswordRequirement('Una letra minúscula', _hasLowerCase),
-                _buildPasswordRequirement('Un número', _hasDigits),
-                _buildPasswordRequirement(
-                    'Un carácter especial', _hasSpecialCharacters),
-              ],
-            ),
-          ],
+              const SizedBox(height: 16.0),
+              TextFormField(
+                controller: _confirmPasswordController,
+                obscureText: _obscureConfirmPassword,
+                decoration: InputDecoration(
+                  labelText: 'Confirma tu contraseña',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0)),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureConfirmPassword = !_obscureConfirmPassword;
+                      });
+                    },
+                  ),
+                ),
+                validator: (value) {
+                  if (value!.isEmpty) {
+                    return 'Por favor, confirma tu contraseña';
+                  }
+                  if (value != _passwordController.text) {
+                    return 'Las contraseñas no coinciden';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16.0),
+              // Mostrar los requisitos de la contraseña
+              const Text(
+                'Le recomendamos que contenga:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.normal),
+                textAlign: TextAlign.center,
+              ),
+              Column(
+                children: [
+                  _buildPasswordRequirement('Mínimo 8 caracteres', _hasMinLength),
+                  _buildPasswordRequirement('Una letra mayúscula', _hasUpperCase),
+                  _buildPasswordRequirement('Una letra minúscula', _hasLowerCase),
+                  _buildPasswordRequirement('Un número', _hasDigits),
+                  _buildPasswordRequirement(
+                      'Un carácter especial', _hasSpecialCharacters),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildFourthPage() {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Último paso: tus datos de contacto',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24.0),
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: DropdownButtonFormField<String>(
-                    value: _phoneCountryCodeController,
-                    decoration: InputDecoration(
-                      labelText: 'Código',
-                      labelStyle: const TextStyle(color: Colors.black),
-                      filled: true,
-                      fillColor: Colors.transparent,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16.0),
-                        borderSide: const BorderSide(color: Colors.blue),
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.white, Color(0xFFE0F2F1)],
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Último paso: tus datos de contacto',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24.0),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: DropdownButtonFormField<String>(
+                      value: _phoneCountryCodeController,
+                      decoration: InputDecoration(
+                        labelText: 'Código',
+                        labelStyle: const TextStyle(color: Colors.black),
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16.0),
+                          borderSide: const BorderSide(color: Colors.blue),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16.0,
+                          vertical: 16.0,
+                        ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16.0,
-                        vertical: 16.0,
-                      ),
+                      items: const [
+                        DropdownMenuItem(value: '+58', child: Text('+58')),
+                        // Add more country codes as needed
+                      ],
+                      onChanged: (String? value) {
+                        setState(() {
+                          _phoneCountryCodeController = value;
+                        });
+                      },
+                      dropdownColor: Colors.white,
+                      borderRadius: BorderRadius.circular(16.0),
                     ),
-                    items: const [
-                      DropdownMenuItem(value: '+58', child: Text('+58')),
-                      // Add more country codes as needed
-                    ],
-                    onChanged: (String? value) {
-                      setState(() {
-                        _phoneCountryCodeController = value;
-                      });
-                    },
-                    dropdownColor: Colors.white,
-                    borderRadius: BorderRadius.circular(16.0),
+                  ),
+                  const SizedBox(width: 16.0),
+                  Expanded(
+                    flex: 7,
+                    child: TextFormField(
+                      controller: _phoneNumberController,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        labelText: '¿Cuál es tu número de teléfono?',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16.0)),
+                      ),
+                      validator: (value) => value!.isEmpty
+                          ? 'Por favor, ingresa tu número de teléfono'
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16.0),
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                onChanged: (value) {
+                  // Convertir a minúsculas mientras el usuario escribe
+                  _emailController.text = value.toLowerCase();
+                  _emailController.selection = TextSelection.fromPosition(
+                    TextPosition(offset: _emailController.text.length),
+                  );
+                  setState(() {});
+                },
+                decoration: InputDecoration(
+                  labelText: '¿Cuál es tu correo electrónico?',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0)),
+                ),
+                validator: (value) {
+                  if (value!.isEmpty) {
+                    return 'Por favor, ingresa tu correo electrónico';
+                  }
+                  if (!value.contains('@') || !value.contains('.')) {
+                    return 'Por favor, ingresa un correo electrónico válido';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16.0),
+              ElevatedButton(
+                onPressed: _emailController.text.isEmpty || _isTimerRunning
+                    ? null
+                    : _sendEmailVerification, // Deshabilita el botón si el campo de correo electrónico está vacío o el temporizador se está ejecutando
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF08143c),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15.0),
                   ),
                 ),
-                const SizedBox(width: 16.0),
-                Expanded(
-                  flex: 7,
-                  child: TextFormField(
-                    controller: _phoneNumberController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      labelText: '¿Cuál es tu número de teléfono?',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16.0)),
-                    ),
-                    validator: (value) => value!.isEmpty
-                        ? 'Por favor, ingresa tu número de teléfono'
-                        : null,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16.0),
-            TextFormField(
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              onChanged: (value) {
-                // Convertir a minúsculas mientras el usuario escribe
-                _emailController.text = value.toLowerCase();
-                _emailController.selection = TextSelection.fromPosition(
-                  TextPosition(offset: _emailController.text.length),
-                );
-                setState(() {});
-              },
-              decoration: InputDecoration(
-                labelText: '¿Cuál es tu correo electrónico?',
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0)),
+                child: Text(_isTimerRunning
+                    ? 'Reenviar código en $_timerSeconds s'
+                    : 'Enviar correo de verificación'),
               ),
-              validator: (value) {
-                if (value!.isEmpty) {
-                  return 'Por favor, ingresa tu correo electrónico';
-                }
-                if (!value.contains('@') || !value.contains('.')) {
-                  return 'Por favor, ingresa un correo electrónico válido';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16.0),
-            ElevatedButton(
-              onPressed: _emailController.text.isEmpty || _isTimerRunning
-                  ? null
-                  : _sendEmailVerification, // Deshabilita el botón si el campo de correo electrónico está vacío o el temporizador se está ejecutando
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF08143c),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15.0),
-                ),
-              ),
-              child: Text(_isTimerRunning
-                  ? 'Reenviar código en $_timerSeconds s'
-                  : 'Enviar correo de verificación'),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

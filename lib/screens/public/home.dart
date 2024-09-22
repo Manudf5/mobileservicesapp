@@ -35,11 +35,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String greeting = '';
   String userName = '';
+  int _unreadNotificationsCount = 0;
 
   @override
   void initState() {
     super.initState();
     _fetchGreetingAndUserName();
+    _fetchUnreadNotificationsCount();
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -91,6 +93,23 @@ class _HomeScreenState extends State<HomeScreen> {
     return '';
   }
 
+   Future<void> _fetchUnreadNotificationsCount() async {
+    String combinedId = await _getCombinedIdFromFirestore(
+        FirebaseAuth.instance.currentUser!.uid);
+
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(combinedId)
+        .collection('notifications')
+        .where('read', isEqualTo: false)
+        .snapshots()
+        .listen((snapshot) {
+      setState(() {
+        _unreadNotificationsCount = snapshot.docs.length;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -104,16 +123,14 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'MSA [Clientes]',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green[700],
-                    ),
+                  Image.asset(
+                    'assets/images/MSA_LogoTemporal.png',
+                    height: 60,
+                    width: 60,
                   ),
                   GestureDetector(
                     onTap: () {
+                      // Navegar a la pantalla de notificaciones
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -121,18 +138,39 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       );
                     },
-                    child: Container(
-                      height: 50,
-                      width: 50,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.grey[200],
-                      ),
-                      child: Icon(
-                        Icons.notifications_none,
-                        color: Colors.green[700],
-                        size: 28,
-                      ),
+                    child: Stack(
+                      alignment: Alignment.topRight,
+                      children: [
+                        Container(
+                          height: 50,
+                          width: 50,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.grey[200],
+                          ),
+                          child: Icon(
+                            Icons.notifications_none,
+                            color: Colors.green[700],
+                            size: 28,
+                          ),
+                        ),
+                        if (_unreadNotificationsCount > 0)
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.red,
+                            ),
+                            child: Text(
+                              '$_unreadNotificationsCount',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -523,10 +561,70 @@ class NotificacionesScreen extends StatefulWidget {
   const NotificacionesScreen({super.key});
 
   @override
-  State createState() => _NotificacionesScreenState();
+  State<NotificacionesScreen> createState() => _NotificacionesScreenState();
 }
 
-class _NotificacionesScreenState extends State {
+class _NotificacionesScreenState extends State<NotificacionesScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  List<Map<String, dynamic>> _notifications = [];
+  bool _isLoading = true;
+  String combinedId = ''; // El ID combinado del usuario
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchNotifications();
+  }
+
+  Future<void> _fetchNotifications() async {
+    // Obtener el ID combinado del usuario
+    combinedId = await _getCombinedId();
+
+    // Cargar las notificaciones desde Firestore
+    QuerySnapshot<Map<String, dynamic>> snapshot = await _firestore
+        .collection('users')
+        .doc(combinedId)
+        .collection('notifications')
+        .orderBy('notificationDate', descending: true)
+        .get();
+
+    setState(() {
+      _notifications = snapshot.docs.map((doc) {
+        return {
+          'id': doc.id,
+          'title': doc['title'],
+          'description': doc['description'],
+          'notificationDate': doc['notificationDate'].toDate(),
+          'read': doc['read'],
+          'NotificationImageUrl': doc.data().containsKey('NotificationImageUrl')
+              ? doc['NotificationImageUrl']
+              : null,
+        };
+      }).toList();
+      _isLoading = false;
+    });
+  }
+
+  Future<String> _getCombinedId() async {
+    // Aquí obtienes el ID combinado del usuario actual desde Firestore
+    final user = FirebaseAuth.instance.currentUser;
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await _firestore
+        .collection('users')
+        .where('uid', isEqualTo: user!.uid)
+        .get();
+    return querySnapshot.docs.first.id;
+  }
+
+  Future<void> _markAsRead(String notificationId) async {
+    // Actualizar el campo "read" a true en Firestore
+    await _firestore
+        .collection('users')
+        .doc(combinedId)
+        .collection('notifications')
+        .doc(notificationId)
+        .update({'read': true});
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -535,7 +633,7 @@ class _NotificacionesScreenState extends State {
         backgroundColor: Colors.white,
         elevation: 0,
         title: Text(
-          'Notificaciones',
+          'Notificaciones de la app',
           style: TextStyle(color: Colors.grey[800], fontSize: 20),
         ),
         leading: IconButton(
@@ -543,53 +641,110 @@ class _NotificacionesScreenState extends State {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Notificaciones recientes',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
+      body: _isLoading
+          ? const Center(
+              child: CupertinoActivityIndicator(
+                radius: 16,
+                color: Colors.green,
               ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView.separated(
-                itemCount: 5, // Reemplaza con el número real de notificaciones
-                separatorBuilder: (context, index) =>
-                    Divider(color: Colors.grey[300]),
-                itemBuilder: (context, index) {
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.green[100],
-                      child:
-                          const Icon(Icons.notifications, color: Colors.green),
-                    ),
-                    title: Text(
-                      'Título de la notificación',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, color: Colors.grey[800]),
-                    ),
-                    subtitle: Text(
-                      'Descripción de la notificación',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                    trailing:
-                        Icon(Icons.chevron_right, color: Colors.grey[400]),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+            )
+          : _notifications.isEmpty
+              ? Center(
+                  child: Text(
+                    'No tienes notificaciones aún.',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                  ),
+                )
+              : Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: ListView.separated(
+                    itemCount: _notifications.length,
+                    separatorBuilder: (context, index) =>
+                        Divider(color: Colors.grey[300]),
+                    itemBuilder: (context, index) {
+                      final notification = _notifications[index];
+                      return ExpansionTile(
+                        leading: CircleAvatar(
+                          backgroundColor: notification['read']
+                              ? Colors.grey[300]
+                              : Colors.green[100],
+                          child: Icon(
+                            notification['read']
+                                ? Icons.mark_email_read
+                                : Icons.mark_email_unread,
+                            color: notification['read']
+                                ? Colors.grey
+                                : Colors.green,
+                          ),
+                        ),
+                        title: Text(
+                          notification['title'],
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800]),
+                        ),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              notification['description'],
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: Align(
+                              alignment: Alignment.bottomRight,
+                              child: Text(
+                                _formatDateTime(
+                                    notification['notificationDate'] as DateTime),
+                                style: TextStyle(
+                                    color: Colors.grey[500], fontSize: 12),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          if (notification['NotificationImageUrl'] != null)
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(
+                                  notification['NotificationImageUrl'],
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                        ],
+                        onExpansionChanged: (expanded) {
+                          if (expanded && !notification['read']) {
+                            setState(() {
+                              _notifications[index]['read'] = true;
+                            });
+                            _markAsRead(notification['id']);
+                          }
+                        },
+                      );
+                    },
+                  ),
+                ),
     );
   }
+
+  String _formatDateTime(DateTime dateTime) {
+    final DateFormat formatter =
+        DateFormat('EEEE, dd \'de\' MMMM \'de\' yyyy', 'es_ES');
+    final DateFormat timeFormatter = DateFormat('hh:mm a', 'es_ES');
+
+    // Convertir el día de la semana a mayúscula
+    String dayOfWeek = formatter.format(dateTime).split(',')[0];
+    String capitalizedDayOfWeek =
+        dayOfWeek[0].toUpperCase() + dayOfWeek.substring(1);
+
+    return '$capitalizedDayOfWeek, ${formatter.format(dateTime).substring(dayOfWeek.length + 2)} a las ${timeFormatter.format(dateTime)}';
+  }
 }
+
 
 class HogarScreen extends StatefulWidget {
   const HogarScreen({super.key});

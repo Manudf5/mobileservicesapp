@@ -2445,13 +2445,24 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    '${taskData?['supplierName']}',
-                                    style: const TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
+                                  Row(
+                                  children: [
+                                    Text(
+                                      '${taskData?['supplierName']}',
+                                      style: const TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                  ),
+                                    const SizedBox(width: 5), // Espacio entre el nombre y el icono
+                                    if (widget.supplier?.data()?['verified'] == true) // Verifica si verified es true
+                                      const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.blue,
+                                        size: 22,
+                                      ),
+                                  ],
+                                ),
                                   Row(
                                     children: [
                                       Text(

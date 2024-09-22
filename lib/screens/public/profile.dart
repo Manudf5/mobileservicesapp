@@ -35,6 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _coverImageUrl = '';
   String _userAssessment = '0';
   String _userAssessmentCount = '0';
+  bool _verified = false;
 
   late StreamSubscription<DocumentSnapshot<Map<String, dynamic>>> _userStream;
 
@@ -75,6 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _coverImageUrl = userDoc.data()!['coverImageUrl'] ?? '';
           _userAssessment = averageSupplierEvaluation[0].toString();
           _userAssessmentCount = averageSupplierEvaluation[1].toString();
+          _verified = userDoc.data()!['verified'] ?? false; // Obtiene el valor de verified
         });
       }
     }
@@ -607,15 +609,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Nombre y apellido
-                  Text(
-                    '$_userName $_userLastName',
-                    style: const TextStyle(
-                      fontSize: 25.0,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF08143c),
+                  // Nombre, apellido y verificado true o false.
+                  Row(
+                  children: [
+                    Text(
+                      '$_userName $_userLastName',
+                      style: const TextStyle(
+                        fontSize: 25.0,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF08143c),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 5), // Espacio entre el nombre y el icono
+                    if (_verified == true) // Verifica si verified es true
+                      const Icon(
+                        Icons.check_circle,
+                        color: Colors.blue,
+                        size: 22,
+                      ),
+                  ],
+                ),
 
                   Text(
                     'ID: $_userID',

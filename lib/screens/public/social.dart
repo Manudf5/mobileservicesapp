@@ -17,6 +17,8 @@ import 'package:image/image.dart' as img;
 import 'package:one_context/one_context.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
 
 class SocialScreen extends StatefulWidget {
   const SocialScreen({super.key});
@@ -30,11 +32,16 @@ class _SocialScreenState extends State<SocialScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String? _clientId;
   Future<DocumentSnapshot>? _supplierProfileFuture;
+  int _unreadChatsCount = 0;
+
+  // Lista para almacenar los controladores de Screenshot
+  final List<ScreenshotController> _screenshotControllers = [];
 
   @override
   void initState() {
     super.initState();
     _fetchClientId();
+    _fetchUnreadChatsCount(); 
   }
 
   Future<void> _fetchClientId() async {
@@ -147,7 +154,7 @@ class _SocialScreenState extends State<SocialScreen> {
   }
 
   void _showOptionsBottomSheet(
-      BuildContext context, String supplierId, String postId) {
+      BuildContext context, String supplierId, String postId, int index) {
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
@@ -159,6 +166,7 @@ class _SocialScreenState extends State<SocialScreen> {
                 leading: const Icon(Icons.person),
                 title: const Text('Ver perfil'),
                 onTap: () {
+                  Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -172,11 +180,8 @@ class _SocialScreenState extends State<SocialScreen> {
                 leading: const Icon(Icons.share),
                 title: const Text('Compartir'),
                 onTap: () {
-                  // Agrega aquí la lógica para compartir la publicación
-                  // Puedes usar el paquete share_plus para compartir en diferentes plataformas.
-                  // Ejemplo:
-                  // Share.share('Mira esta publicación!');
                   Navigator.pop(context);
+                  _sharePost(context, supplierId, postId, index); 
                 },
               ),
               ListTile(
@@ -739,6 +744,65 @@ class _SocialScreenState extends State<SocialScreen> {
     ];
   }
 
+  // Función para compartir el post
+  Future<void> _sharePost(
+      BuildContext context, String supplierId, String postId, int index) async {
+    try {
+      // Tomar captura del widget
+       final image = await _screenshotControllers[index].capture();
+
+      if (image != null) {
+        // Guardar la imagen temporalmente
+        final directory = Directory.systemTemp;
+        final imagePath =
+            '${directory.path}/${DateTime.now().millisecondsSinceEpoch}.png';
+        File imageFile = await File(imagePath).writeAsBytes(image);
+
+        // Compartir la imagen usando share_plus
+        await Share.shareXFiles([XFile(imageFile.path)], text: '¡Mira esta publicación en MSA! Descarga la app disponible para Android y IOS');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al compartir el post: $e');
+      }
+      // Manejar el error, por ejemplo, mostrando un mensaje al usuario
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al compartir la publicación')),
+      );
+    }
+  }
+
+  Future<String> _getCombinedIdFromFirestore(String uid) async {
+    QuerySnapshot<Map<String, dynamic>> querySnapshot = await FirebaseFirestore
+        .instance
+        .collection('users')
+        .where('uid', isEqualTo: uid)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      return querySnapshot.docs.first.id;
+    }
+
+    return '';
+  }
+
+  Future<void> _fetchUnreadChatsCount() async {
+    String combinedId = await _getCombinedIdFromFirestore(
+        FirebaseAuth.instance.currentUser!.uid);
+
+    FirebaseFirestore.instance
+        .collection('chats')
+        .where('clientID', isEqualTo: combinedId)
+        .where('unreadCountClient', isGreaterThan: 0) 
+        .snapshots()
+        .listen((snapshot) {
+      setState(() {
+        _unreadChatsCount = snapshot.docs.length;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -755,20 +819,44 @@ class _SocialScreenState extends State<SocialScreen> {
           textAlign: TextAlign.center,
         ),
         actions: [
-          IconButton(
-            icon: Image.asset(
-              'assets/images/IconChat.png',
-              height: 40,
-              width: 40,
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ChatListScreen()),
-              );
-            },
+  Padding(
+    padding: const EdgeInsets.only(right: 16.0),
+    child: Stack(
+      alignment: Alignment.topRight,
+      children: [
+        IconButton(
+          icon: Image.asset(
+            'assets/images/IconChat.png',
+            height: 40,
+            width: 40,
           ),
-        ],
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ChatListScreen()),
+            );
+          },
+        ),
+        if (_unreadChatsCount > 0)
+          Container(
+            padding: const EdgeInsets.all(5),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.red,
+            ),
+            child: Text(
+              '$_unreadChatsCount',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+      ],
+    ),
+  ),
+],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -790,196 +878,202 @@ class _SocialScreenState extends State<SocialScreen> {
               return ListView.builder(
                 itemCount: posts.length,
                 itemBuilder: (context, index) {
+                  // Crear un nuevo controlador de Screenshot para cada publicación
+                _screenshotControllers.add(ScreenshotController());
                   final post = posts[index];
                   return StatefulBuilder(
                     builder: (BuildContext context, StateSetter setPostState) {
-                      return Card(
-                        color: Colors.white,
-                        elevation: 0,
-                        margin: const EdgeInsets.symmetric(
-                            vertical: 10, horizontal: 15),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15)),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Row(
-                                children: [
-                                  GestureDetector(
-                                    onTap: () =>
-                                        _showSupplierProfileBottomSheet(
-                                      context,
-                                      post['supplierId'],
-                                      post['name'],
-                                    ),
-                                    child: CircleAvatar(
-                                      radius: 25,
-                                      backgroundImage: post[
-                                                  'profileImageUrl'] !=
-                                              null
-                                          ? NetworkImage(
-                                              post['profileImageUrl'])
-                                          : const AssetImage(
-                                              'assets/images/ProfilePhoto_predetermined.png'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          post['name'],
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        Text(
-                                          post['serviceName'],
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.more_horiz),
-                                    onPressed: () => _showOptionsBottomSheet(
-                                      context,
-                                      post['supplierId'],
-                                      post['postId'],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Imagen con doble tap para dar like
-                            GestureDetector(
-                              onDoubleTap: () async {
-                                // Dar like al post
-                                await _toggleLike(post['supplierId'],
-                                    post['postId'], post['isLiked']);
-                                setPostState(() {
-                                  post['isLiked'] = !post['isLiked'];
-                                  post['likesCount'] +=
-                                      post['isLiked'] ? 1 : -1;
-                                });
-                                // Mostrar feedback visual (opcional)
-                                // ignore: use_build_context_synchronously
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(post['isLiked']
-                                        ? '¡Te gusta!'
-                                        : 'No te gusta'),
-                                    duration: const Duration(milliseconds: 500),
-                                  ),
-                                );
-                              },
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(15),
-                                child: CachedNetworkImage(
-                                  imageUrl: post['PostImageUrl'],
-                                  placeholder: (context, url) => const Center(
-                                    child: CupertinoActivityIndicator(
-                                      radius: 16,
-                                      color: Colors.green,
-                                    ),
-                                  ),
-                                  errorWidget: (context, url, error) =>
-                                      const Icon(Icons.error),
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${post['name']}:', // Nombre y apellido del supplier en negrita
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14),
-                                  ),
-                                  const SizedBox(
-                                      height:
-                                          4), // Espacio entre el nombre y la descripción
-                                  Text(
-                                    post['description'], // Descripción del post
-                                    style: const TextStyle(fontSize: 14),
-                                  ),
-                                  const SizedBox(height: 1),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        _formatTimeAgo(post['publicationDate']),
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 12,
-                                        ),
+                      // Envolver el Card con Screenshot
+                      return Screenshot(
+                        controller: _screenshotControllers[index],
+                        child: Card(
+                          color: Colors.white,
+                          elevation: 0,
+                          margin: const EdgeInsets.symmetric(
+                              vertical: 10, horizontal: 15),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15)),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () =>
+                                          _showSupplierProfileBottomSheet(
+                                        context,
+                                        post['supplierId'],
+                                        post['name'],
                                       ),
-                                      Row(
+                                      child: CircleAvatar(
+                                        radius: 25,
+                                        backgroundImage: post['profileImageUrl'] !=
+                                                null
+                                            ? NetworkImage(
+                                                post['profileImageUrl'])
+                                            : const AssetImage(
+                                                'assets/images/ProfilePhoto_predetermined.png'),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            '${post['likesCount']}',
+                                            post['name'],
                                             style: const TextStyle(
-                                                fontWeight: FontWeight.bold),
-                                          ),
-                                          IconButton(
-                                            icon: Icon(
-                                              post['isLiked']
-                                                  ? Icons.favorite
-                                                  : Icons.favorite_border,
-                                              color: post['isLiked']
-                                                  ? Colors.red
-                                                  : null,
-                                              size: post['isLiked']
-                                                  ? 30
-                                                  : 25,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
                                             ),
-                                            onPressed: () async {
-                                              await _toggleLike(
-                                                post['supplierId'],
-                                                post['postId'],
-                                                post['isLiked'],
-                                              );
-                                              setPostState(() {
-                                                post['isLiked'] =
-                                                    !post['isLiked'];
-                                                post['likesCount'] +=
-                                                    post['isLiked'] ? 1 : -1;
-                                              });
-                                            },
                                           ),
-                                          // Aquí va el nuevo botón del avioncito de papel
-                                          IconButton(
-                                            icon: const Icon(Icons
-                                                .send_rounded), // Puedes cambiar el icono si lo deseas
-                                            onPressed: () {
-                                              // Agrega aquí la lógica para compartir la publicación
-                                              // Puedes usar el paquete share_plus para compartir en diferentes plataformas.
-                                              // Ejemplo:
-                                              // Share.share('Mira esta publicación!');
-                                            },
+                                          Text(
+                                            post['serviceName'],
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 14,
+                                            ),
                                           ),
                                         ],
                                       ),
-                                    ],
-                                  ),
-                                ],
+                                    ),
+                                    IconButton(
+  icon: const Icon(Icons.more_horiz),
+  onPressed: () => _showOptionsBottomSheet(
+    context,
+    post['supplierId'],
+    post['postId'],
+    index, // Pasar el índice aquí
+  ),
+),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                              // Imagen con doble tap para dar like
+                              GestureDetector(
+                                onDoubleTap: () async {
+                                  // Dar like al post
+                                  await _toggleLike(post['supplierId'],
+                                      post['postId'], post['isLiked']);
+                                  setPostState(() {
+                                    post['isLiked'] = !post['isLiked'];
+                                    post['likesCount'] +=
+                                        post['isLiked'] ? 1 : -1;
+                                  });
+                                  // Mostrar feedback visual (opcional)
+                                  // ignore: use_build_context_synchronously
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(post['isLiked']
+                                          ? '¡Te gusta!'
+                                          : 'No te gusta'),
+                                      duration:
+                                          const Duration(milliseconds: 500),
+                                    ),
+                                  );
+                                },
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(15),
+                                  child: CachedNetworkImage(
+                                    imageUrl: post['PostImageUrl'],
+                                    placeholder: (context, url) => const Center(
+                                      child: CupertinoActivityIndicator(
+                                        radius: 16,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    errorWidget: (context, url, error) =>
+                                        const Icon(Icons.error),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${post['name']}:', // Nombre y apellido del supplier en negrita
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14),
+                                    ),
+                                    const SizedBox(
+                                        height:
+                                            4), // Espacio entre el nombre y la descripción
+                                    Text(
+                                      post['description'], // Descripción del post
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                    const SizedBox(height: 1),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          _formatTimeAgo(post['publicationDate']),
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              '${post['likesCount']}',
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold),
+                                            ),
+                                            IconButton(
+                                              icon: Icon(
+                                                post['isLiked']
+                                                    ? Icons.favorite
+                                                    : Icons.favorite_border,
+                                                color: post['isLiked']
+                                                    ? Colors.red
+                                                    : null,
+                                                size: post['isLiked']
+                                                    ? 30
+                                                    : 25,
+                                              ),
+                                              onPressed: () async {
+                                                await _toggleLike(
+                                                  post['supplierId'],
+                                                  post['postId'],
+                                                  post['isLiked'],
+                                                );
+                                                setPostState(() {
+                                                  post['isLiked'] =
+                                                      !post['isLiked'];
+                                                  post['likesCount'] +=
+                                                      post['isLiked'] ? 1 : -1;
+                                                });
+                                              },
+                                            ),
+                                            // Aquí va el nuevo botón del avioncito de papel
+                                            IconButton(
+                                              icon: const Icon(
+                                                  Icons.send_rounded),
+                                              // Puedes cambiar el icono si lo deseas
+                                              onPressed: () {
+                                _sharePost(context, post['supplierId'],
+                                    post['postId'], index);
+                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
