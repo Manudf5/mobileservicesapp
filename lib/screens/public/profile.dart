@@ -36,6 +36,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _userAssessment = '0';
   String _userAssessmentCount = '0';
   bool _verified = false;
+  bool _isRegularUser = false;
 
   late StreamSubscription<DocumentSnapshot<Map<String, dynamic>>> _userStream;
 
@@ -76,7 +77,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _coverImageUrl = userDoc.data()!['coverImageUrl'] ?? '';
           _userAssessment = averageSupplierEvaluation[0].toString();
           _userAssessmentCount = averageSupplierEvaluation[1].toString();
-          _verified = userDoc.data()!['verified'] ?? false; // Obtiene el valor de verified
+          _verified = userDoc.data()!['verified'] ??
+              false; // Obtiene el valor de verified
+          _isRegularUser = userDoc.data()!['role'] == 0;
         });
       }
     }
@@ -611,24 +614,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   // Nombre, apellido y verificado true o false.
                   Row(
-                  children: [
-                    Text(
-                      '$_userName $_userLastName',
-                      style: const TextStyle(
-                        fontSize: 25.0,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF08143c),
+                    children: [
+                      Text(
+                        '$_userName $_userLastName',
+                        style: const TextStyle(
+                          fontSize: 25.0,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF08143c),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 5), // Espacio entre el nombre y el icono
-                    if (_verified == true) // Verifica si verified es true
-                      const Icon(
-                        Icons.check_circle,
-                        color: Colors.blue,
-                        size: 22,
-                      ),
-                  ],
-                ),
+                      const SizedBox(
+                          width: 5), // Espacio entre el nombre y el icono
+                      if (_verified == true) // Verifica si verified es true
+                        const Icon(
+                          Icons.check_circle,
+                          color: Colors.blue,
+                          size: 22,
+                        ),
+                    ],
+                  ),
 
                   Text(
                     'ID: $_userID',
@@ -715,8 +719,100 @@ class _ProfileScreenState extends State<ProfileScreen> {
               title: 'Ayuda',
               onTap: _showHelpScreen,
             ),
-            const SizedBox(height: 30.0),
+            const SizedBox(height: 0.0),
 
+            if (_isRegularUser)
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: GestureDetector(
+                  onTap: () {
+                    // Navegar a una nueva pantalla en blanco
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) =>
+                              const SuppliersPostulationFormScreen()),
+                    );
+                  },
+                  child: Card(
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15)),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Colors.greenAccent[700]!, Colors.green[900]!],
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Icon(Icons.rocket_launch,
+                                    color: Colors.white, size: 40),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: const Text(
+                                    '¡Nuevo!',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 15),
+                            const Text(
+                              '¡Conviértete en un agente MSA!',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              'Únete a nuestra red de expertos y comienza a ganar dinero haciendo lo que amas.',
+                              style: TextStyle(color: Colors.white70),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 15),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(25),
+                              ),
+                              child: const Text(
+                                'Postúlate Ahora',
+                                style: TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ).animate().fadeIn().slideY(),
+              ),
+            const SizedBox(height: 5.0),
             // Botón "Cerrar sesión"
             Center(
               child: ElevatedButton(
@@ -735,6 +831,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 30.0),
           ],
         ),
       ),
@@ -764,6 +861,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onTap: onTap,
       ),
     ).animate().fadeIn().slideX();
+  }
+}
+
+class SuppliersPostulationFormScreen extends StatelessWidget {
+  const SuppliersPostulationFormScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.white, Color(0xFFE0F2F1)],
+          ),
+        ),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0, // Elimina la sombra de la AppBar
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF08143c)),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: const Text('Formulario de postulaciones'),
+          ),
+          body: const Center(
+            child: Text('Aquí irá el formulario de solicitud'),
+          ),
+        ),
+      ),
+    );
   }
 }
 

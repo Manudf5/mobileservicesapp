@@ -12,6 +12,7 @@ import 'package:mobileservicesapp/screens/public/profile.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
 import 'login_screen.dart';
+
 // Importa la biblioteca para formatear la fecha
 
 class RegisterScreen extends StatefulWidget {
@@ -33,8 +34,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneNumberController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _bioController =
-      TextEditingController(); // Controlador para la biografía
+  final _bioController = TextEditingController(); // Controlador para la biografía
   String? _idLetterController = 'V';
   String? _phoneCountryCodeController = '+58';
 
@@ -228,7 +228,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text('El correo electrónico ya está en uso.')));
           setState(() {
-            _isLoading = false; // Ocultar el indicador de carga si hay un error
+            _isLoading =
+                false; // Ocultar el indicador de carga si hay un error
           });
           return;
         }
@@ -247,7 +248,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text('El número de teléfono ya está en uso.')));
           setState(() {
-            _isLoading = false; // Ocultar el indicador de carga si hay un error
+            _isLoading =
+                false; // Ocultar el indicador de carga si hay un error
           });
           return;
         }
@@ -266,7 +268,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('El ID ya está en uso.')));
           setState(() {
-            _isLoading = false; // Ocultar el indicador de carga si hay un error
+            _isLoading =
+                false; // Ocultar el indicador de carga si hay un error
           });
           return;
         }
@@ -286,7 +289,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             print('Error al iniciar sesión: $e');
           }
           setState(() {
-            _isLoading = false; // Ocultar el indicador de carga si hay un error
+            _isLoading =
+                false; // Ocultar el indicador de carga si hay un error
           });
           // Mostrar un mensaje al usuario o realizar alguna acción apropiada
           return;
@@ -362,6 +366,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final List<Widget> pages = [
+      _buildFirstPage(),
+      _buildSecondPage(),
+      _buildThirdPage(),
+      _buildFourthPage(),
+    ];
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.white,
@@ -391,20 +402,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: SafeArea(
           child: Form(
             key: _formKey,
-            child: PageView(
-              controller: _pageController,
-              physics:
-                  const NeverScrollableScrollPhysics(), // Deshabilitar el deslizamiento manual
-              onPageChanged: (index) {
-                setState(() {
-                  _currentPage = index;
-                });
-              },
+            child: Column(
               children: [
-                _buildFirstPage(),
-                _buildSecondPage(),
-                _buildThirdPage(),
-                _buildFourthPage(),
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    physics: const NeverScrollableScrollPhysics(),
+                    // Deshabilitar el deslizamiento manual
+                    onPageChanged: (index) {
+                      setState(() {
+                        _currentPage = index;
+                      });
+                    },
+                    children: pages,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      for (int i = 0; i < pages.length; i++)
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                          height: 8.0,
+                          width: i == _currentPage ? 24.0 : 8.0,
+                          decoration: BoxDecoration(
+                            color: i == _currentPage
+                                ? const Color(0xFF08143c)
+                                : Colors.grey,
+                            borderRadius: BorderRadius.circular(4.0),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 30.0),
               ],
             ),
           ),
@@ -414,6 +448,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ? FloatingActionButton(
               onPressed: () {
                 if (_formKey.currentState!.validate()) {
+                  if (_currentPage == 0 && !_acceptTerms) {
+                    // Mostrar un mensaje si no se aceptan los términos
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content:
+                            Text('Debes aceptar los términos y condiciones.')));
+                    return;
+                  }
                   if (_currentPage == 2 &&
                       !_hasMinLength &&
                       !_hasUpperCase &&
@@ -468,9 +509,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset('assets/images/MSA_LogoTemporal.png',
-                        height: 100),
-                    const SizedBox(height: 35.0),
+            Image.asset(
+              'assets/images/MSA_LogoTemporal.png',
+              height: 100,
+            ),
+            const SizedBox(height: 35.0),
             const Text(
               '¡Bienvenido!',
               style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),

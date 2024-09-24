@@ -1,0 +1,5 @@
+flutter_native_splash:
+  color: "#ffffff"  # Color de fondo (blanco en este caso)
+  image: "assets/images/MSA_LogoTemporal.png" # Reemplaza con la ruta de tu imagen
+  android: true
+  ios: true
