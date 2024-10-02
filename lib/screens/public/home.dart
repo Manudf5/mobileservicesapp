@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:ui';
 import 'dart:math';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -36,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String greeting = '';
   String userName = '';
   int _unreadNotificationsCount = 0;
+  StreamSubscription? _notificationSubscription;
 
   @override
   void initState() {
@@ -48,6 +51,12 @@ class _HomeScreenState extends State<HomeScreen> {
         statusBarIconBrightness: Brightness.dark,
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    super.dispose();
   }
 
   Future _fetchGreetingAndUserName() async {
@@ -93,21 +102,25 @@ class _HomeScreenState extends State<HomeScreen> {
     return '';
   }
 
-   Future<void> _fetchUnreadNotificationsCount() async {
-    String combinedId = await _getCombinedIdFromFirestore(
-        FirebaseAuth.instance.currentUser!.uid);
+  Future<void> _fetchUnreadNotificationsCount() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      String combinedId = await _getCombinedIdFromFirestore(user.uid);
 
-    FirebaseFirestore.instance
-        .collection('users')
-        .doc(combinedId)
-        .collection('notifications')
-        .where('read', isEqualTo: false)
-        .snapshots()
-        .listen((snapshot) {
-      setState(() {
-        _unreadNotificationsCount = snapshot.docs.length;
+      _notificationSubscription = FirebaseFirestore.instance
+          .collection('users')
+          .doc(combinedId)
+          .collection('notifications')
+          .where('read', isEqualTo: false)
+          .snapshots()
+          .listen((snapshot) {
+        if (mounted) {
+          setState(() {
+            _unreadNotificationsCount = snapshot.docs.length;
+          });
+        }
       });
-    });
+    }
   }
 
   @override
@@ -311,7 +324,6 @@ Widget _buildButton(String imagePath, String text, BuildContext context) {
         ],
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(20),
@@ -341,10 +353,10 @@ class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  State createState() => _SearchScreenState();
+  State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State {
+class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _services = [];
   List<Map<String, dynamic>> _filteredServices = [];
@@ -367,14 +379,15 @@ class _SearchScreenState extends State {
       QuerySnapshot<Map<String, dynamic>> querySnapshot =
           await FirebaseFirestore.instance.collection('services').get();
       _services = querySnapshot.docs.map((doc) => doc.data()).toList();
+      _services.sort((a, b) => a['serviceName'].compareTo(b['serviceName']));
       _filteredServices = _services;
       setState(() {
         _isLoading = false;
       });
     } catch (e) {
-      // ignore: avoid_print
-      print('Error al obtener servicios: $e');
-      // Manejar el error, mostrar un mensaje al usuario, etc.
+      if (kDebugMode) {
+        print('Error al obtener servicios: $e');
+      }
     }
   }
 
@@ -449,15 +462,19 @@ class _SearchScreenState extends State {
                       ? const Center(
                           child: Text('No se encontraron servicios'),
                         )
-                      : GridView.count(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          childAspectRatio: 9 / 7.45,
-                          children: _filteredServices.map((service) {
-                            return _buildServiceButton(service['imageUrl'],
-                                service['serviceName'], service['id']);
-                          }).toList(),
+                      : GridView.builder(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            childAspectRatio: 16 / 13,
+                          ),
+                          itemCount: _filteredServices.length,
+                          itemBuilder: (context, index) {
+                            return _buildServiceButton(
+                                _filteredServices[index]);
+                          },
                         ),
             ),
           ],
@@ -466,7 +483,7 @@ class _SearchScreenState extends State {
     );
   }
 
-  Widget _buildServiceButton(String imagePath, String text, String serviceId) {
+  Widget _buildServiceButton(Map<String, dynamic> service) {
     return InkWell(
       onTap: () async {
         bool hasPermission =
@@ -477,8 +494,8 @@ class _SearchScreenState extends State {
             context,
             MaterialPageRoute(
               builder: (context) => LocationDetailsScreen(
-                serviceName: text,
-                id: serviceId,
+                serviceName: service['serviceName'],
+                id: service['id'],
               ),
             ),
           );
@@ -499,7 +516,6 @@ class _SearchScreenState extends State {
             ),
           );
 
-          // Opcionalmente, puedes agregar un pequeño retraso antes de navegar
           await Future.delayed(const Duration(seconds: 0));
 
           Navigator.push(
@@ -507,50 +523,58 @@ class _SearchScreenState extends State {
             context,
             MaterialPageRoute(
               builder: (context) => LocationDetailsScreen(
-                serviceName: text,
-                id: serviceId,
+                serviceName: service['serviceName'],
+                id: service['id'],
               ),
             ),
           );
         }
       },
-      child: Card(
-        color: Colors.white,
-        elevation: 5.0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(
-            color: Color(0xFF08143C),
-            width: 1.0,
-          ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blueGrey.withOpacity(0.2),
+              spreadRadius: 1,
+              blurRadius: 5,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(2),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Center(
-                  child: Image.network(
-                    imagePath,
-                    height: 90,
-                    width: 178,
-                    fit: BoxFit.cover,
-                  ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(15)),
+                child: CachedNetworkImage(
+                  imageUrl: service['imageUrl'],
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) =>
+                      const Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                text,
-                textAlign: TextAlign.center,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                service['serviceName'],
                 style: const TextStyle(
-                  fontSize: 12,
                   fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                  fontSize: 12,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -696,8 +720,8 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                             child: Align(
                               alignment: Alignment.bottomRight,
                               child: Text(
-                                _formatDateTime(
-                                    notification['notificationDate'] as DateTime),
+                                _formatDateTime(notification['notificationDate']
+                                    as DateTime),
                                 style: TextStyle(
                                     color: Colors.grey[500], fontSize: 12),
                               ),
@@ -745,7 +769,6 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   }
 }
 
-
 class HogarScreen extends StatefulWidget {
   const HogarScreen({super.key});
 
@@ -755,7 +778,7 @@ class HogarScreen extends StatefulWidget {
 
 class _HogarScreenState extends State<HogarScreen> {
   List<Map<String, dynamic>> _services = [];
-  bool _isLoading = true; // Variable para controlar el estado de carga
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -778,14 +801,14 @@ class _HogarScreenState extends State<HogarScreen> {
               .where('id', isLessThan: 'HOH')
               .get();
       _services = querySnapshot.docs.map((doc) => doc.data()).toList();
+      _services.sort((a, b) => a['serviceName'].compareTo(b['serviceName']));
       setState(() {
-        _isLoading =
-            false; // Establece el estado de carga a false cuando los datos están cargados
+        _isLoading = false;
       });
     } catch (e) {
-      // ignore: avoid_print
-      print('Error al obtener servicios: $e');
-      // Manejar el error, mostrar un mensaje al usuario, etc.
+      if (kDebugMode) {
+        print('Error al obtener servicios: $e');
+      }
     }
   }
 
@@ -806,7 +829,7 @@ class _HogarScreenState extends State<HogarScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: _isLoading // Muestra el indicador de carga si _isLoading es true
+        child: _isLoading
             ? const Center(
                 child: CupertinoActivityIndicator(
                   radius: 16,
@@ -818,21 +841,24 @@ class _HogarScreenState extends State<HogarScreen> {
                     child: Text(
                         'No hay servicios disponibles, inténtelo de nuevo más tarde'),
                   )
-                : GridView.count(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 9 / 7.45,
-                    children: _services.map((service) {
-                      return _buildServiceButton(service['imageUrl'],
-                          service['serviceName'], service['id']);
-                    }).toList(),
+                : GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 16 / 13,
+                    ),
+                    itemCount: _services.length,
+                    itemBuilder: (context, index) {
+                      return _buildServiceButton(_services[index]);
+                    },
                   ),
       ),
     );
   }
 
-  Widget _buildServiceButton(String imagePath, String text, String serviceId) {
+  Widget _buildServiceButton(Map<String, dynamic> service) {
     return InkWell(
       onTap: () async {
         bool hasPermission =
@@ -843,8 +869,8 @@ class _HogarScreenState extends State<HogarScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => LocationDetailsScreen(
-                serviceName: text,
-                id: serviceId,
+                serviceName: service['serviceName'],
+                id: service['id'],
               ),
             ),
           );
@@ -865,7 +891,6 @@ class _HogarScreenState extends State<HogarScreen> {
             ),
           );
 
-          // Opcionalmente, puedes agregar un pequeño retraso antes de navegar
           await Future.delayed(const Duration(seconds: 0));
 
           Navigator.push(
@@ -873,50 +898,58 @@ class _HogarScreenState extends State<HogarScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => LocationDetailsScreen(
-                serviceName: text,
-                id: serviceId,
+                serviceName: service['serviceName'],
+                id: service['id'],
               ),
             ),
           );
         }
       },
-      child: Card(
-        color: Colors.white,
-        elevation: 5.0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(
-            color: Color(0xFF08143C),
-            width: 1.0,
-          ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blueGrey.withOpacity(0.2),
+              spreadRadius: 1,
+              blurRadius: 5,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(2),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Center(
-                  child: Image.network(
-                    imagePath,
-                    height: 90,
-                    width: 178,
-                    fit: BoxFit.cover,
-                  ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(15)),
+                child: CachedNetworkImage(
+                  imageUrl: service['imageUrl'],
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) =>
+                      const Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                text,
-                textAlign: TextAlign.center,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                service['serviceName'],
                 style: const TextStyle(
-                  fontSize: 12,
                   fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                  fontSize: 12,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -955,14 +988,14 @@ class _PersonalScreenState extends State<PersonalScreen> {
               .where('id', isLessThan: 'PES')
               .get();
       _services = querySnapshot.docs.map((doc) => doc.data()).toList();
+      _services.sort((a, b) => a['serviceName'].compareTo(b['serviceName']));
       setState(() {
-        _isLoading =
-            false; // Establece el estado de carga a false cuando los datos están cargados
+        _isLoading = false;
       });
     } catch (e) {
-      // ignore: avoid_print
-      print('Error al obtener servicios: $e');
-      // Manejar el error, mostrar un mensaje al usuario, etc.
+      if (kDebugMode) {
+        print('Error al obtener servicios: $e');
+      }
     }
   }
 
@@ -983,7 +1016,7 @@ class _PersonalScreenState extends State<PersonalScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: _isLoading // Muestra el indicador de carga si _isLoading es true
+        child: _isLoading
             ? const Center(
                 child: CupertinoActivityIndicator(
                   radius: 16,
@@ -995,21 +1028,24 @@ class _PersonalScreenState extends State<PersonalScreen> {
                     child: Text(
                         'No hay servicios disponibles, inténtelo de nuevo más tarde'),
                   )
-                : GridView.count(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 9 / 7.45,
-                    children: _services.map((service) {
-                      return _buildServiceButton(service['imageUrl'],
-                          service['serviceName'], service['id']);
-                    }).toList(),
+                : GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 16 / 13,
+                    ),
+                    itemCount: _services.length,
+                    itemBuilder: (context, index) {
+                      return _buildServiceButton(_services[index]);
+                    },
                   ),
       ),
     );
   }
 
-  Widget _buildServiceButton(String imagePath, String text, String serviceId) {
+  Widget _buildServiceButton(Map<String, dynamic> service) {
     return InkWell(
       onTap: () async {
         bool hasPermission =
@@ -1020,8 +1056,8 @@ class _PersonalScreenState extends State<PersonalScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => LocationDetailsScreen(
-                serviceName: text,
-                id: serviceId,
+                serviceName: service['serviceName'],
+                id: service['id'],
               ),
             ),
           );
@@ -1042,7 +1078,6 @@ class _PersonalScreenState extends State<PersonalScreen> {
             ),
           );
 
-          // Opcionalmente, puedes agregar un pequeño retraso antes de navegar
           await Future.delayed(const Duration(seconds: 0));
 
           Navigator.push(
@@ -1050,50 +1085,58 @@ class _PersonalScreenState extends State<PersonalScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => LocationDetailsScreen(
-                serviceName: text,
-                id: serviceId,
+                serviceName: service['serviceName'],
+                id: service['id'],
               ),
             ),
           );
         }
       },
-      child: Card(
-        color: Colors.white,
-        elevation: 5.0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(
-            color: Color(0xFF08143C),
-            width: 1.0,
-          ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blueGrey.withOpacity(0.2),
+              spreadRadius: 1,
+              blurRadius: 5,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(2),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Center(
-                  child: Image.network(
-                    imagePath,
-                    height: 90,
-                    width: 178,
-                    fit: BoxFit.cover,
-                  ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(15)),
+                child: CachedNetworkImage(
+                  imageUrl: service['imageUrl'],
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) =>
+                      const Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                text,
-                textAlign: TextAlign.center,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                service['serviceName'],
                 style: const TextStyle(
-                  fontSize: 12,
                   fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                  fontSize: 12,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1132,14 +1175,14 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
               .where('id', isLessThan: 'PRP')
               .get();
       _services = querySnapshot.docs.map((doc) => doc.data()).toList();
+      _services.sort((a, b) => a['serviceName'].compareTo(b['serviceName']));
       setState(() {
-        _isLoading =
-            false; // Establece el estado de carga a false cuando los datos están cargados
+        _isLoading = false;
       });
     } catch (e) {
-      // ignore: avoid_print
-      print('Error al obtener servicios: $e');
-      // Manejar el error, mostrar un mensaje al usuario, etc.
+      if (kDebugMode) {
+        print('Error al obtener servicios: $e');
+      }
     }
   }
 
@@ -1160,7 +1203,7 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: _isLoading // Muestra el indicador de carga si _isLoading es true
+        child: _isLoading
             ? const Center(
                 child: CupertinoActivityIndicator(
                   radius: 16,
@@ -1172,21 +1215,24 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
                     child: Text(
                         'No hay servicios disponibles, inténtelo de nuevo más tarde'),
                   )
-                : GridView.count(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 9 / 7.45,
-                    children: _services.map((service) {
-                      return _buildServiceButton(service['imageUrl'],
-                          service['serviceName'], service['id']);
-                    }).toList(),
+                : GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 16 / 13,
+                    ),
+                    itemCount: _services.length,
+                    itemBuilder: (context, index) {
+                      return _buildServiceButton(_services[index]);
+                    },
                   ),
       ),
     );
   }
 
-  Widget _buildServiceButton(String imagePath, String text, String serviceId) {
+  Widget _buildServiceButton(Map<String, dynamic> service) {
     return InkWell(
       onTap: () async {
         bool hasPermission =
@@ -1197,8 +1243,8 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => LocationDetailsScreen(
-                serviceName: text,
-                id: serviceId,
+                serviceName: service['serviceName'],
+                id: service['id'],
               ),
             ),
           );
@@ -1219,7 +1265,6 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
             ),
           );
 
-          // Opcionalmente, puedes agregar un pequeño retraso antes de navegar
           await Future.delayed(const Duration(seconds: 0));
 
           Navigator.push(
@@ -1227,50 +1272,58 @@ class _ProfesionalScreenState extends State<ProfesionalScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => LocationDetailsScreen(
-                serviceName: text,
-                id: serviceId,
+                serviceName: service['serviceName'],
+                id: service['id'],
               ),
             ),
           );
         }
       },
-      child: Card(
-        color: Colors.white,
-        elevation: 5.0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(
-            color: Color(0xFF08143C),
-            width: 1.0,
-          ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blueGrey.withOpacity(0.2),
+              spreadRadius: 1,
+              blurRadius: 5,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(2),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Center(
-                  child: Image.network(
-                    imagePath,
-                    height: 90,
-                    width: 178,
-                    fit: BoxFit.cover,
-                  ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(15)),
+                child: CachedNetworkImage(
+                  imageUrl: service['imageUrl'],
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) =>
+                      const Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                text,
-                textAlign: TextAlign.center,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                service['serviceName'],
                 style: const TextStyle(
-                  fontSize: 12,
                   fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                  fontSize: 12,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -1309,14 +1362,14 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
               .where('id', isLessThan: 'ENU')
               .get();
       _services = querySnapshot.docs.map((doc) => doc.data()).toList();
+      _services.sort((a, b) => a['serviceName'].compareTo(b['serviceName']));
       setState(() {
-        _isLoading =
-            false; // Establece el estado de carga a false cuando los datos están cargados
+        _isLoading = false;
       });
     } catch (e) {
-      // ignore: avoid_print
-      print('Error al obtener servicios: $e');
-      // Manejar el error, mostrar un mensaje al usuario, etc.
+      if (kDebugMode) {
+        print('Error al obtener servicios: $e');
+      }
     }
   }
 
@@ -1337,7 +1390,7 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: _isLoading // Muestra el indicador de carga si _isLoading es true
+        child: _isLoading
             ? const Center(
                 child: CupertinoActivityIndicator(
                   radius: 16,
@@ -1349,21 +1402,24 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
                     child: Text(
                         'No hay servicios disponibles, inténtelo de nuevo más tarde'),
                   )
-                : GridView.count(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 9 / 7.45,
-                    children: _services.map((service) {
-                      return _buildServiceButton(service['imageUrl'],
-                          service['serviceName'], service['id']);
-                    }).toList(),
+                : GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 16 / 13,
+                    ),
+                    itemCount: _services.length,
+                    itemBuilder: (context, index) {
+                      return _buildServiceButton(_services[index]);
+                    },
                   ),
       ),
     );
   }
 
-  Widget _buildServiceButton(String imagePath, String text, String serviceId) {
+  Widget _buildServiceButton(Map<String, dynamic> service) {
     return InkWell(
       onTap: () async {
         bool hasPermission =
@@ -1374,8 +1430,8 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => LocationDetailsScreen(
-                serviceName: text,
-                id: serviceId,
+                serviceName: service['serviceName'],
+                id: service['id'],
               ),
             ),
           );
@@ -1396,7 +1452,6 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
             ),
           );
 
-          // Opcionalmente, puedes agregar un pequeño retraso antes de navegar
           await Future.delayed(const Duration(seconds: 0));
 
           Navigator.push(
@@ -1404,50 +1459,58 @@ class _EntretenimientoScreenState extends State<EntretenimientoScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => LocationDetailsScreen(
-                serviceName: text,
-                id: serviceId,
+                serviceName: service['serviceName'],
+                id: service['id'],
               ),
             ),
           );
         }
       },
-      child: Card(
-        color: Colors.white,
-        elevation: 5.0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(
-            color: Color(0xFF08143C),
-            width: 1.0,
-          ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blueGrey.withOpacity(0.2),
+              spreadRadius: 1,
+              blurRadius: 5,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(2),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Center(
-                  child: Image.network(
-                    imagePath,
-                    height: 90,
-                    width: 178,
-                    fit: BoxFit.cover,
-                  ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(15)),
+                child: CachedNetworkImage(
+                  imageUrl: service['imageUrl'],
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) =>
+                      const Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                text,
-                textAlign: TextAlign.center,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                service['serviceName'],
                 style: const TextStyle(
-                  fontSize: 12,
                   fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                  fontSize: 12,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -2239,8 +2302,9 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
           }
         },
         style: ElevatedButton.styleFrom(
-          backgroundColor:
-              _selectedFilter == filterName ? Colors.green : Colors.blueGrey[50],
+          backgroundColor: _selectedFilter == filterName
+              ? Colors.green
+              : Colors.blueGrey[50],
           foregroundColor:
               _selectedFilter == filterName ? Colors.white : Colors.black,
           shape: RoundedRectangleBorder(
@@ -2951,7 +3015,8 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
     if (_labelColors.containsKey(service)) {
       return _labelColors[service]!;
     } else {
-      Color randomColor = Color(Random().nextInt(0xFFFFFFFF)).withOpacity(0.7); // Ajusta la opacidad según sea necesario
+      Color randomColor = Color(Random().nextInt(0xFFFFFFFF))
+          .withOpacity(0.7); // Ajusta la opacidad según sea necesario
       _labelColors[service] = randomColor;
       return randomColor;
     }
@@ -2989,11 +3054,11 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
           .where('uid', isEqualTo: user.uid)
           .get();
 
-    // Obtenemos el documento del usuario
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.selectedSupplier.id)
-        .get();
+      // Obtenemos el documento del usuario
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.selectedSupplier.id)
+          .get();
 
       if (snapshot.docs.isNotEmpty) {
         final doc = snapshot.docs.first;
@@ -3005,8 +3070,6 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
           supplierLastName = userDoc.data()?['lastName'];
         });
       }
-
-      
     }
   }
 
@@ -3073,191 +3136,196 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   }
 
   void _showReportBottomSheet() {
-  String selectedReason = '';
-  String otherReason = '';
-  bool isOtherSelected = false;
+    String selectedReason = '';
+    String otherReason = '';
+    bool isOtherSelected = false;
 
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
-    ),
-    builder: (BuildContext context) {
-      return StatefulBuilder(
-        builder: (BuildContext context, StateSetter setState) {
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Reportar usuario',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-                  Wrap(
-                    spacing: 8.0,
-                    children: [
-                      'Comportamiento inapropiado',
-                      'Contenido indebido',
-                      'Información falsa',
-                      'Incitación negativa',
-                      'Ventas ilícitas',
-                      'Spam',
-                      'Otro',
-                    ].map((String reason) {
-                      return ChoiceChip(
-                        label: Text(
-                          reason,
-                          style: TextStyle(
-                            color: selectedReason == reason
-                                ? Colors.white
-                                : Colors.black,
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25.0)),
+      ),
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Reportar usuario',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 8.0,
+                      children: [
+                        'Comportamiento inapropiado',
+                        'Contenido indebido',
+                        'Información falsa',
+                        'Incitación negativa',
+                        'Ventas ilícitas',
+                        'Spam',
+                        'Otro',
+                      ].map((String reason) {
+                        return ChoiceChip(
+                          label: Text(
+                            reason,
+                            style: TextStyle(
+                              color: selectedReason == reason
+                                  ? Colors.white
+                                  : Colors.black,
+                            ),
+                          ),
+                          selectedColor: selectedReason == reason
+                              ? const Color(0xFF08143C)
+                              : null,
+                          selected: selectedReason == reason,
+                          onSelected: (bool selected) {
+                            setState(() {
+                              selectedReason = selected ? reason : '';
+                              isOtherSelected = reason == 'Otro';
+                            });
+                          },
+                          // Add this to change checkmark color
+                          selectedShadowColor: Colors.transparent,
+                          disabledColor: Colors.transparent,
+                          checkmarkColor: Colors.green,
+                        );
+                      }).toList(),
+                    ),
+                    if (isOtherSelected) ...[
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        onChanged: (value) {
+                          otherReason = value;
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Especifique el motivo',
+                          labelStyle: const TextStyle(color: Colors.black),
+                          hintText: 'Ingresa el motivo',
+                          hintStyle: const TextStyle(color: Colors.grey),
+                          filled: true,
+                          fillColor: Colors.blueGrey[100],
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide.none,
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide:
+                                const BorderSide(color: Color(0xFF08143c)),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16.0,
+                            vertical: 16.0,
                           ),
                         ),
-                        selectedColor: selectedReason == reason
-                            ? const Color(0xFF08143C)
-                            : null,
-                        selected: selectedReason == reason,
-                        onSelected: (bool selected) {
-                          setState(() {
-                            selectedReason = selected ? reason : '';
-                            isOtherSelected = reason == 'Otro';
-                          });
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Por favor, ingresa el motivo';
+                          }
+                          return null;
                         },
-                        // Add this to change checkmark color
-                        selectedShadowColor: Colors.transparent,
-                        disabledColor: Colors.transparent,
-                        checkmarkColor: Colors.green,
-                      );
-                    }).toList(),
-                  ),
-                  if (isOtherSelected) ...[
-                    const SizedBox(height: 20),
-                    TextFormField(
-                      onChanged: (value) {
-                        otherReason = value;
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Especifique el motivo',
-                        labelStyle: const TextStyle(color: Colors.black),
-                        hintText: 'Ingresa el motivo',
-                        hintStyle: const TextStyle(color: Colors.grey),
-                        filled: true,
-                              fillColor: Colors.blueGrey[100],
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(15),
-                                borderSide: BorderSide.none,
-                              ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(15),
-                          borderSide: const BorderSide(color: Color(0xFF08143c)),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16.0,
-                          vertical: 16.0,
-                        ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Por favor, ingresa el motivo';
-                        }
-                        return null;
-                      },
+                    ],
+                    const SizedBox(height: 30),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1ca424),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          textStyle: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                        ),
+                        onPressed: () =>
+                            _submitReport(selectedReason, otherReason),
+                        child: const Text('Enviar reporte'),
+                      ),
                     ),
                   ],
-                  const SizedBox(height: 30),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1ca424),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        textStyle: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                      ),
-                      onPressed: () => _submitReport(selectedReason, otherReason),
-                      child: const Text('Enviar reporte'),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _submitReport(String selectedReason, String otherReason) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Usuario no autenticado')),
       );
-    },
-  );
-}
+      return;
+    }
 
-void _submitReport(String selectedReason, String otherReason) async {
-  final currentUser = FirebaseAuth.instance.currentUser;
-  if (currentUser == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Error: Usuario no autenticado')),
-    );
-    return;
+    final reporterDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .where('uid', isEqualTo: currentUser.uid)
+        .get();
+
+    if (reporterDoc.docs.isEmpty) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Error: No se pudo obtener la información del usuario')),
+      );
+      return;
+    }
+
+    final reporterData = reporterDoc.docs.first.data();
+    final reportData = {
+      'timestamp': FieldValue.serverTimestamp(),
+      'reportedUserName': '$supplierName $supplierLastName',
+      'reportedUserId': widget.selectedSupplier.id,
+      'reason': selectedReason == 'Otro' ? otherReason : selectedReason,
+      'category': 'Usuario',
+      'reporterName': '${reporterData['name']} ${reporterData['lastName']}',
+      'reporterId': reporterDoc.docs.first.id,
+    };
+
+    // Generar el ID del documento
+    final DateTime now = DateTime.now();
+    final String documentId =
+        '${widget.selectedSupplier.id}_${now.year}${now.month}${now.day}${now.hour}${now.minute}${now.second}';
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('reports')
+          .doc(documentId)
+          .set(reportData);
+      // ignore: use_build_context_synchronously
+      Navigator.pop(context);
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reporte enviado')),
+      );
+    } catch (e) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error al enviar el reporte')),
+      );
+    }
   }
-
-  final reporterDoc = await FirebaseFirestore.instance
-      .collection('users')
-      .where('uid', isEqualTo: currentUser.uid)
-      .get();
-
-  if (reporterDoc.docs.isEmpty) {
-    // ignore: use_build_context_synchronously
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Error: No se pudo obtener la información del usuario')),
-    );
-    return;
-  }
-
-  final reporterData = reporterDoc.docs.first.data();
-  final reportData = {
-    'timestamp': FieldValue.serverTimestamp(),
-    'reportedUserName': '$supplierName $supplierLastName',
-    'reportedUserId': widget.selectedSupplier.id,
-    'reason': selectedReason == 'Otro' ? otherReason : selectedReason,
-    'category': 'Usuario',
-    'reporterName': '${reporterData['name']} ${reporterData['lastName']}',
-    'reporterId': reporterDoc.docs.first.id,
-  };
-
-  // Generar el ID del documento
-  final DateTime now = DateTime.now();
-  final String documentId =
-      '${widget.selectedSupplier.id}_${now.year}${now.month}${now.day}${now.hour}${now.minute}${now.second}';
-
-  try {
-    await FirebaseFirestore.instance
-        .collection('reports')
-        .doc(documentId)
-        .set(reportData);
-    // ignore: use_build_context_synchronously
-    Navigator.pop(context);
-    // ignore: use_build_context_synchronously
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reporte enviado')),
-    );
-  } catch (e) {
-    // ignore: use_build_context_synchronously
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Error al enviar el reporte')),
-    );
-  }
-}
 
   @override
   void dispose() {
@@ -3287,19 +3355,19 @@ void _submitReport(String selectedReason, String otherReason) async {
         ),
         actions: <Widget>[
           PopupMenuButton<String>(
-  icon: const Icon(Icons.more_vert, color: Colors.black),
-  onSelected: (String result) {
-    if (result == 'Reportar usuario') {
-      _showReportBottomSheet();
-    }
-  },
-  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-    const PopupMenuItem<String>(
-      value: 'Reportar usuario',
-      child: Text('Reportar usuario'),
-    ),
-  ],
-),
+            icon: const Icon(Icons.more_vert, color: Colors.black),
+            onSelected: (String result) {
+              if (result == 'Reportar usuario') {
+                _showReportBottomSheet();
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'Reportar usuario',
+                child: Text('Reportar usuario'),
+              ),
+            ],
+          ),
         ],
       ),
       body: FutureBuilder<void>(
@@ -3459,23 +3527,23 @@ void _submitReport(String selectedReason, String otherReason) async {
                       const SizedBox(height: 30.0),
                       // Nombre del proveedor
                       Row(
-  children: [
-    Text(
-      '$supplierName $supplierLastName', // Concatenate the names
-      style: const TextStyle(
-        fontSize: 24,
-        fontWeight: FontWeight.bold,
-      ),
-    ),
-    const SizedBox(width: 5),
-    if (_isSupplierVerified)
-      const Icon(
-        Icons.check_circle,
-        color: Colors.blue,
-        size: 22,
-      ),
-  ],
-),
+                        children: [
+                          Text(
+                            '$supplierName $supplierLastName', // Concatenate the names
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          if (_isSupplierVerified)
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.blue,
+                              size: 22,
+                            ),
+                        ],
+                      ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -3572,56 +3640,62 @@ void _submitReport(String selectedReason, String otherReason) async {
                         },
                       ),
                       // Diseño mejorado para Servicio y Tarifa por hora
-                     Container(
-  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-  decoration: BoxDecoration(
-    color: Colors.blueGrey[50],
-    borderRadius: BorderRadius.circular(10),
-  ),
-  child: Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: [
-      const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Servicio:',
-            style: TextStyle(color: Colors.black, fontSize: 16),
-          ),
-          SizedBox(height: 5),
-          Text(
-            'Tarifa por hora:',
-            style: TextStyle(color: Colors.black, fontSize: 16),
-          ),
-        ],
-      ),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            widget.serviceName.length > 25 
-                ? '${widget.serviceName.substring(0, 25)}...' 
-                : widget.serviceName,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            _getHourlyRate(widget.selectedSupplier, widget.id),
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    ],
-  ),
-),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 15),
+                        decoration: BoxDecoration(
+                          color: Colors.blueGrey[50],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Servicio:',
+                                  style: TextStyle(
+                                      color: Colors.black, fontSize: 16),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  widget.serviceName.length > 25
+                                      ? '${widget.serviceName.substring(0, 25)}...'
+                                      : widget.serviceName,
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                const Text(
+                                  'Tarifa por hora:',
+                                  style: TextStyle(
+                                      color: Colors.black, fontSize: 16),
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  _getHourlyRate(
+                                      widget.selectedSupplier, widget.id),
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       // Mostrar conteo de tareas completadas y clientes en fila
                       FutureBuilder<List<int>>(
@@ -3773,113 +3847,113 @@ void _submitReport(String selectedReason, String otherReason) async {
 
   // Nuevo método para mostrar la lista de publicaciones en un BottomSheet
   void _showPublicationsBottomSheet() {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    builder: (context) {
-      return Container(
-        // Ajustar la altura del contenedor
-        height: MediaQuery.of(context).size.height *
-            0.60, // 60% de la altura de la pantalla
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Container(
+          // Ajustar la altura del contenedor
+          height: MediaQuery.of(context).size.height *
+              0.60, // 60% de la altura de la pantalla
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 30),
-            // Titulo del BottomSheet
-            const Text(
-              'Publicaciones relacionadas',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 30),
+              // Titulo del BottomSheet
+              const Text(
+                'Publicaciones relacionadas',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            // GridView para mostrar las publicaciones
-            Expanded(
-              child: FutureBuilder<QuerySnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('suppliers')
-                    .doc(widget.selectedSupplier.id)
-                    .collection('publications')
-                    .where('serviceName', isEqualTo: widget.serviceName)
-                    .get(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CupertinoActivityIndicator(
-                        radius: 20,
-                        color: Colors.green,
-                      ),
-                    );
-                  }
-                  if (snapshot.hasError) {
-                    return Text('Error: ${snapshot.error}');
-                  }
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return const Center(
-                      child: Text('No hay publicaciones disponibles'),
-                    );
-                  }
-
-                  List<QueryDocumentSnapshot> publications =
-                      snapshot.data!.docs;
-
-                  return GridView.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 5,
-                      mainAxisSpacing: 5,
-                    ),
-                    itemCount: publications.length,
-                    itemBuilder: (context, index) {
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ImagePreviewScreen(
-                                imageUrl: publications[index]
-                                    ['PostImageUrl'], // Pasa la URL de la imagen
-                                isCoverImage: false,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          // Agrega esquinas redondeadas al contenedor de la imagen
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            image: DecorationImage(
-                              image: NetworkImage(
-                                  publications[index]['PostImageUrl']),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
+              const SizedBox(height: 20),
+              // GridView para mostrar las publicaciones
+              Expanded(
+                child: FutureBuilder<QuerySnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('suppliers')
+                      .doc(widget.selectedSupplier.id)
+                      .collection('publications')
+                      .where('serviceName', isEqualTo: widget.serviceName)
+                      .get(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CupertinoActivityIndicator(
+                          radius: 20,
+                          color: Colors.green,
                         ),
                       );
-                    },
-                  );
-                },
+                    }
+                    if (snapshot.hasError) {
+                      return Text('Error: ${snapshot.error}');
+                    }
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(
+                        child: Text('No hay publicaciones disponibles'),
+                      );
+                    }
+
+                    List<QueryDocumentSnapshot> publications =
+                        snapshot.data!.docs;
+
+                    return GridView.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        crossAxisSpacing: 5,
+                        mainAxisSpacing: 5,
+                      ),
+                      itemCount: publications.length,
+                      itemBuilder: (context, index) {
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ImagePreviewScreen(
+                                  imageUrl: publications[index][
+                                      'PostImageUrl'], // Pasa la URL de la imagen
+                                  isCoverImage: false,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            // Agrega esquinas redondeadas al contenedor de la imagen
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              image: DecorationImage(
+                                image: NetworkImage(
+                                    publications[index]['PostImageUrl']),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Widget _buildPublicationsCarousel() {
     return FutureBuilder<QuerySnapshot>(
@@ -4004,7 +4078,8 @@ void _submitReport(String selectedReason, String otherReason) async {
                   context,
                   MaterialPageRoute(
                     builder: (context) => ImagePreviewScreen(
-                      imageUrl: publication['PostImageUrl'], // Pasa la URL de la imagen
+                      imageUrl: publication[
+                          'PostImageUrl'], // Pasa la URL de la imagen
                       isCoverImage: false,
                     ),
                   ),
@@ -4211,7 +4286,8 @@ void _submitReport(String selectedReason, String otherReason) async {
     final clientComment = task.data()['clientComment'];
     final taskEndDate = task.data()['end'] as Timestamp?;
 
-    final serviceName = task.data()['service'] ?? 'General'; // Obtener el nombre del servicio
+    final serviceName =
+        task.data()['service'] ?? 'General'; // Obtener el nombre del servicio
 
     return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       future:
@@ -4278,23 +4354,26 @@ void _submitReport(String selectedReason, String otherReason) async {
                             ),
                         ],
                       ),
-                      const SizedBox(height: 3), // Agregar espacio entre el comentario y la etiqueta
-              Container(
-                constraints: const BoxConstraints(maxWidth: 250),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _getLabelColor(serviceName),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: Text(
-                  serviceName,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
+                      const SizedBox(
+                          height:
+                              3), // Agregar espacio entre el comentario y la etiqueta
+                      Container(
+                        constraints: const BoxConstraints(maxWidth: 250),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getLabelColor(serviceName),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Text(
+                          serviceName,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -4348,67 +4427,67 @@ void _submitReport(String selectedReason, String otherReason) async {
 
   // Widget para mostrar la cantidad de seguidores de manera elegante
   Widget _buildFollowerCount() {
-  return StreamBuilder<QuerySnapshot>(
-    stream: FirebaseFirestore.instance
-        .collection('suppliers')
-        .doc(widget.selectedSupplier.id)
-        .collection('followers')
-        .snapshots(),
-    builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const CupertinoActivityIndicator();
-      }
-      if (snapshot.hasError) {
-        return const Text('Error');
-      }
-      final followerCount = snapshot.data?.docs.length ?? 0;
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('suppliers')
+          .doc(widget.selectedSupplier.id)
+          .collection('followers')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CupertinoActivityIndicator();
+        }
+        if (snapshot.hasError) {
+          return const Text('Error');
+        }
+        final followerCount = snapshot.data?.docs.length ?? 0;
 
-      return Container(
-        padding: const EdgeInsets.symmetric(
-          vertical: 8.0,
-          horizontal: 12.0,
-        ),
-        width: 170,
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(20.0),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.people,
-              size: 18.0,
-              color: Colors.black,
-            ),
-            const SizedBox(width: 4.0),
-            // Modificaciones para el tamaño del texto
-            RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: '$followerCount ',
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 18.0,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const TextSpan(
-                    text: 'seguidores',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 14.0,
-                    ),
-                  ),
-                ],
+        return Container(
+          padding: const EdgeInsets.symmetric(
+            vertical: 8.0,
+            horizontal: 12.0,
+          ),
+          width: 170,
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.people,
+                size: 18.0,
+                color: Colors.black,
               ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
+              const SizedBox(width: 4.0),
+              // Modificaciones para el tamaño del texto
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '$followerCount ',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 18.0,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const TextSpan(
+                      text: 'seguidores',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 14.0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   // Función para mostrar todas las opiniones en un BottomSheet
   void _showFullReviewsBottomSheet() {

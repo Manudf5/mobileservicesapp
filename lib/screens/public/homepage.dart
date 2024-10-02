@@ -178,6 +178,7 @@ class _HomePageState extends State<HomePage> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+          selectedItemColor: Colors.green,
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal),
         ),
       ),

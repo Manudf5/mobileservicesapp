@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import '../intro_screen.dart';
 import 'package:image_picker/image_picker.dart';
@@ -17,6 +19,7 @@ import 'package:image/image.dart' as img;
 import 'package:image_cropper/image_cropper.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:mobileservicesapp/screens/public/homepage.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -726,13 +729,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 child: GestureDetector(
-                  onTap: () {
+                  onTap: () async {
+                    // Obtener el combinedId antes de navegar
+                    String combinedId = await _getCombinedIdFromFirestore(
+                        FirebaseAuth.instance.currentUser!.uid);
+
                     // Navegar a una nueva pantalla en blanco
                     Navigator.push(
+                      // ignore: use_build_context_synchronously
                       context,
                       MaterialPageRoute(
-                          builder: (context) =>
-                              const SuppliersPostulationFormScreen()),
+                          builder: (context) => SuppliersPostulationFormScreen(
+                              combinedId: combinedId)),
                     );
                   },
                   child: Card(
@@ -745,7 +753,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [Colors.greenAccent[700]!, Colors.green[900]!],
+                          colors: [
+                            Colors.greenAccent[700]!,
+                            Colors.green[900]!
+                          ],
                         ),
                       ),
                       child: Padding(
@@ -864,37 +875,1153 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-class SuppliersPostulationFormScreen extends StatelessWidget {
-  const SuppliersPostulationFormScreen({super.key});
+class SuppliersPostulationFormScreen extends StatefulWidget {
+  final String combinedId;
+
+  const SuppliersPostulationFormScreen({super.key, required this.combinedId});
 
   @override
+  // ignore: library_private_types_in_public_api
+  _SuppliersPostulationFormScreenState createState() =>
+      _SuppliersPostulationFormScreenState();
+}
+
+class _SuppliersPostulationFormScreenState
+    extends State<SuppliersPostulationFormScreen> {
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+  final _formKey = GlobalKey<FormState>();
+
+  // Variables para almacenar los datos del formulario
+  List<String> selectedServices = [];
+  List<Map<String, dynamic>> servicesData = [];
+  List<String> selectedAdditionalPaymentMethods = [];
+  List<String> selectedDays = [];
+  List<String> selectedTimesOfDay = [];
+  List<Map<String, String>> jobReferences = [];
+  List<Map<String, dynamic>> _allServicesData = [];
+  List<Map<String, dynamic>> _filteredServicesData = [];
+  bool _isLoadingServices = true;
+  String _searchQuery = '';
+  bool nationalTasks = false;
+  bool ownVehicle = false;
+  File? rifImage;
+  File? cvFile;
+  String healthInfo = '';
+  double selectedTimeRange = 12.0;
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchServices();
+  }
+
+  Future<void> _fetchServices() async {
+    setState(() {
+      _isLoadingServices = true;
+    });
+
+    try {
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('services')
+          .orderBy('serviceName')
+          .get();
+
+      setState(() {
+        _allServicesData = snapshot.docs
+            .map((doc) => {
+                  'id': doc.id,
+                  'serviceName': doc['serviceName'],
+                  'imageUrl': doc['imageUrl'],
+                })
+            .toList();
+        _filteredServicesData = List.from(_allServicesData);
+        _isLoadingServices = false;
+      });
+    } catch (e) {
+      // Manejar el error
+      setState(() {
+        _isLoadingServices = false;
+      });
+    }
+  }
+
+  void _filterServices(String query) {
+    setState(() {
+      _searchQuery = query.toLowerCase();
+      _filteredServicesData = _allServicesData
+          .where((service) =>
+              service['serviceName'].toLowerCase().contains(_searchQuery))
+          .toList();
+    });
+  }
+
+   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Colors.white, Color(0xFFE0F2F1)],
+            colors: [Colors.white, Colors.blue[50]!],
           ),
         ),
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0, // Elimina la sombra de la AppBar
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF08143c)),
-              onPressed: () => Navigator.pop(context),
+        child: SafeArea(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                _buildAppBar(),
+                Expanded(
+                  child: PageView(
+                    controller: _pageController,
+                    //physics: const NeverScrollableScrollPhysics(),
+                    onPageChanged: (index) {
+                      setState(() {
+                        _currentPage = index;
+                      });
+                    },
+                    children: [
+                      _buildFirstPage(),
+                      _buildSecondPage(),
+                      _buildThirdPage(),
+                      _buildFourthPage(),
+                      _buildFifthPage(), // Nueva página de referencias laborales
+                      _buildSixthPage(),
+                    ],
+                  ),
+                ),
+                _buildPageIndicator(),
+                _buildNavigationButtons(),
+              ],
             ),
-            title: const Text('Formulario de postulaciones'),
-          ),
-          body: const Center(
-            child: Text('Aquí irá el formulario de solicitud'),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildAppBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          const Text(
+            'Postulación MSA',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(width: 40), // Para balance
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFirstPage() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(
+            'assets/images/MSA_LogoTemporal.png',
+            height: 120,
+          ),
+          const SizedBox(height: 30),
+          Text(
+            '¡Conviértete en agente!',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[800],
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 30),
+          _buildRequirementsList(),
+          const SizedBox(height: 30),
+          Card(
+            color: Colors.white,
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Icon(Icons.lightbulb_outline,
+                      size: 40, color: Colors.amber),
+                  const SizedBox(height: 10),
+                  Text(
+                    '¡Únete a nuestra red de profesionales y expande tus oportunidades!',
+                    style: TextStyle(fontSize: 16, color: Colors.grey[800]),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRequirementsList() {
+    final requirements = [
+      'RIF vigente',
+      'Pago móvil bancario habilitado',
+      'Compromiso con la calidad de servicio',
+      'Foto de perfil y de portada visibles',
+      'Facilidad para movilizarse por la ciudad o en el territorio nacional',
+    ];
+
+    return Card(
+      color: Colors.white,
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Requisitos:',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue[800],
+              ),
+            ),
+            const SizedBox(height: 10),
+            ...requirements.map((req) => _buildRequirementItem(req)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRequirementItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle, color: Colors.green, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecondPage() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Text(
+            'Seleccione sus servicios',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[800],
+            ),
+          ),
+        ),
+        _buildSearchBar(),
+        Expanded(
+          child: _isLoadingServices
+              ? const Center(child: CircularProgressIndicator())
+              : _buildServiceGrid(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: TextField(
+        onChanged: _filterServices,
+        decoration: InputDecoration(
+          hintText: 'Buscar servicios...',
+          prefixIcon: const Icon(Icons.search, color: Colors.blue),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide(color: Colors.blue.shade100),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(30),
+            borderSide: BorderSide(color: Colors.blue.shade300, width: 2),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServiceGrid() {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 16/13,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: _filteredServicesData.length,
+      itemBuilder: (context, index) {
+        final service = _filteredServicesData[index];
+        return _buildServiceItem(service);
+      },
+    );
+  }
+
+  Widget _buildServiceItem(Map<String, dynamic> service) {
+    final serviceId = service['id'];
+    final isSelected = selectedServices.contains(serviceId);
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (isSelected) {
+            selectedServices.remove(serviceId);
+          } else {
+            selectedServices.add(serviceId);
+          }
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue.shade50 : Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.2),
+              spreadRadius: 1,
+              blurRadius: 5,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                child: CachedNetworkImage(
+                  imageUrl: service['imageUrl'],
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      service['serviceName'],
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? Colors.blue[800] : Colors.black87,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isSelected ? Colors.blue : Colors.grey.shade200,
+                    ),
+                    child: Center(
+                      child: Icon(
+                        isSelected ? Icons.check : Icons.add,
+                        size: 16,
+                        color: isSelected ? Colors.white : Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThirdPage() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Configura tu disponibilidad',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[800],
+            ),
+          ),
+          const SizedBox(height: 20),
+          _buildDaysSelection(),
+          const SizedBox(height: 20),
+          _buildTimesOfDaySelection(),
+          const SizedBox(height: 20),
+          _buildNationalTasksSelection(),
+          const SizedBox(height: 10),
+          _buildOwnVehicleSelection(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDaysSelection() {
+  final days = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text('Días de trabajo', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 10),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: days.map((day) => _buildDayCircle(day)).toList(),
+      ),
+    ],
+  );
+}
+
+Widget _buildDayCircle(String day) {
+  final isSelected = selectedDays.contains(day);
+  return GestureDetector(
+    onTap: () => setState(() {
+      if (isSelected) {
+        selectedDays.remove(day);
+      } else {
+        selectedDays.add(day);
+      }
+    }),
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isSelected ? Colors.blue : Colors.grey[200],
+      ),
+      child: Center(
+        child: Text(day, style: TextStyle(color: isSelected ? Colors.white : Colors.black)),
+      ),
+    ),
+  );
+}
+
+Widget _buildTimesOfDaySelection() {
+  final timeOptions = [
+    {'name': 'Madrugada', 'icon': Icons.nightlight_round},
+    {'name': 'Mañana', 'icon': Icons.wb_sunny},
+    {'name': 'Tarde', 'icon': Icons.wb_twighlight},
+    {'name': 'Noche', 'icon': Icons.nights_stay},
+  ];
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text('Momentos del día', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 10),
+      GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        childAspectRatio: 3,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        physics: const NeverScrollableScrollPhysics(),
+        children: timeOptions.map((option) => _buildTimeOption(option)).toList(),
+      ),
+    ],
+  );
+}
+
+Widget _buildTimeOption(Map<String, dynamic> option) {
+  final isSelected = selectedTimesOfDay.contains(option['name']);
+  return InkWell(
+    onTap: () {
+      setState(() {
+        if (isSelected) {
+          selectedTimesOfDay.remove(option['name']);
+        } else {
+          selectedTimesOfDay.add(option['name']);
+        }
+      });
+    },
+    child: Container(
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isSelected ? Colors.blue : Colors.grey,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(option['icon'], color: isSelected ? Colors.blue : Colors.grey),
+          const SizedBox(width: 8),
+          Text(option['name'], style: TextStyle(color: isSelected ? Colors.blue : Colors.grey)),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildNationalTasksSelection() {
+  return Row(
+    children: [
+      const Icon(Icons.public, color: Colors.blue),
+      const SizedBox(width: 10),
+      const Text('Disponibilidad nacional', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      const Spacer(),
+      Switch(
+        value: nationalTasks,
+        onChanged: (value) => setState(() => nationalTasks = value),
+        activeColor: Colors.blue,
+      ),
+    ],
+  );
+}
+
+Widget _buildOwnVehicleSelection() {
+  return Row(
+    children: [
+      const Icon(Icons.car_rental_rounded, color: Colors.blue),
+      const SizedBox(width: 10),
+      const Text('Vehículo personal', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      const Spacer(),
+      Switch(
+        value: ownVehicle,
+        onChanged: (value) => setState(() => ownVehicle = value),
+        activeColor: Colors.blue,
+      ),
+    ],
+  );
+}
+
+  Widget _buildFourthPage() {
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(24.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Métodos de pago',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue[800],
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildDefaultPaymentMethods(),
+        const SizedBox(height: 20),
+        _buildAdditionalPaymentMethods(),
+      ],
+    ),
+  );
+}
+
+Widget _buildDefaultPaymentMethods() {
+  return Card(
+    color: Colors.white,
+    elevation: 2,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Métodos de pago por defecto',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[800],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildPaymentMethodIcon(Icons.account_balance_wallet, 'Monedero'),
+              _buildPaymentMethodIcon(Icons.attach_money, 'Efectivo'),
+              _buildPaymentMethodIcon(Icons.phone_android, 'Pago móvil'),
+              Image.asset('assets/images/Paypal_Logo.png', height: 25),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildPaymentMethodIcon(IconData icon, String label) {
+  return Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(icon, size: 30, color: Colors.blue[700]),
+      const SizedBox(height: 8),
+      Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+    ],
+  );
+}
+
+Widget _buildAdditionalPaymentMethods() {
+  return Card(
+    color: Colors.white,
+    elevation: 2,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Métodos de pago adicionales',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[800],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Aumenta tus oportunidades ofreciendo más opciones de pago',
+            style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey[600], fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildAdditionalPaymentMethod('Binance_LogoNew.png', 'Binance'),
+              _buildAdditionalPaymentMethod('Zinli_Logo.png', 'Zinli'),
+              _buildAdditionalPaymentMethod('Zelle_Logo.png', 'Zelle'),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildAdditionalPaymentMethod(String assetName, String label) {
+  bool isSelected = selectedAdditionalPaymentMethods.contains(label);
+  return GestureDetector(
+    onTap: () {
+      setState(() {
+        if (isSelected) {
+          selectedAdditionalPaymentMethods.remove(label);
+        } else {
+          selectedAdditionalPaymentMethods.add(label);
+        }
+      });
+    },
+    child: Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.white,
+            border: Border.all(
+              color: isSelected ? Colors.blue : Colors.grey[300]!,
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Image.asset('assets/images/$assetName', height: 30),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? Colors.blue[700] : Colors.grey[700],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildFifthPage() {
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(24.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Referencias laborales',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue[800],
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildInfoCard(),
+        const SizedBox(height: 30),
+        ...List.generate(3, (index) => _buildReferenceInput(index)),
+      ],
+    ),
+  );
+}
+
+Widget _buildInfoCard() {
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.blue.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(15),
+    ),
+    child: Row(
+      children: [
+        Icon(Icons.info_outline, color: Colors.blue[700], size: 30),
+        const SizedBox(width: 15),
+        Expanded(
+          child: Text(
+            'Las referencias laborales son opcionales, pero aumentan significativamente sus posibilidades de aprobación.',
+            style: TextStyle(color: Colors.blue[700], fontSize: 16),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildReferenceInput(int index) {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 25),
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(15),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.1),
+          spreadRadius: 1,
+          blurRadius: 10,
+          offset: const Offset(0, 3),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Referencia ${index + 1}',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue[800]),
+        ),
+        const SizedBox(height: 20),
+        _buildInputField('Nombre', Icons.person, (value) => _updateReference(index, 'name', value)),
+        const SizedBox(height: 15),
+        _buildInputField('Número telefónico', Icons.phone, (value) => _updateReference(index, 'phone', value), TextInputType.phone),
+        const SizedBox(height: 15),
+        _buildInputField('Trabajo realizado', Icons.work, (value) => _updateReference(index, 'job', value)),
+      ],
+    ),
+  );
+}
+
+Widget _buildInputField(String label, IconData icon, Function(String) onChanged, [TextInputType? keyboardType]) {
+  return TextFormField(
+    decoration: InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: Colors.blue[700]),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.blue[200]!),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Colors.blue[700]!, width: 2),
+      ),
+      filled: true,
+      fillColor: Colors.blue[50],
+    ),
+    keyboardType: keyboardType,
+    onChanged: onChanged,
+  );
+}
+
+  void _updateReference(int index, String field, String value) {
+    if (jobReferences.length <= index) {
+      jobReferences.add({});
+    }
+    setState(() {
+      jobReferences[index][field] = value;
+    });
+  }
+
+  Widget _buildSixthPage() {
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(24.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Documentación y salud',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue[800],
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildDocumentUpload('RIF', rifImage, _pickRifFile),
+        const SizedBox(height: 16),
+        _buildDocumentUpload('Curriculum Vitae (CV)', cvFile, _pickCvFile),
+        const SizedBox(height: 20),
+        _buildHealthInfoInput(),
+        const SizedBox(height: 30),
+        Center(
+          child: ElevatedButton(
+            onPressed: _isSubmitting ? null : _submitPostulation,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green[800],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+            ),
+            child: _isSubmitting
+                ? const CupertinoActivityIndicator(color: Colors.white)
+                : const Text(
+                    'Enviar postulación',
+                    style: TextStyle(fontSize: 18),
+                  ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+  Widget _buildDocumentUpload(String documentType, File? file, Function() onTap) {
+    return Card(
+      color: Colors.white,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Icon(
+                file == null ? Icons.upload_file : Icons.check_circle,
+                size: 40,
+                color: file == null ? Colors.grey : Colors.green,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      file == null ? 'Subir $documentType' : '$documentType subido',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (file != null)
+                      Text(
+                        file.path.split('/').last,
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHealthInfoInput() {
+    return Card(
+      color: Colors.white,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Información de salud (opcional):',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue[800],
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Ingrese información relevante sobre su salud...',
+                prefixIcon: Icon(Icons.health_and_safety_rounded , color: Colors.blue[700]),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: Colors.blue[200]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: Colors.blue[700]!, width: 2),
+                ),
+                filled: true,
+      fillColor: Colors.blue[50],
+              ),
+              onChanged: (value) {
+                healthInfo = value;
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPageIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(6, (index) {
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            margin: const EdgeInsets.symmetric(horizontal: 4.0),
+            height: 8.0,
+            width: index == _currentPage ? 24.0 : 8.0,
+            decoration: BoxDecoration(
+              color: index == _currentPage ? Colors.blue[700] : Colors.white,
+              borderRadius: BorderRadius.circular(4.0),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  // Actualizar _buildNavigationButtons para incluir la nueva página
+  Widget _buildNavigationButtons() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          if (_currentPage > 0)
+            ElevatedButton.icon(
+              onPressed: () {
+                _pageController.previousPage(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              },
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Anterior'),
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.black87, 
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+            )
+          else
+            const SizedBox(),
+
+          if (_currentPage < 5) // Actualizado para incluir la nueva página
+            ElevatedButton.icon(
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  _pageController.nextPage(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                }
+              },
+              label: const Text('Siguiente'),
+              icon: const Icon(Icons.arrow_forward),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green[800],
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+            )
+          else
+            const SizedBox(),
+        ],
+      ),
+    );
+  }
+
+
+  Future<void> _pickRifFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'], // Permitir solo archivos PDF
+    );
+
+    if (result != null) {
+      setState(() {
+        rifImage = File(result.files.single.path!);
+      });
+    }
+  }
+
+  Future<void> _pickCvFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'], // Permitir solo archivos PDF
+    );
+
+    if (result != null) {
+      setState(() {
+        cvFile = File(result.files.single.path!);
+      });
+    }
+  }
+
+  Future<void> _submitPostulation() async {
+  if (_formKey.currentState!.validate()) {
+    if (rifImage == null || cvFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, adjunta todos los documentos requeridos.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      // Verificar si ya existe una postulación del usuario
+      var existingPostulation = await FirebaseFirestore.instance
+          .collection('postulations')
+          .where('userID', isEqualTo: widget.combinedId)
+          .get();
+
+      if (existingPostulation.docs.isNotEmpty) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ya has enviado una postulación.')),
+        );
+        return;
+      }
+
+      // Subir imágenes y archivos
+      String rifImageUrl = await _uploadFile(rifImage!, 'rif_images/${widget.combinedId}');
+      String cvFileUrl = await _uploadFile(cvFile!, 'cv_files/${widget.combinedId}');
+
+      // Guardar postulación en Firestore
+      await FirebaseFirestore.instance.collection('postulations').add({
+        'userID': widget.combinedId,
+        'selectedServices': selectedServices,
+        'selectedAdditionalPaymentMethods': selectedAdditionalPaymentMethods,
+        'selectedDays': selectedDays,
+        'selectedTimesOfDay': selectedTimesOfDay,
+        'rifImageUrl': rifImageUrl,
+        'cvFileUrl': cvFileUrl,
+        'healthInfo': healthInfo,
+        'nationalTasks': nationalTasks,
+        'ownVehicle': ownVehicle,
+        'jobReferences': jobReferences,
+        'postulationDate': FieldValue.serverTimestamp(),
+        'approved': null,
+      });
+
+      // Agregar notificación al usuario
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.combinedId)
+          .collection('notifications')
+          .add({
+        'description': 'Su postulación como agente MSA ha sido enviada y recibida con éxito. Nuestro equipo especializado esta evaluando su solicitud, de ser aprobada nos comunicaremos en la brevedad posible con usted para hacerle saber los siguientes pasos a seguir y lograr su inicio en nuestra comunidad de agentes ¡Muchas gracias por preferirnos!',
+        'title': 'Postulación recibida',
+        'read': false,
+        'notificationDate': FieldValue.serverTimestamp(),
+      });
+
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Postulación enviada')),
+      );
+
+      // Redirigir a la pantalla de perfil
+      // ignore: use_build_context_synchronously
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const HomePage(selectedIndex: 4)),
+      );
+    } catch (e) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al enviar la postulación: $e')),
+      );
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+    }
+  }
+}
+
+  Future<String> _uploadFile(File file, String path) async {
+    Reference ref = FirebaseStorage.instance.ref().child(path);
+    UploadTask uploadTask = ref.putFile(file);
+    TaskSnapshot snapshot = await uploadTask;
+    return await snapshot.ref.getDownloadURL();
   }
 }
 
@@ -1984,23 +3111,6 @@ class _AccountScreenState extends State<AccountScreen> {
                       subtitle: _formatDate(userData['registrationDate'],
                           includeTime: true, includeWeekday: true),
                     ),
-                    const SizedBox(height: 28),
-                    ElevatedButton(
-                      onPressed: () {
-                        // Lógica para eliminar la cuenta
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20.0),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 30.0, vertical: 15.0),
-                      ),
-                      child: const Text('Eliminar cuenta',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                    ).animate().fadeIn().slide(),
                   ],
                 ),
               ),
