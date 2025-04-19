@@ -14,14 +14,13 @@ import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_paypal/flutter_paypal.dart';
 import 'package:mobileservicesapp/screens/public/homepage.dart';
-import 'package:http/http.dart' as http;
-import 'package:html/parser.dart' show parse;
 import 'package:mobileservicesapp/screens/public/social.dart';
 import 'package:one_context/one_context.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:mobileservicesapp/integrations/coins.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -250,7 +249,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                           builder: (context,
                                               averageEvaluationSnapshot) {
                                             if (averageEvaluationSnapshot
-                                                .connectionState ==
+                                                    .connectionState ==
                                                 ConnectionState.waiting) {
                                               return const ListTile(
                                                 title: Center(
@@ -263,7 +262,8 @@ class _TasksScreenState extends State<TasksScreen> {
                                             }
 
                                             double averageEvaluation =
-                                                averageEvaluationSnapshot.data ??
+                                                averageEvaluationSnapshot
+                                                        .data ??
                                                     0.0;
 
                                             return GestureDetector(
@@ -306,9 +306,9 @@ class _TasksScreenState extends State<TasksScreen> {
                                                                         .data()?[
                                                                     'profileImageUrl'] !=
                                                                 null
-                                                            ? NetworkImage(
-                                                                supplier.data()?[
-                                                                    'profileImageUrl'])
+                                                            ? NetworkImage(supplier
+                                                                    .data()?[
+                                                                'profileImageUrl'])
                                                             : const AssetImage(
                                                                 'assets/images/ProfilePhoto_predetermined.png'),
                                                       ),
@@ -328,19 +328,18 @@ class _TasksScreenState extends State<TasksScreen> {
                                                             ),
                                                             Text(
                                                               '${task.data()['supplierName']}',
-                                                              style:
-                                                                  const TextStyle(
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .bold,
-                                                                      fontSize:
-                                                                          16),
+                                                              style: const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  fontSize: 16),
                                                             ),
                                                             Text(
                                                               task.data()[
                                                                   'service'],
                                                               style: const TextStyle(
-                                                                  fontSize: 14.0,
+                                                                  fontSize:
+                                                                      14.0,
                                                                   fontStyle:
                                                                       FontStyle
                                                                           .italic),
@@ -357,11 +356,12 @@ class _TasksScreenState extends State<TasksScreen> {
                                                                     width: 4.0),
                                                                 Text(
                                                                   // Muestra la evaluación promedio
-                                                                  averageEvaluation.toStringAsFixed(1),
-                                                                  style:
-                                                                      const TextStyle(
-                                                                          fontSize:
-                                                                              12.0),
+                                                                  averageEvaluation
+                                                                      .toStringAsFixed(
+                                                                          1),
+                                                                  style: const TextStyle(
+                                                                      fontSize:
+                                                                          12.0),
                                                                 ),
                                                               ],
                                                             ),
@@ -369,51 +369,80 @@ class _TasksScreenState extends State<TasksScreen> {
                                                         ),
                                                       ),
                                                       Padding(
-  padding: const EdgeInsets.only(left: 16.0),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: [
-      Text(
-        '${task.data()['state']}',
-        style: TextStyle(
-          fontSize: 14.0,
-          fontWeight: FontWeight.bold,
-          color: task.data()['state'] == 'Pendiente'
-              ? const Color(0xFFE65100) // Red for Pendiente
-              : Colors.amber, // LightGreen for Agendado
-        ),
-      ),
-      const SizedBox(height: 1),
-      Text(
-        task.data()['state'] == 'Pendiente'
-            ? // Display reservation date if state is 'Pendiente'
-            task.data()['reservation'] != null
-                ? DateFormat('dd/MM/yyyy')
-                    .format((task.data()['reservation'] as Timestamp).toDate())
-                : 'Sin fecha'
-            : // Display scheduled date if state is 'Agendado'
-            task.data()['scheduled'] != null
-                ? DateFormat('dd/MM/yyyy')
-                    .format((task.data()['scheduled'] as Timestamp).toDate())
-                : 'Sin fecha',
-        style: const TextStyle(
-          fontSize: 10.0,
-          color: Color(0xFF08143C),
-        ),
-      ),
-      // Show time below the date
-      if (task.data()['scheduled'] != null)
-        Text(
-          DateFormat('hh:mm a') // Show time with AM/PM
-              .format((task.data()['scheduled'] as Timestamp).toDate()),
-          style: const TextStyle(
-            fontSize: 10.0,
-            color: Color(0xFF08143C),
-          ),
-        ),
-    ],
-  ),
-),
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .only(
+                                                                left: 16.0),
+                                                        child: Column(
+                                                          crossAxisAlignment:
+                                                              CrossAxisAlignment
+                                                                  .center,
+                                                          children: [
+                                                            Text(
+                                                              '${task.data()['state']}',
+                                                              style: TextStyle(
+                                                                fontSize: 14.0,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color: task.data()[
+                                                                            'state'] ==
+                                                                        'Pendiente'
+                                                                    ? const Color(
+                                                                        0xFFE65100) // Red for Pendiente
+                                                                    : Colors
+                                                                        .amber, // LightGreen for Agendado
+                                                              ),
+                                                            ),
+                                                            const SizedBox(
+                                                                height: 1),
+                                                            Text(
+                                                              task.data()['state'] ==
+                                                                      'Pendiente'
+                                                                  ? // Display reservation date if state is 'Pendiente'
+                                                                  task.data()['reservation'] !=
+                                                                          null
+                                                                      ? DateFormat(
+                                                                              'dd/MM/yyyy')
+                                                                          .format((task.data()['reservation'] as Timestamp)
+                                                                              .toDate())
+                                                                      : 'Sin fecha'
+                                                                  : // Display scheduled date if state is 'Agendado'
+                                                                  task.data()['scheduled'] !=
+                                                                          null
+                                                                      ? DateFormat(
+                                                                              'dd/MM/yyyy')
+                                                                          .format(
+                                                                              (task.data()['scheduled'] as Timestamp).toDate())
+                                                                      : 'Sin fecha',
+                                                              style:
+                                                                  const TextStyle(
+                                                                fontSize: 10.0,
+                                                                color: Color(
+                                                                    0xFF08143C),
+                                                              ),
+                                                            ),
+                                                            // Show time below the date
+                                                            if (task.data()[
+                                                                    'scheduled'] !=
+                                                                null)
+                                                              Text(
+                                                                DateFormat(
+                                                                        'hh:mm a') // Show time with AM/PM
+                                                                    .format((task.data()['scheduled']
+                                                                            as Timestamp)
+                                                                        .toDate()),
+                                                                style:
+                                                                    const TextStyle(
+                                                                  fontSize:
+                                                                      10.0,
+                                                                  color: Color(
+                                                                      0xFF08143C),
+                                                                ),
+                                                              ),
+                                                          ],
+                                                        ),
+                                                      ),
                                                     ],
                                                   ),
                                                 ),
@@ -547,7 +576,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                           builder: (context,
                                               averageEvaluationSnapshot) {
                                             if (averageEvaluationSnapshot
-                                                .connectionState ==
+                                                    .connectionState ==
                                                 ConnectionState.waiting) {
                                               return const ListTile(
                                                 title: Center(
@@ -560,7 +589,8 @@ class _TasksScreenState extends State<TasksScreen> {
                                             }
 
                                             double averageEvaluation =
-                                                averageEvaluationSnapshot.data ??
+                                                averageEvaluationSnapshot
+                                                        .data ??
                                                     0.0;
 
                                             return GestureDetector(
@@ -603,9 +633,9 @@ class _TasksScreenState extends State<TasksScreen> {
                                                                         .data()?[
                                                                     'profileImageUrl'] !=
                                                                 null
-                                                            ? NetworkImage(
-                                                                supplier.data()?[
-                                                                    'profileImageUrl'])
+                                                            ? NetworkImage(supplier
+                                                                    .data()?[
+                                                                'profileImageUrl'])
                                                             : const AssetImage(
                                                                 'assets/images/ProfilePhoto_predetermined.png'),
                                                       ),
@@ -625,19 +655,18 @@ class _TasksScreenState extends State<TasksScreen> {
                                                             ),
                                                             Text(
                                                               '${task.data()['supplierName']}',
-                                                              style:
-                                                                  const TextStyle(
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .bold,
-                                                                      fontSize:
-                                                                          16),
+                                                              style: const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  fontSize: 16),
                                                             ),
                                                             Text(
                                                               task.data()[
                                                                   'service'],
                                                               style: const TextStyle(
-                                                                  fontSize: 14.0,
+                                                                  fontSize:
+                                                                      14.0,
                                                                   fontStyle:
                                                                       FontStyle
                                                                           .italic),
@@ -654,11 +683,12 @@ class _TasksScreenState extends State<TasksScreen> {
                                                                     width: 4.0),
                                                                 Text(
                                                                   // Muestra la evaluación promedio
-                                                                  averageEvaluation.toStringAsFixed(1),
-                                                                  style:
-                                                                      const TextStyle(
-                                                                          fontSize:
-                                                                              12.0),
+                                                                  averageEvaluation
+                                                                      .toStringAsFixed(
+                                                                          1),
+                                                                  style: const TextStyle(
+                                                                      fontSize:
+                                                                          12.0),
                                                                 ),
                                                               ],
                                                             ),
@@ -667,7 +697,8 @@ class _TasksScreenState extends State<TasksScreen> {
                                                       ),
                                                       Padding(
                                                         padding:
-                                                            const EdgeInsets.only(
+                                                            const EdgeInsets
+                                                                .only(
                                                                 left: 16.0),
                                                         child: Column(
                                                           // Use a Column to stack the text widgets
@@ -683,8 +714,8 @@ class _TasksScreenState extends State<TasksScreen> {
                                                                 fontWeight:
                                                                     FontWeight
                                                                         .bold,
-                                                                color:
-                                                                    Colors.amber,
+                                                                color: Colors
+                                                                    .amber,
                                                               ),
                                                             ),
                                                             const SizedBox(
@@ -692,16 +723,13 @@ class _TasksScreenState extends State<TasksScreen> {
                                                                     1), // Add some space between the text widgets
                                                             Text(
                                                               // Formatea la fecha desde Timestamp a DD/MM/YYYY
-                                                              task.data()[
-                                                                          'start'] !=
+                                                              task.data()['start'] !=
                                                                       null
                                                                   ? DateFormat(
                                                                           'dd/MM/yyyy')
-                                                                      .format((task
-                                                                              .data()[
-                                                                                  'start']
-                                                                          as Timestamp)
-                                                                      .toDate())
+                                                                      .format((task.data()['start']
+                                                                              as Timestamp)
+                                                                          .toDate())
                                                                   : 'Sin fecha',
                                                               style:
                                                                   const TextStyle(
@@ -843,7 +871,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                           builder: (context,
                                               averageEvaluationSnapshot) {
                                             if (averageEvaluationSnapshot
-                                                .connectionState ==
+                                                    .connectionState ==
                                                 ConnectionState.waiting) {
                                               return const ListTile(
                                                 title: Center(
@@ -856,7 +884,8 @@ class _TasksScreenState extends State<TasksScreen> {
                                             }
 
                                             double averageEvaluation =
-                                                averageEvaluationSnapshot.data ??
+                                                averageEvaluationSnapshot
+                                                        .data ??
                                                     0.0;
 
                                             return GestureDetector(
@@ -899,9 +928,9 @@ class _TasksScreenState extends State<TasksScreen> {
                                                                         .data()?[
                                                                     'profileImageUrl'] !=
                                                                 null
-                                                            ? NetworkImage(
-                                                                supplier.data()?[
-                                                                    'profileImageUrl'])
+                                                            ? NetworkImage(supplier
+                                                                    .data()?[
+                                                                'profileImageUrl'])
                                                             : const AssetImage(
                                                                 'assets/images/ProfilePhoto_predetermined.png'),
                                                       ),
@@ -921,19 +950,18 @@ class _TasksScreenState extends State<TasksScreen> {
                                                             ),
                                                             Text(
                                                               '${task.data()['supplierName']}',
-                                                              style:
-                                                                  const TextStyle(
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .bold,
-                                                                      fontSize:
-                                                                          16),
+                                                              style: const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                  fontSize: 16),
                                                             ),
                                                             Text(
                                                               task.data()[
                                                                   'service'],
                                                               style: const TextStyle(
-                                                                  fontSize: 14.0,
+                                                                  fontSize:
+                                                                      14.0,
                                                                   fontStyle:
                                                                       FontStyle
                                                                           .italic),
@@ -950,11 +978,12 @@ class _TasksScreenState extends State<TasksScreen> {
                                                                     width: 4.0),
                                                                 Text(
                                                                   // Muestra la evaluación promedio
-                                                                  averageEvaluation.toStringAsFixed(1),
-                                                                  style:
-                                                                      const TextStyle(
-                                                                          fontSize:
-                                                                              12.0),
+                                                                  averageEvaluation
+                                                                      .toStringAsFixed(
+                                                                          1),
+                                                                  style: const TextStyle(
+                                                                      fontSize:
+                                                                          12.0),
                                                                 ),
                                                               ],
                                                             ),
@@ -963,7 +992,8 @@ class _TasksScreenState extends State<TasksScreen> {
                                                       ),
                                                       Padding(
                                                         padding:
-                                                            const EdgeInsets.only(
+                                                            const EdgeInsets
+                                                                .only(
                                                                 left: 16.0),
                                                         child: Column(
                                                           // Use a Column to stack the text widgets
@@ -988,16 +1018,13 @@ class _TasksScreenState extends State<TasksScreen> {
                                                                     1), // Add some space between the text widgets
                                                             Text(
                                                               // Formatea la fecha desde Timestamp a DD/MM/YYYY
-                                                              task.data()[
-                                                                          'end'] !=
+                                                              task.data()['end'] !=
                                                                       null
                                                                   ? DateFormat(
                                                                           'dd/MM/yyyy')
-                                                                      .format((task
-                                                                              .data()[
-                                                                                  'end']
-                                                                          as Timestamp)
-                                                                      .toDate())
+                                                                      .format((task.data()['end']
+                                                                              as Timestamp)
+                                                                          .toDate())
                                                                   : 'Sin fecha',
                                                               style:
                                                                   const TextStyle(
@@ -1076,7 +1103,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   Map<String, dynamic>? _zinliData;
   Map<String, dynamic>? _zelleData;
 
-  double _bcvExchangeRate = 1.0;
+  double _bcvExchangeRate = 0.0;
+  bool _isLoadingExchangeRate = true;
   bool _showPagoMovilDetails = false;
   bool _showBinanceDetails = false;
   bool _showZinliDetails = false;
@@ -1104,164 +1132,185 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   }
 
   Future _showCancelConfirmationDialog() async {
-  return showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (BuildContext context) {
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Confirmar cancelación'),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('¿Por qué deseas cancelar la reservación?'),
-                  const SizedBox(height: 16),
-                  RadioListTile(
-                    title: const Text('No deseo el servicio'),
-                    value: 'No deseo el servicio',
-                    groupValue: _selectedReason,
-                    activeColor: Colors.green,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedReason = value;
-                      });
-                    },
-                  ),
-                  RadioListTile(
-                    title: const Text('Demora en responder los mensajes'),
-                    value: 'Demora en responder los mensajes',
-                    groupValue: _selectedReason,
-                    activeColor: Colors.green,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedReason = value;
-                      });
-                    },
-                  ),
-                  RadioListTile(
-                    title: const Text('Muy costoso'),
-                    value: 'Muy costoso',
-                    groupValue: _selectedReason,
-                    activeColor: Colors.green,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedReason = value;
-                      });
-                    },
-                  ),
-                  RadioListTile(
-                    title: const Text('Tiempo exagerado de espera'),
-                    value: 'Tiempo exagerado de espera',
-                    groupValue: _selectedReason,
-                    activeColor: Colors.green,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedReason = value;
-                      });
-                    },
-                  ),
-                  RadioListTile(
-                    title: const Text('No he recibido ninguna respuesta del agente'),
-                    value: 'No he recibido ninguna respuesta del agente',
-                    groupValue: _selectedReason,
-                    activeColor: Colors.green,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedReason = value;
-                      });
-                    },
-                  ),
-                  RadioListTile(
-                    title: const Text('El agente solicitó cancelar la reserva'),
-                    value: 'El agente solicitó cancelar la reserva',
-                    groupValue: _selectedReason,
-                    activeColor: Colors.green,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedReason = value;
-                      });
-                    },
-                  ),
-                  RadioListTile(
-                    title: const Text('Otro motivo'),
-                    value: 'Otro motivo',
-                    groupValue: _selectedReason,
-                    activeColor: Colors.green,
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedReason = value;
-                      });
-                    },
-                  ),
-                  if (_selectedReason == 'Otro motivo')
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16.0),
-                      child: TextField(
-                        controller: _otherReasonController,
-                        decoration: InputDecoration(
-                          labelText: 'Describe el motivo',
-                          hintText: 'Ej. Cambio de planes, emergencia...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: const BorderSide(color: Colors.green),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            actionsPadding: EdgeInsets.zero,
-            actions: [
-              Container(
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: Colors.grey)),
-                ),
-                child: Row(
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Confirmar cancelación'),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.circular(15),
-                              bottomRight: Radius.zero,
-                              topLeft: Radius.zero,
-                              topRight: Radius.zero,
+                    const Text('¿Por qué deseas cancelar la reservación?'),
+                    const SizedBox(height: 16),
+                    RadioListTile(
+                      title: const Text('No deseo el servicio'),
+                      value: 'No deseo el servicio',
+                      groupValue: _selectedReason,
+                      activeColor: Colors.green,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedReason = value;
+                        });
+                      },
+                    ),
+                    RadioListTile(
+                      title: const Text('Demora en responder los mensajes'),
+                      value: 'Demora en responder los mensajes',
+                      groupValue: _selectedReason,
+                      activeColor: Colors.green,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedReason = value;
+                        });
+                      },
+                    ),
+                    RadioListTile(
+                      title: const Text('Muy costoso'),
+                      value: 'Muy costoso',
+                      groupValue: _selectedReason,
+                      activeColor: Colors.green,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedReason = value;
+                        });
+                      },
+                    ),
+                    RadioListTile(
+                      title: const Text('Tiempo exagerado de espera'),
+                      value: 'Tiempo exagerado de espera',
+                      groupValue: _selectedReason,
+                      activeColor: Colors.green,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedReason = value;
+                        });
+                      },
+                    ),
+                    RadioListTile(
+                      title: const Text(
+                          'No he recibido ninguna respuesta del agente'),
+                      value: 'No he recibido ninguna respuesta del agente',
+                      groupValue: _selectedReason,
+                      activeColor: Colors.green,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedReason = value;
+                        });
+                      },
+                    ),
+                    RadioListTile(
+                      title:
+                          const Text('El agente solicitó cancelar la reserva'),
+                      value: 'El agente solicitó cancelar la reserva',
+                      groupValue: _selectedReason,
+                      activeColor: Colors.green,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedReason = value;
+                        });
+                      },
+                    ),
+                    RadioListTile(
+                      title: const Text('Otro motivo'),
+                      value: 'Otro motivo',
+                      groupValue: _selectedReason,
+                      activeColor: Colors.green,
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedReason = value;
+                        });
+                      },
+                    ),
+                    if (_selectedReason == 'Otro motivo')
+                      Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: TextField(
+                          controller: _otherReasonController,
+                          decoration: InputDecoration(
+                            labelText: 'Describe el motivo',
+                            hintText: 'Ej. Cambio de planes, emergencia...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: const BorderSide(color: Colors.green),
                             ),
                           ),
                         ),
-                        child: const Text(
-                          'Cancelar',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF08143C)),
+                      ),
+                  ],
+                ),
+              ),
+              actionsPadding: EdgeInsets.zero,
+              actions: [
+                Container(
+                  decoration: const BoxDecoration(
+                    border: Border(top: BorderSide(color: Colors.grey)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.only(
+                                bottomLeft: Radius.circular(15),
+                                bottomRight: Radius.zero,
+                                topLeft: Radius.zero,
+                                topRight: Radius.zero,
+                              ),
+                            ),
+                          ),
+                          child: const Text(
+                            'Cancelar',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF08143C)),
+                          ),
                         ),
                       ),
-                    ),
-                    Container(
-                      width: 1,
-                      height: 48,
-                      color: Colors.grey,
-                    ),
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () {
-                          if (_selectedReason != null) {
-                            if (_selectedReason == 'Otro motivo' &&
-                                _otherReasonController.text.isEmpty) {
+                      Container(
+                        width: 1,
+                        height: 48,
+                        color: Colors.grey,
+                      ),
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () {
+                            if (_selectedReason != null) {
+                              if (_selectedReason == 'Otro motivo' &&
+                                  _otherReasonController.text.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text(
+                                      'Por favor, describe el motivo de la cancelación.',
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                    backgroundColor: Colors.red,
+                                    duration: const Duration(seconds: 5),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                );
+                              } else {
+                                _cancelReservation();
+                                Navigator.of(context).pop();
+                              }
+                            } else {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: const Text(
-                                    'Por favor, describe el motivo de la cancelación.',
+                                    'Por favor, seleccione el motivo de la cancelación.',
                                     style: TextStyle(color: Colors.white),
                                   ),
                                   backgroundColor: Colors.red,
@@ -1272,56 +1321,37 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                   ),
                                 ),
                               );
-                            } else {
-                              _cancelReservation();
-                              Navigator.of(context).pop();
                             }
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text(
-                                  'Por favor, seleccione el motivo de la cancelación.',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                backgroundColor: Colors.red,
-                                duration: const Duration(seconds: 5),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.only(
+                                bottomLeft: Radius.zero,
+                                bottomRight: Radius.circular(15),
+                                topLeft: Radius.zero,
+                                topRight: Radius.zero,
                               ),
-                            );
-                          }
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.zero,
-                              bottomRight: Radius.circular(15),
-                              topLeft: Radius.zero,
-                              topRight: Radius.zero,
                             ),
                           ),
-                        ),
-                        child: const Text(
-                          'Confirmar',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF08143C)),
+                          child: const Text(
+                            'Confirmar',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF08143C)),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
-}
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   void _cancelReservation() async {
     try {
@@ -1346,14 +1376,22 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   }
 
   Future _initializeData() async {
-    await _getUserInfo();
-    await _getWalletBalance();
-    await _getSupplierID();
-    await _getMobilePaymentData();
-    await _checkPaymentMethods();
-    _bcvExchangeRate = await getBCVExchangeRate();
-    setState(() {});
+  await _getUserInfo();
+  await _getWalletBalance();
+  await _getSupplierID();
+  await _getMobilePaymentData();
+  await _checkPaymentMethods();
+  
+  setState(() => _isLoadingExchangeRate = true);
+  try {
+    _bcvExchangeRate = await ExchangeRates.getBCVExchangeRate();
+    print('Tasa actualizada: $_bcvExchangeRate');
+  } finally {
+    if (mounted) {
+      setState(() => _isLoadingExchangeRate = false);
+    }
   }
+}
 
   Future<void> _getSupplierID() async {
     _supplierID = widget.task.data()['supplierID'];
@@ -1461,7 +1499,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     _messageController.dispose();
     super.dispose();
   }
-
 
   Future<void> _getAverageSupplierEvaluation() async {
     if (widget.supplier != null) {
@@ -1858,41 +1895,46 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     );
   }
 
-  Future<double> getBCVExchangeRate() async {
-    try {
-      final response = await http.get(Uri.parse('https://www.bcv.org.ve/'));
-      if (response.statusCode == 200) {
-        final document = parse(response.body);
-        final dollarRate = document.querySelector('#dolar .centrado')?.text;
-        if (dollarRate != null) {
-          return double.parse(dollarRate.replaceAll(',', '.'));
-        }
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error al obtener el tipo de cambio: $e');
-      }
-    }
-    return 1.0;
-  }
+  void _showSufficientBalanceWarning() {
+  OneContext().showSnackBar(
+    builder: (_) => SnackBar(
+      content: const Text(
+        'El saldo del monedero es suficiente para cubrir la totalidad del pago',
+        style: TextStyle(color: Colors.white),
+      ),
+      backgroundColor: Colors.red,
+      duration: const Duration(seconds: 3),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+    ),
+  );
+}
 
   void _togglePagoMovilDetails() {
-    setState(() {
-      _showPagoMovilDetails = !_showPagoMovilDetails;
-    });
-    if (_showPagoMovilDetails) {
-      _animationController?.forward();
-      _showBinanceDetails = false;
-      _showZinliDetails = false;
-      _efectivoSelected = false;
-      _showZelleDetails = false;
-
-      // Actualizar el método de pago en Firestore
-      _updatePaymentMethod('Pago Móvil');
-    } else {
-      _animationController?.reverse();
-    }
+  final taskData = widget.task.data();
+  final totalAmountUSD = taskData['quotation']['totalAmountUSD'] as double;
+  
+  if (_walletBalance >= totalAmountUSD) {
+    _showSufficientBalanceWarning();
+    return;
   }
+
+  setState(() {
+    _showPagoMovilDetails = !_showPagoMovilDetails;
+  });
+  if (_showPagoMovilDetails) {
+    _animationController?.forward();
+    _showBinanceDetails = false;
+    _showZinliDetails = false;
+    _efectivoSelected = false;
+    _showZelleDetails = false;
+    _updatePaymentMethod('Pago Móvil');
+  } else {
+    _animationController?.reverse();
+  }
+}
 
   Future<void> _getMobilePaymentData() async {
     if (_supplierID != null) {
@@ -1955,23 +1997,29 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   }
 
   void _toggleBinanceDetails() {
-    setState(() {
-      _showBinanceDetails = !_showBinanceDetails;
-    });
-    if (_showBinanceDetails) {
-      _animationController?.forward();
-      _getBinancePayData();
-      _showPagoMovilDetails = false;
-      _efectivoSelected = false;
-      _showZinliDetails = false;
-      _showZelleDetails = false;
-
-      // Actualizar el método de pago en Firestore
-      _updatePaymentMethod('Binance');
-    } else {
-      _animationController?.reverse();
-    }
+  final taskData = widget.task.data();
+  final totalAmountUSD = taskData['quotation']['totalAmountUSD'] as double;
+  
+  if (_walletBalance >= totalAmountUSD) {
+    _showSufficientBalanceWarning();
+    return;
   }
+
+  setState(() {
+    _showBinanceDetails = !_showBinanceDetails;
+  });
+  if (_showBinanceDetails) {
+    _animationController?.forward();
+    _getBinancePayData();
+    _showPagoMovilDetails = false;
+    _efectivoSelected = false;
+    _showZinliDetails = false;
+    _showZelleDetails = false;
+    _updatePaymentMethod('Binance');
+  } else {
+    _animationController?.reverse();
+  }
+}
 
   Future<void> _getZinliData() async {
     if (_supplierID != null) {
@@ -2003,23 +2051,30 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     }
   }
 
-  void _toggleZinliDetails() {
-    setState(() {
-      _showZinliDetails = !_showZinliDetails;
-    });
-    if (_showZinliDetails) {
-      _animationController?.forward();
-      _getZinliData();
-      _showPagoMovilDetails = false;
-      _efectivoSelected = false;
-      _showBinanceDetails = false;
-      _showZelleDetails = false;
-      // Actualizar el método de pago en Firestore
-      _updatePaymentMethod('Zinli');
-    } else {
-      _animationController?.reverse();
-    }
+ void _toggleZinliDetails() {
+  final taskData = widget.task.data();
+  final totalAmountUSD = taskData['quotation']['totalAmountUSD'] as double;
+  
+  if (_walletBalance >= totalAmountUSD) {
+    _showSufficientBalanceWarning();
+    return;
   }
+
+  setState(() {
+    _showZinliDetails = !_showZinliDetails;
+  });
+  if (_showZinliDetails) {
+    _animationController?.forward();
+    _getZinliData();
+    _showPagoMovilDetails = false;
+    _efectivoSelected = false;
+    _showBinanceDetails = false;
+    _showZelleDetails = false;
+    _updatePaymentMethod('Zinli');
+  } else {
+    _animationController?.reverse();
+  }
+}
 
   Future<void> _getZelleData() async {
     if (_supplierID != null) {
@@ -2052,22 +2107,29 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   }
 
   void _toggleZelleDetails() {
-    setState(() {
-      _showZelleDetails = !_showZelleDetails;
-    });
-    if (_showZelleDetails) {
-      _animationController?.forward();
-      _getZelleData();
-      _showPagoMovilDetails = false;
-      _efectivoSelected = false;
-      _showBinanceDetails = false;
-      _showZinliDetails = false;
-      // Actualizar el método de pago en Firestore
-      _updatePaymentMethod('Zelle');
-    } else {
-      _animationController?.reverse();
-    }
+  final taskData = widget.task.data();
+  final totalAmountUSD = taskData['quotation']['totalAmountUSD'] as double;
+  
+  if (_walletBalance >= totalAmountUSD) {
+    _showSufficientBalanceWarning();
+    return;
   }
+
+  setState(() {
+    _showZelleDetails = !_showZelleDetails;
+  });
+  if (_showZelleDetails) {
+    _animationController?.forward();
+    _getZelleData();
+    _showPagoMovilDetails = false;
+    _efectivoSelected = false;
+    _showBinanceDetails = false;
+    _showZinliDetails = false;
+    _updatePaymentMethod('Zelle');
+  } else {
+    _animationController?.reverse();
+  }
+}
 
   Future<void> _updatePaymentMethod(String method) async {
     try {
@@ -2309,7 +2371,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: Colors.blueGrey[50],
       appBar: AppBar(
@@ -2446,23 +2507,27 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
-                                  children: [
-                                    Text(
-                                      '${taskData?['supplierName']}',
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
+                                    children: [
+                                      Text(
+                                        '${taskData?['supplierName']}',
+                                        style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 5), // Espacio entre el nombre y el icono
-                                    if (widget.supplier?.data()?['verified'] == true) // Verifica si verified es true
-                                      const Icon(
-                                        Icons.check_circle,
-                                        color: Colors.blue,
-                                        size: 22,
-                                      ),
-                                  ],
-                                ),
+                                      const SizedBox(
+                                          width:
+                                              5), // Espacio entre el nombre y el icono
+                                      if (widget.supplier
+                                              ?.data()?['verified'] ==
+                                          true) // Verifica si verified es true
+                                        const Icon(
+                                          Icons.check_circle,
+                                          color: Colors.blue,
+                                          size: 22,
+                                        ),
+                                    ],
+                                  ),
                                   Row(
                                     children: [
                                       Text(
@@ -2555,37 +2620,37 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                               ),
                             if (widget.task.data()['state'] == 'Finalizada')
                               Align(
-                              alignment: Alignment.topRight,
-                              child: TextButton.icon(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ProfileViewScreen(
-                                          supplierId: widget.supplier!.id),
+                                alignment: Alignment.topRight,
+                                child: TextButton.icon(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ProfileViewScreen(
+                                            supplierId: widget.supplier!.id),
+                                      ),
+                                    );
+                                  },
+                                  style: TextButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 1),
+                                    minimumSize: const Size(120.0, 41.0),
+                                    textStyle: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
                                     ),
-                                  );
-                                },
-                                style: TextButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 1),
-                                  minimumSize: const Size(120.0, 41.0),
-                                  textStyle: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                                    side: const BorderSide(
+                                        color: Colors.white, width: 2),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
                                   ),
-                                  side: const BorderSide(
-                                      color: Colors.white, width: 2),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
+                                  label: const Text('Ver perfil',
+                                      style: TextStyle(fontSize: 15)),
                                 ),
-                                label: const Text('Ver perfil',
-                                    style: TextStyle(fontSize: 15)),
                               ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -2994,52 +3059,56 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                             ),
                                           ),
                                           Padding(
-                                            padding: const EdgeInsets.only(
-                                                bottom: 12.0),
-                                            child: Row(
-                                              children: [
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.all(8),
-                                                  decoration: BoxDecoration(
-                                                    color:
-                                                        const Color(0xFF1ca424),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            8),
-                                                  ),
-                                                  child: const Text(
-                                                    'VES',
-                                                    style: TextStyle(
-                                                        fontSize: 16,
-                                                        color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.bold),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Expanded(
-                                                  child: Text(
-                                                    'Total en bolívares',
-                                                    style: TextStyle(
-                                                        fontSize: 16,
-                                                        color:
-                                                            Colors.grey[600]),
-                                                  ),
-                                                ),
-                                                Text(
-                                                  ((taskData?['quotation'][
-                                                                  'totalAmountUSD']
-                                                              as double) *
-                                                          _bcvExchangeRate)
-                                                      .toStringAsFixed(2),
-                                                  style: const TextStyle(
-                                                      fontSize: 16,
-                                                      color: Colors.black),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
+  padding: const EdgeInsets.only(bottom: 12.0),
+  child: Row(
+    children: [
+      Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1ca424),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Text(
+          'VES',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.white,
+            fontWeight: FontWeight.bold
+          ),
+        ),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Text(
+          'Total en bolívares',
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.grey[600]
+          ),
+        ),
+      ),
+      if (_isLoadingExchangeRate)
+        const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+          ),
+        )
+      else
+        Text(
+          taskData?['quotation'] == null ? '0,00' :
+            ((taskData!['quotation']['totalAmountUSD'] as double) * _bcvExchangeRate)
+              .toStringAsFixed(2),
+          style: const TextStyle(
+            fontSize: 16,
+            color: Colors.black
+          ),
+        ),
+    ],
+  ),
+),
                                         ],
                                       ),
                                     ),
@@ -3355,29 +3424,25 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                   ),
                                                   const SizedBox(height: 10),
                                                   Row(
-                                                    mainAxisAlignment:
-                                                        MainAxisAlignment
-                                                            .spaceBetween,
-                                                    children: [
-                                                      Text(
-                                                        'Bs. ${(((taskData?['quotation']['totalAmountUSD'] as double) - _walletBalance) * _bcvExchangeRate).toStringAsFixed(2)}',
-                                                        style: const TextStyle(
-                                                          fontSize: 24,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          color: Colors.green,
-                                                        ),
-                                                      ),
-                                                      Text(
-                                                        '\$${((taskData?['quotation']['totalAmountUSD'] as double) - _walletBalance).toStringAsFixed(2)}',
-                                                        style: TextStyle(
-                                                          fontSize: 18,
-                                                          color:
-                                                              Colors.grey[600],
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    Text(
+      'Bs. ${(((taskData?['quotation']['totalAmountUSD'] as double) - _walletBalance) * _bcvExchangeRate).abs().toStringAsFixed(2)}',
+      style: const TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        color: Colors.green,
+      ),
+    ),
+    Text(
+      '\$${((taskData?['quotation']['totalAmountUSD'] as double) - _walletBalance).abs().toStringAsFixed(2)}',
+      style: TextStyle(
+        fontSize: 18,
+        color: Colors.grey[600],
+      ),
+    ),
+  ],
+),
                                                   const SizedBox(height: 0),
                                                   Text(
                                                     'Tasa BCV: ${_bcvExchangeRate.toStringAsFixed(2)}',
@@ -3390,7 +3455,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                                   Text(
                                                     'Datos del pago Móvil:',
                                                     style: TextStyle(
-                                                      fontSize: 16,
+                                                      fontSize: 15,
                                                       fontWeight:
                                                           FontWeight.bold,
                                                       color: Colors.blue[800],
@@ -3885,28 +3950,29 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
                                 // Reservado
                                 if (taskData?['scheduled'] == null)
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(4.0),
-                                      decoration: BoxDecoration(
-                                        borderRadius:
-                                            BorderRadius.circular(5.0),
-                                        color: Colors.blueGrey[600],
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(4.0),
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(5.0),
+                                          color: Colors.blueGrey[600],
+                                        ),
+                                        child: const Icon(
+                                          Icons.calendar_today,
+                                          size: 18.0,
+                                          color:
+                                              Color.fromRGBO(209, 196, 233, 1),
+                                        ),
                                       ),
-                                      child: const Icon(
-                                        Icons.calendar_today,
-                                        size: 18.0,
-                                        color: Color.fromRGBO(209, 196, 233, 1),
+                                      const SizedBox(width: 10),
+                                      Text(
+                                        'Reservado: ${formatDateTime(widget.task.data()['reservation'] as Timestamp?)}',
+                                        style: const TextStyle(fontSize: 15),
                                       ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Text(
-                                      'Reservado: ${formatDateTime(widget.task.data()['reservation'] as Timestamp?)}',
-                                      style: const TextStyle(fontSize: 15),
-                                    ),
-                                  ],
-                                ),
+                                    ],
+                                  ),
                                 const SizedBox(height: 10),
                                 // Inicio
                                 if (taskData?['state'] == 'En proceso' ||
@@ -4518,7 +4584,7 @@ Icon getColoredIcon(String state) {
         size: 18.0,
         color: Color.fromRGBO(230, 81, 0, 1),
       );
-      case 'Agendado':
+    case 'Agendado':
       return const Icon(
         Icons.circle,
         size: 18.0,
@@ -4770,11 +4836,13 @@ class _ServiceTransactionReceiptScreenState
                       const SizedBox(height: 15),
                       Center(
                         child: RatingBar.builder(
-                          initialRating: _rating.toDouble(), // Convierte a double
+                          initialRating:
+                              _rating.toDouble(), // Convierte a double
                           minRating: 1,
                           maxRating: 5, // Ajusta el máximo a 5
                           direction: Axis.horizontal,
-                          allowHalfRating: false, // Desactiva la selección de medios
+                          allowHalfRating:
+                              false, // Desactiva la selección de medios
                           itemCount: 5,
                           itemPadding:
                               const EdgeInsets.symmetric(horizontal: 4.0),
@@ -4785,7 +4853,8 @@ class _ServiceTransactionReceiptScreenState
                           ),
                           onRatingUpdate: (rating) {
                             setState(() {
-                              _rating = rating.toInt(); // Guarda el valor entero
+                              _rating =
+                                  rating.toInt(); // Guarda el valor entero
                             });
                           },
                         ),

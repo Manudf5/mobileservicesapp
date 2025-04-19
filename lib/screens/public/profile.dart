@@ -11,7 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
-import '../intro_screen.dart';
+import './../intro_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:one_context/one_context.dart';
