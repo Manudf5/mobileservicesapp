@@ -332,7 +332,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
 
         await FirebaseFirestore.instance
-            .collection('wallets')
+            .collection('users')
             .doc(combinedId) // Usa el ID combinado como el ID del documento
             .set({
           'walletBalance': walletBalanceDefault,

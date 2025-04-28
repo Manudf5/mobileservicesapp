@@ -74,7 +74,7 @@ class _WalletScreenState extends State<WalletScreen> {
           _userDocId = userDoc.id;
 
           FirebaseFirestore.instance
-              .collection('wallets')
+              .collection('users')
               .doc(_userDocId)
               .snapshots()
               .listen((walletDoc) {
@@ -1155,7 +1155,7 @@ class _TransferFundsScreenState extends State<TransferFundsScreen> {
     }
 
     DocumentSnapshot walletDoc =
-        await _firestore.collection('wallets').doc(widget.userId).get();
+        await _firestore.collection('users').doc(widget.userId).get();
     double walletBalance = walletDoc['walletBalance'];
 
     if (enteredAmount > walletBalance) {
@@ -1744,7 +1744,7 @@ class _ConfirmTransferFundsScreenState
 
       // Actualizar el balance del emisor
       DocumentReference senderWalletRef =
-          FirebaseFirestore.instance.collection('wallets').doc(widget.userId);
+          FirebaseFirestore.instance.collection('users').doc(widget.userId);
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         DocumentSnapshot senderSnapshot =
             await transaction.get(senderWalletRef);
@@ -1759,7 +1759,7 @@ class _ConfirmTransferFundsScreenState
 
       // Actualizar el balance del destinatario
       DocumentReference recipientWalletRef = FirebaseFirestore.instance
-          .collection('wallets')
+          .collection('users')
           .doc(widget.recipient['id']);
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         DocumentSnapshot recipientSnapshot =

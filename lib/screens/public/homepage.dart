@@ -7,6 +7,7 @@ import 'tasks.dart';
 import 'home.dart';
 import 'social.dart';
 import 'wallet.dart';
+import '/integrations/network_connectivity.dart';
 
 class HomePage extends StatefulWidget {
   final int selectedIndex;
@@ -21,12 +22,26 @@ class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   DateTime? _lastPressedAt;
   int _unreadChatsCount = 0;
+  bool _hasInternetConnection = true;
+  late final NetworkConnectivity _networkConnectivity;
 
   @override
   void initState() {
     super.initState();
     _selectedIndex = widget.selectedIndex;
-    _fetchUnreadChatsCount(); 
+    _fetchUnreadChatsCount();
+    _networkConnectivity = NetworkConnectivity();
+    _initNetworkListener();
+  }
+
+  void _initNetworkListener() {
+    _networkConnectivity.connectivityStream.listen((isConnected) {
+      if (mounted) {
+        setState(() {
+          _hasInternetConnection = isConnected;
+        });
+      }
+    });
   }
 
   Future<void> _fetchUnreadChatsCount() async {
@@ -39,9 +54,11 @@ class _HomePageState extends State<HomePage> {
         .where('unreadCountClient', isGreaterThan: 0) 
         .snapshots()
         .listen((snapshot) {
-      setState(() {
-        _unreadChatsCount = snapshot.docs.length;
-      });
+      if (mounted) {
+        setState(() {
+          _unreadChatsCount = snapshot.docs.length;
+        });
+      }
     });
   }
 
@@ -68,6 +85,11 @@ class _HomePageState extends State<HomePage> {
   ];
 
   @override
+  void dispose() {
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
@@ -91,8 +113,41 @@ class _HomePageState extends State<HomePage> {
       },
       child: Scaffold(
         backgroundColor: Colors.white,
-        body: Center(
-          child: _screens[_selectedIndex],
+        body: Stack(
+          children: [
+            Center(
+              child: _screens[_selectedIndex],
+            ),
+            if (!_hasInternetConnection)
+              Positioned(
+                bottom: kBottomNavigationBarHeight + 5, // Sobre la barra de navegación
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.wifi_off, color: Colors.white, size: 16),
+                      SizedBox(width: 8),
+                      Text(
+                        'Sin conexión a internet',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _selectedIndex,

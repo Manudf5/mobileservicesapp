@@ -12,7 +12,6 @@ import 'package:intl/intl.dart';
 // ignore: unnecessary_import
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_paypal/flutter_paypal.dart';
 import 'package:mobileservicesapp/screens/public/homepage.dart';
 import 'package:mobileservicesapp/screens/public/social.dart';
 import 'package:one_context/one_context.dart';
@@ -210,7 +209,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                           DocumentSnapshot<
                                               Map<String, dynamic>>>(
                                       future: FirebaseFirestore.instance
-                                          .collection('suppliers')
+                                          .collection('users')
                                           .doc(supplierId)
                                           .get(),
                                       builder: (context, supplierInfoSnapshot) {
@@ -537,7 +536,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                           DocumentSnapshot<
                                               Map<String, dynamic>>>(
                                       future: FirebaseFirestore.instance
-                                          .collection('suppliers')
+                                          .collection('users')
                                           .doc(supplierId)
                                           .get(),
                                       builder: (context, supplierInfoSnapshot) {
@@ -832,7 +831,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                           DocumentSnapshot<
                                               Map<String, dynamic>>>(
                                       future: FirebaseFirestore.instance
-                                          .collection('suppliers')
+                                          .collection('users')
                                           .doc(supplierId)
                                           .get(),
                                       builder: (context, supplierInfoSnapshot) {
@@ -1095,13 +1094,13 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   late Future _initFuture;
   double _walletBalance = 0.0;
   String clientIDString = "";
-  String _chatID = '';
 
   String? _supplierID;
   Map<String, dynamic>? _mobilePaymentData;
   Map<String, dynamic>? _binancePayData;
   Map<String, dynamic>? _zinliData;
   Map<String, dynamic>? _zelleData;
+  Map<String, dynamic>? _paypalData;
 
   double _bcvExchangeRate = 0.0;
   bool _isLoadingExchangeRate = true;
@@ -1109,10 +1108,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   bool _showBinanceDetails = false;
   bool _showZinliDetails = false;
   bool _showZelleDetails = false;
+  bool _showPaypalDetails = false;
 
   bool _hasZinli = false;
   bool _hasBinance = false;
   bool _hasZelle = false;
+  bool _hasPayPal = false;
 
   File? _comprobante;
 
@@ -1385,7 +1386,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   setState(() => _isLoadingExchangeRate = true);
   try {
     _bcvExchangeRate = await ExchangeRates.getBCVExchangeRate();
-    print('Tasa actualizada: $_bcvExchangeRate');
+    if (kDebugMode) {
+      print('Tasa actualizada: $_bcvExchangeRate');
+    }
   } finally {
     if (mounted) {
       setState(() => _isLoadingExchangeRate = false);
@@ -1417,7 +1420,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   Future _getWalletBalance() async {
     if (clientIDString.isNotEmpty) {
       final walletDoc = await FirebaseFirestore.instance
-          .collection('wallets')
+          .collection('users')
           .doc(clientIDString)
           .get();
 
@@ -1431,23 +1434,22 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   }
 
   Future<void> _checkPaymentMethods() async {
-    if (_supplierID != null) {
-      final walletDoc = await FirebaseFirestore.instance
-          .collection('wallets')
-          .doc(_supplierID)
-          .get();
+  if (_supplierID != null) {
+    final walletDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_supplierID)
+        .get();
 
-      if (walletDoc.exists) {
-        final paymentMethodsCollection =
-            walletDoc.reference.collection('paymentMethods');
+    if (walletDoc.exists) {
+      final paymentMethodsCollection = walletDoc.reference.collection('paymentMethods');
 
-        _hasZinli = (await paymentMethodsCollection.doc('zinli').get()).exists;
-        _hasBinance =
-            (await paymentMethodsCollection.doc('binancePay').get()).exists;
-        _hasZelle = (await paymentMethodsCollection.doc('zelle').get()).exists;
-      }
+      _hasZinli = (await paymentMethodsCollection.doc('zinli').get()).exists;
+      _hasBinance = (await paymentMethodsCollection.doc('binancePay').get()).exists;
+      _hasZelle = (await paymentMethodsCollection.doc('zelle').get()).exists;
+      _hasPayPal = (await paymentMethodsCollection.doc('paypal').get()).exists;
     }
   }
+}
 
   void _initializeStartTime() {
     final taskData = widget.task.data();
@@ -1591,12 +1593,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
 
       // Actualizar wallets
       await FirebaseFirestore.instance
-          .collection('wallets')
+          .collection('users')
           .doc(clientIDString)
           .update({'walletBalance': FieldValue.increment(-totalAmountUSD)});
 
       await FirebaseFirestore.instance
-          .collection('wallets')
+          .collection('users')
           .doc(taskData['supplierID'])
           .update({'walletBalance': FieldValue.increment(totalAmountUSD)});
 
@@ -1667,234 +1669,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     }
   }
 
-  void _handlePayPalPayment() async {
-    final taskData = widget.task.data();
-    final quotation = taskData['quotation'] as Map<String, dynamic>;
-    final totalAmountUSD = quotation['totalAmountUSD'] as double;
-
-    final amountToPayWithPayPal = totalAmountUSD - _walletBalance;
-
-    if (amountToPayWithPayPal <= 0) {
-      OneContext().showSnackBar(
-        builder: (_) => SnackBar(
-          content: const Text(
-            'El saldo del monedero es suficiente para cubrir la totalidad del pago',
-            style: TextStyle(color: Colors.white),
-          ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
-      return;
-    }
-
-    _showPagoMovilDetails = false;
-    _showBinanceDetails = false;
-    _showZinliDetails = false;
-    _showZelleDetails = false;
-    _efectivoSelected = false;
-
-    // Actualizar el método de pago en Firestore
-    _updatePaymentMethod('PayPal');
-
-    await FirebaseFirestore.instance
-        .collection('tasks')
-        .doc(widget.task.id)
-        .update({
-      'paymentMethods': FieldValue.arrayUnion(['PayPal'])
-    });
-
-    // ignore: use_build_context_synchronously
-    final result = await Navigator.of(context).push<Map?>(
-      MaterialPageRoute(
-        builder: (BuildContext context) => UsePaypal(
-          sandboxMode: true,
-          clientId:
-              "AciP9nizmZQl-UH6A5w7Sr16NunuYnDJcA6VR6PLWWdxWzNWt5626cZi7KnPoRe9qmYfeFGAKkIeBu_X",
-          secretKey:
-              "EBuImUM-OmYSLgmFs125cE4jMou66FvKZU1AuAKn_qafYfbSoruFmKZwOodGchBXNq5s3UzQH-Co_YS_",
-          returnURL: "https://samplesite.com/return",
-          cancelURL: "https://samplesite.com/cancel",
-          transactions: [
-            {
-              "amount": {
-                "total": amountToPayWithPayPal.toStringAsFixed(2),
-                "currency": "USD",
-                "details": {
-                  "subtotal": amountToPayWithPayPal.toStringAsFixed(2),
-                  "shipping": '0',
-                  "shipping_discount": 0
-                }
-              },
-              "description": "Pago por servicio",
-              "item_list": {
-                "items": [
-                  {
-                    "name": "Servicio",
-                    "quantity": 1,
-                    "price": amountToPayWithPayPal.toStringAsFixed(2),
-                    "currency": "USD"
-                  }
-                ],
-              }
-            }
-          ],
-          note: "Contáctanos para cualquier duda sobre tu pedido.",
-          onSuccess: (Map params) async {
-            if (kDebugMode) {
-              print("onSuccess: $params");
-            }
-            await _processSuccessfulPayment(
-                taskData, totalAmountUSD, amountToPayWithPayPal, params);
-          },
-          onError: (error) {
-            if (kDebugMode) {
-              print("onError: $error");
-            }
-            Navigator.of(context).pop({'success': false});
-          },
-          onCancel: (params) {
-            if (kDebugMode) {
-              print('cancelled: $params');
-            }
-            Navigator.of(context).pop({'success': false});
-          },
-        ),
-      ),
-    );
-
-    if (result != null && result['success'] == true) {
-      // El pago fue exitoso, la navegación y actualización ya se han manejado en _processSuccessfulPayment
-    }
-  }
-
-  Future<void> _processSuccessfulPayment(Map<String, dynamic> taskData,
-      double totalAmountUSD, double amountToPayWithPayPal, Map params) async {
-    final transactionData = await _createTransactionData(
-        taskData, totalAmountUSD, amountToPayWithPayPal, params);
-    final transactionRef = await FirebaseFirestore.instance
-        .collection('transactions')
-        .add(transactionData);
-
-    await FirebaseFirestore.instance
-        .collection('tasks')
-        .doc(widget.task.id)
-        .update({'transactionID': transactionRef.id});
-
-    final updatedTaskDoc = await FirebaseFirestore.instance
-        .collection('tasks')
-        .doc(widget.task.id)
-        .get();
-    final updatedTaskData = updatedTaskDoc.data() as Map<String, dynamic>;
-
-    if (mounted) {
-      await _navigateToReceiptScreen(
-          updatedTaskData, totalAmountUSD, transactionData);
-    }
-
-    await _updateTaskWalletAndChat(taskData, totalAmountUSD);
-
-    // ignore: use_build_context_synchronously
-    Navigator.of(context).pop({'success': true});
-  }
-
-  Future<Map<String, dynamic>> _createTransactionData(
-      Map<String, dynamic> taskData,
-      double totalAmountUSD,
-      double amountToPayWithPayPal,
-      Map params) async {
-    return {
-      'senderName': taskData['clientName'],
-      'senderId': taskData['clientID'],
-      'recipientName': taskData['supplierName'],
-      'recipientId': taskData['supplierID'],
-      'paymentType': 'Pago de servicio',
-      'date': FieldValue.serverTimestamp(),
-      'amount': totalAmountUSD,
-      'paymentMethod': _walletBalance > 0
-          ? {
-              'Monedero': {'amount': _walletBalance},
-              'Paypal': {
-                'amount': amountToPayWithPayPal,
-                'transactionId': params['paymentId']
-              }
-            }
-          : {
-              'Paypal': {
-                'amount': amountToPayWithPayPal,
-                'transactionId': params['paymentId']
-              }
-            },
-      'taskId': widget.task.id,
-      'service': taskData['service'],
-    };
-  }
-
-  Future<void> _updateTaskWalletAndChat(
-      Map<String, dynamic> taskData, double totalAmountUSD) async {
-    _chatID = '${taskData['clientID']}_${taskData['supplierID']}';
-
-    await FirebaseFirestore.instance
-        .collection('chats')
-        .doc(_chatID)
-        .update({'talk': false});
-
-    await FirebaseFirestore.instance
-        .collection('tasks')
-        .doc(widget.task.id)
-        .update({'state': 'Finalizada'});
-
-    await FirebaseFirestore.instance
-        .collection('wallets')
-        .doc(taskData['supplierID'])
-        .update({'walletBalance': FieldValue.increment(totalAmountUSD)});
-
-    if (_walletBalance > 0) {
-      await FirebaseFirestore.instance
-          .collection('wallets')
-          .doc(clientIDString)
-          .update({'walletBalance': FieldValue.increment(-_walletBalance)});
-    }
-  }
-
-  Future<void> _navigateToReceiptScreen(Map<String, dynamic> taskData,
-      double totalAmountUSD, Map<String, dynamic> transactionData) async {
-    await Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => ServiceTransactionReceiptScreen(
-          paymentType: 'Pago de servicio',
-          date: DateTime.now(),
-          transactionId: taskData['transactionID'],
-          concept: taskData['service'],
-          recipientId: taskData['supplierID'],
-          recipientName: taskData['supplierName'],
-          amount: totalAmountUSD,
-          supplierProfileImageUrl:
-              widget.supplier?.data()?['profileImageUrl'] ?? '',
-          supplierName: taskData['supplierName'],
-          supplierId: taskData['supplierID'],
-          taskId: widget.task.id,
-          paymentMethod: transactionData['paymentMethod'],
-          onBackPressed: () {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => TaskDetailsScreen(
-                  task: widget.task,
-                  supplier: widget.supplier,
-                  supplierInfo: widget.supplierInfo,
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
   void _showSufficientBalanceWarning() {
   OneContext().showSnackBar(
     builder: (_) => SnackBar(
@@ -1930,6 +1704,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     _showZinliDetails = false;
     _efectivoSelected = false;
     _showZelleDetails = false;
+    _showPaypalDetails = false;
     _updatePaymentMethod('Pago Móvil');
   } else {
     _animationController?.reverse();
@@ -1940,13 +1715,13 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     if (_supplierID != null) {
       try {
         final walletDoc = await FirebaseFirestore.instance
-            .collection('wallets')
+            .collection('users')
             .doc(_supplierID)
             .get();
 
         if (walletDoc.exists) {
           final mobilePaymentDoc = await FirebaseFirestore.instance
-              .collection('wallets')
+              .collection('users')
               .doc(_supplierID)
               .collection('paymentMethods')
               .doc('mobilePayment')
@@ -1970,13 +1745,13 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     if (_supplierID != null) {
       try {
         final walletDoc = await FirebaseFirestore.instance
-            .collection('wallets')
+            .collection('users')
             .doc(_supplierID)
             .get();
 
         if (walletDoc.exists) {
           final binancePayDoc = await FirebaseFirestore.instance
-              .collection('wallets')
+              .collection('users')
               .doc(_supplierID)
               .collection('paymentMethods')
               .doc('binancePay')
@@ -2015,6 +1790,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     _efectivoSelected = false;
     _showZinliDetails = false;
     _showZelleDetails = false;
+    _showPaypalDetails = false;
     _updatePaymentMethod('Binance');
   } else {
     _animationController?.reverse();
@@ -2025,13 +1801,13 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     if (_supplierID != null) {
       try {
         final walletDoc = await FirebaseFirestore.instance
-            .collection('wallets')
+            .collection('users')
             .doc(_supplierID)
             .get();
 
         if (walletDoc.exists) {
           final zinliDoc = await FirebaseFirestore.instance
-              .collection('wallets')
+              .collection('users')
               .doc(_supplierID)
               .collection('paymentMethods')
               .doc('zinli')
@@ -2070,6 +1846,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     _efectivoSelected = false;
     _showBinanceDetails = false;
     _showZelleDetails = false;
+    _showPaypalDetails = false;
     _updatePaymentMethod('Zinli');
   } else {
     _animationController?.reverse();
@@ -2080,13 +1857,13 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     if (_supplierID != null) {
       try {
         final walletDoc = await FirebaseFirestore.instance
-            .collection('wallets')
+            .collection('users')
             .doc(_supplierID)
             .get();
 
         if (walletDoc.exists) {
           final zelleDoc = await FirebaseFirestore.instance
-              .collection('wallets')
+              .collection('users')
               .doc(_supplierID)
               .collection('paymentMethods')
               .doc('zelle')
@@ -2125,7 +1902,64 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
     _efectivoSelected = false;
     _showBinanceDetails = false;
     _showZinliDetails = false;
+    _showPaypalDetails = false;
     _updatePaymentMethod('Zelle');
+  } else {
+    _animationController?.reverse();
+  }
+}
+
+Future<void> _getPaypalData() async {
+  if (_supplierID != null) {
+    try {
+      final walletDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_supplierID)
+          .get();
+
+      if (walletDoc.exists) {
+        final paypalDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_supplierID)
+            .collection('paymentMethods')
+            .doc('paypal')
+            .get();
+
+        if (paypalDoc.exists) {
+          setState(() {
+            _paypalData = paypalDoc.data();
+          });
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error al obtener datos de PayPal: $e');
+      }
+    }
+  }
+}
+
+void _togglePaypalDetails() {
+  final taskData = widget.task.data();
+  final totalAmountUSD = taskData['quotation']['totalAmountUSD'] as double;
+  
+  if (_walletBalance >= totalAmountUSD) {
+    _showSufficientBalanceWarning();
+    return;
+  }
+
+  setState(() {
+    _showPaypalDetails = !_showPaypalDetails;
+  });
+  if (_showPaypalDetails) {
+    _animationController?.forward();
+    _getPaypalData();
+    _showPagoMovilDetails = false;
+    _efectivoSelected = false;
+    _showBinanceDetails = false;
+    _showZinliDetails = false;
+    _showZelleDetails = false;
+    _updatePaymentMethod('PayPal');
   } else {
     _animationController?.reverse();
   }
@@ -3915,6 +3749,74 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
                                               ),
                                             ),
                                           ),
+                                          AnimatedContainer(
+  duration: const Duration(milliseconds: 500),
+  height: _showPaypalDetails ? null : 0,
+  child: AnimatedOpacity(
+    duration: const Duration(milliseconds: 500),
+    opacity: _showPaypalDetails ? 1.0 : 0.0,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        Text(
+          'Monto a pagar:',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue[800],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          '${((taskData?['quotation']['totalAmountUSD'] as double) - _walletBalance).toStringAsFixed(2)} USD',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.green,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          'Datos de PayPal:',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue[800],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: Color(0xFF1ca424)),
+          ),
+          color: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.email, color: Color(0xFF08143c)),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Email: ${_paypalData?['email'] ?? 'N/A'}',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        _buildComprobanteUploader('PayPal'),
+      ],
+    ),
+  ),
+),
                                         ],
                                       ),
                                     ),
@@ -4470,80 +4372,54 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen>
   }
 
   Widget _buildPaymentButtons() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
+  return SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      children: [
+        if (_hasPayPal)
           _buildPaymentButton(
-            onPressed: _handlePayPalPayment,
+            onPressed: _togglePaypalDetails,
             selected: _paypalSelected,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: double
-                      .infinity, // Ensures the container takes all available width
-                  height: 20,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF08143C),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(10),
-                      topRight: Radius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    'Rápido y directo',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 10,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 1),
-                SizedBox(
-                  height: 30,
-                  width: 70,
-                  child: Image.asset('assets/images/Paypal_Logo.png'),
-                ),
-              ],
+            child: Image.asset(
+              'assets/images/Paypal_Logo.png',
+              height: 30,
+              width: 70,
             ),
           ),
-          if (_hasZelle)
-            _buildPaymentButton(
-              onPressed: _toggleZelleDetails,
-              selected: _zelleSelected,
-              child: Image.asset(
-                'assets/images/Zelle_Logo.png',
-                height: 25,
-                width: 50,
-              ),
+        if (_hasZelle)
+          _buildPaymentButton(
+            onPressed: _toggleZelleDetails,
+            selected: _zelleSelected,
+            child: Image.asset(
+              'assets/images/Zelle_Logo.png',
+              height: 25,
+              width: 50,
             ),
-          if (_hasBinance)
-            _buildPaymentButton(
-              onPressed: _toggleBinanceDetails,
-              selected: _binanceSelected,
-              child: Image.asset(
-                'assets/images/Binance_LogoNew.png',
-                height: 40,
-                width: 50,
-              ),
+          ),
+        if (_hasBinance)
+          _buildPaymentButton(
+            onPressed: _toggleBinanceDetails,
+            selected: _binanceSelected,
+            child: Image.asset(
+              'assets/images/Binance_LogoNew.png',
+              height: 40,
+              width: 50,
             ),
-          if (_hasZinli)
-            _buildPaymentButton(
-              onPressed: _toggleZinliDetails,
-              selected: _zinliSelected,
-              child: Image.asset(
-                'assets/images/Zinli_Logo.png',
-                height: 25,
-                width: 50,
-              ),
+          ),
+        if (_hasZinli)
+          _buildPaymentButton(
+            onPressed: _toggleZinliDetails,
+            selected: _zinliSelected,
+            child: Image.asset(
+              'assets/images/Zinli_Logo.png',
+              height: 25,
+              width: 50,
             ),
-        ],
-      ),
-    );
-  }
+          ),
+      ],
+    ),
+  );
+}
 
   Widget _buildPaymentButton({
     required VoidCallback onPressed,

@@ -2004,7 +2004,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
   Future _fetchSuppliers() async {
     try {
       QuerySnapshot<Map<String, dynamic>> suppliersSnapshot =
-          await FirebaseFirestore.instance.collection('suppliers').get();
+          await FirebaseFirestore.instance.collection('users').get();
 
       _filteredSuppliers = [];
 
@@ -2061,7 +2061,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
   Future<int?> getFollowersCount(String supplierId) async {
     try {
       var followersCollection = FirebaseFirestore.instance
-          .collection('suppliers')
+          .collection('users')
           .doc(supplierId)
           .collection('followers');
 
@@ -2184,7 +2184,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
   Future<void> _fetchRecommendedSuppliers() async {
     try {
       QuerySnapshot<Map<String, dynamic>> suppliersSnapshot =
-          await FirebaseFirestore.instance.collection('suppliers').get();
+          await FirebaseFirestore.instance.collection('users').get();
 
       List<DocumentSnapshot<Map<String, dynamic>>> recommendedSuppliers = [];
 
@@ -2801,7 +2801,7 @@ class _SelectSuppliersScreenState extends State<SelectSuppliersScreen> {
                         padding: const EdgeInsets.only(left: 16.0),
                         child: Text(
                           hourlyRate == 0.0
-                              ? 'Gratis'
+                              ? 'Cotizado'
                               : '\$${hourlyRate.toStringAsFixed(2)}/hr',
                           style: const TextStyle(
                               fontSize: 16.0,
@@ -2995,7 +2995,9 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   String clientIDString = "";
   String clientName = "";
 
+  bool _hasMobilePayment = false;
   bool _hasZinli = false;
+  bool _hasPaypal = false;
   bool _hasBinance = false;
   bool _hasZelle = false;
 
@@ -3075,7 +3077,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
 
   Future<void> _checkPaymentMethods() async {
     final walletDoc = await FirebaseFirestore.instance
-        .collection('wallets')
+        .collection('users')
         .doc(widget.selectedSupplier.id)
         .get();
 
@@ -3083,11 +3085,15 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
       final paymentMethodsCollection =
           walletDoc.reference.collection('paymentMethods');
 
+      final mobilePaymentDoc = await paymentMethodsCollection.doc('mobilePayment').get();
+      final paypalDoc = await paymentMethodsCollection.doc('paypal').get();
       final zinliDoc = await paymentMethodsCollection.doc('zinli').get();
       final binanceDoc = await paymentMethodsCollection.doc('binancePay').get();
       final zelleDoc = await paymentMethodsCollection.doc('zelle').get();
 
       setState(() {
+        _hasMobilePayment = mobilePaymentDoc.exists;
+        _hasPaypal = paypalDoc.exists;
         _hasZinli = zinliDoc.exists;
         _hasBinance = binanceDoc.exists;
         _hasZelle = zelleDoc.exists;
@@ -3677,7 +3683,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 const Text(
-                                  'Tarifa por hora:',
+                                  'Modalidad de pago:',
                                   style: TextStyle(
                                       color: Colors.black, fontSize: 16),
                                 ),
@@ -3813,11 +3819,13 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
                         children: [
                           _buildPaymentMethod(
                               Icons.account_balance_wallet, 'Monedero'),
-                          _buildPaymentMethod(
-                              Icons.phone_android, 'Pago Móvil'),
                           _buildPaymentMethod(Icons.attach_money, 'Efectivo'),
-                          _buildPaymentMethodImage(
-                              'assets/images/Paypal_Logo.png'),
+                          if(_hasMobilePayment)
+                            _buildPaymentMethod(
+                                Icons.mobile_friendly, 'Pago Móvil'),
+                          if(_hasPaypal)
+                            _buildPaymentMethodImage(
+                                'assets/images/Paypal_Logo.png'),
                           if (_hasBinance)
                             _buildPaymentMethodImage(
                                 'assets/images/Binance_Logo.png'),
@@ -3883,7 +3891,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
               Expanded(
                 child: FutureBuilder<QuerySnapshot>(
                   future: FirebaseFirestore.instance
-                      .collection('suppliers')
+                      .collection('users')
                       .doc(widget.selectedSupplier.id)
                       .collection('publications')
                       .where('serviceName', isEqualTo: widget.serviceName)
@@ -3958,7 +3966,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   Widget _buildPublicationsCarousel() {
     return FutureBuilder<QuerySnapshot>(
       future: FirebaseFirestore.instance
-          .collection('suppliers')
+          .collection('users')
           .doc(widget.selectedSupplier.id)
           .collection('publications')
           .where('serviceName', isEqualTo: widget.serviceName)
@@ -4429,7 +4437,7 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
   Widget _buildFollowerCount() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('suppliers')
+          .collection('users')
           .doc(widget.selectedSupplier.id)
           .collection('followers')
           .snapshots(),
@@ -4947,9 +4955,9 @@ class _SelectedSuppliersScreenState extends State<SelectedSuppliersScreen>
       }
     }
     if (hourlyRate == 0.0) {
-      return 'Gratis';
+      return 'Por servicio';
     } else {
-      return '\$${hourlyRate.toStringAsFixed(2)}';
+      return '\$${hourlyRate.toStringAsFixed(2)}/hr';
     }
   }
 

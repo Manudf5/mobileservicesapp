@@ -41,7 +41,7 @@ class _SocialScreenState extends State<SocialScreen> {
   void initState() {
     super.initState();
     _fetchClientId();
-    _fetchUnreadChatsCount(); 
+    _fetchUnreadChatsCount();
   }
 
   Future<void> _fetchClientId() async {
@@ -73,7 +73,7 @@ class _SocialScreenState extends State<SocialScreen> {
     if (_clientId == null) return posts;
 
     final QuerySnapshot suppliersSnapshot =
-        await FirebaseFirestore.instance.collection('suppliers').get();
+        await FirebaseFirestore.instance.collection('users').get();
 
     for (var supplier in suppliersSnapshot.docs) {
       final followerSnapshot =
@@ -116,7 +116,7 @@ class _SocialScreenState extends State<SocialScreen> {
   Future<void> _toggleLike(
       String supplierId, String postId, bool isLiked) async {
     final DocumentReference likesRef = FirebaseFirestore.instance
-        .collection('suppliers')
+        .collection('users')
         .doc(supplierId)
         .collection('publications')
         .doc(postId)
@@ -181,7 +181,7 @@ class _SocialScreenState extends State<SocialScreen> {
                 title: const Text('Compartir'),
                 onTap: () {
                   Navigator.pop(context);
-                  _sharePost(context, supplierId, postId, index); 
+                  _sharePost(context, supplierId, postId, index);
                 },
               ),
               ListTile(
@@ -749,7 +749,7 @@ class _SocialScreenState extends State<SocialScreen> {
       BuildContext context, String supplierId, String postId, int index) async {
     try {
       // Tomar captura del widget
-       final image = await _screenshotControllers[index].capture();
+      final image = await _screenshotControllers[index].capture();
 
       if (image != null) {
         // Guardar la imagen temporalmente
@@ -759,7 +759,9 @@ class _SocialScreenState extends State<SocialScreen> {
         File imageFile = await File(imagePath).writeAsBytes(image);
 
         // Compartir la imagen usando share_plus
-        await Share.shareXFiles([XFile(imageFile.path)], text: '¡Mira esta publicación en MSA! Descarga la app disponible para Android y IOS');
+        await Share.shareXFiles([XFile(imageFile.path)],
+            text:
+                '¡Mira esta publicación en MSA! Descarga la app disponible para Android y IOS');
       }
     } catch (e) {
       if (kDebugMode) {
@@ -794,7 +796,7 @@ class _SocialScreenState extends State<SocialScreen> {
     FirebaseFirestore.instance
         .collection('chats')
         .where('clientID', isEqualTo: combinedId)
-        .where('unreadCountClient', isGreaterThan: 0) 
+        .where('unreadCountClient', isGreaterThan: 0)
         .snapshots()
         .listen((snapshot) {
       setState(() {
@@ -819,44 +821,45 @@ class _SocialScreenState extends State<SocialScreen> {
           textAlign: TextAlign.center,
         ),
         actions: [
-  Padding(
-    padding: const EdgeInsets.only(right: 16.0),
-    child: Stack(
-      alignment: Alignment.topRight,
-      children: [
-        IconButton(
-          icon: Image.asset(
-            'assets/images/IconChat.png',
-            height: 40,
-            width: 40,
-          ),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ChatListScreen()),
-            );
-          },
-        ),
-        if (_unreadChatsCount > 0)
-          Container(
-            padding: const EdgeInsets.all(5),
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.red,
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: Stack(
+              alignment: Alignment.topRight,
+              children: [
+                IconButton(
+                  icon: Image.asset(
+                    'assets/images/IconChat.png',
+                    height: 40,
+                    width: 40,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const ChatListScreen()),
+                    );
+                  },
+                ),
+                if (_unreadChatsCount > 0)
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.red,
+                    ),
+                    child: Text(
+                      '$_unreadChatsCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            child: Text(
-              '$_unreadChatsCount',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
           ),
-      ],
-    ),
-  ),
-],
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -879,7 +882,7 @@ class _SocialScreenState extends State<SocialScreen> {
                 itemCount: posts.length,
                 itemBuilder: (context, index) {
                   // Crear un nuevo controlador de Screenshot para cada publicación
-                _screenshotControllers.add(ScreenshotController());
+                  _screenshotControllers.add(ScreenshotController());
                   final post = posts[index];
                   return StatefulBuilder(
                     builder: (BuildContext context, StateSetter setPostState) {
@@ -909,7 +912,8 @@ class _SocialScreenState extends State<SocialScreen> {
                                       ),
                                       child: CircleAvatar(
                                         radius: 25,
-                                        backgroundImage: post['profileImageUrl'] !=
+                                        backgroundImage: post[
+                                                    'profileImageUrl'] !=
                                                 null
                                             ? NetworkImage(
                                                 post['profileImageUrl'])
@@ -941,14 +945,14 @@ class _SocialScreenState extends State<SocialScreen> {
                                       ),
                                     ),
                                     IconButton(
-  icon: const Icon(Icons.more_horiz),
-  onPressed: () => _showOptionsBottomSheet(
-    context,
-    post['supplierId'],
-    post['postId'],
-    index, // Pasar el índice aquí
-  ),
-),
+                                      icon: const Icon(Icons.more_horiz),
+                                      onPressed: () => _showOptionsBottomSheet(
+                                        context,
+                                        post['supplierId'],
+                                        post['postId'],
+                                        index, // Pasar el índice aquí
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -1007,7 +1011,8 @@ class _SocialScreenState extends State<SocialScreen> {
                                         height:
                                             4), // Espacio entre el nombre y la descripción
                                     Text(
-                                      post['description'], // Descripción del post
+                                      post[
+                                          'description'], // Descripción del post
                                       style: const TextStyle(fontSize: 14),
                                     ),
                                     const SizedBox(height: 1),
@@ -1016,7 +1021,8 @@ class _SocialScreenState extends State<SocialScreen> {
                                           MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
-                                          _formatTimeAgo(post['publicationDate']),
+                                          _formatTimeAgo(
+                                              post['publicationDate']),
                                           style: TextStyle(
                                             color: Colors.grey[600],
                                             fontSize: 12,
@@ -1037,9 +1043,7 @@ class _SocialScreenState extends State<SocialScreen> {
                                                 color: post['isLiked']
                                                     ? Colors.red
                                                     : null,
-                                                size: post['isLiked']
-                                                    ? 30
-                                                    : 25,
+                                                size: post['isLiked'] ? 30 : 25,
                                               ),
                                               onPressed: () async {
                                                 await _toggleLike(
@@ -1061,9 +1065,12 @@ class _SocialScreenState extends State<SocialScreen> {
                                                   Icons.send_rounded),
                                               // Puedes cambiar el icono si lo deseas
                                               onPressed: () {
-                                _sharePost(context, post['supplierId'],
-                                    post['postId'], index);
-                              },
+                                                _sharePost(
+                                                    context,
+                                                    post['supplierId'],
+                                                    post['postId'],
+                                                    index);
+                                              },
                                             ),
                                           ],
                                         ),
@@ -1244,7 +1251,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
               Expanded(
                 child: FutureBuilder<QuerySnapshot>(
                   future: FirebaseFirestore.instance
-                      .collection('suppliers')
+                      .collection('users')
                       .doc(widget.supplierId)
                       .collection('publications')
                       .get(),
@@ -1318,7 +1325,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
   Future<void> _checkFollowStatus() async {
     if (clientIDString.isNotEmpty) {
       final followDoc = await FirebaseFirestore.instance
-          .collection('suppliers')
+          .collection('users')
           .doc(widget.supplierId)
           .collection('followers')
           .doc(clientIDString)
@@ -1334,7 +1341,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
     if (clientIDString.isEmpty) return false;
 
     final followersRef = FirebaseFirestore.instance
-        .collection('suppliers')
+        .collection('users')
         .doc(widget.supplierId)
         .collection('followers');
 
@@ -1871,7 +1878,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
                                       StateSetter setState) {
                                     return FutureBuilder<bool>(
                                       future: FirebaseFirestore.instance
-                                          .collection('suppliers')
+                                          .collection('users')
                                           .doc(widget.supplierId)
                                           .collection('followers')
                                           .doc(clientIDString)
@@ -2193,7 +2200,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
   Widget _buildSupplierServices(String supplierUid) {
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance
-          .collection('suppliers')
+          .collection('users')
           .doc(widget.supplierId)
           .get(),
       builder: (context, snapshot) {
@@ -2256,7 +2263,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
   Widget _buildPublicationsCarousel(String supplierUid) {
     return FutureBuilder<QuerySnapshot>(
       future: FirebaseFirestore.instance
-          .collection('suppliers')
+          .collection('users')
           .doc(widget.supplierId)
           .collection('publications')
           .get(),
@@ -2677,7 +2684,7 @@ class _ProfileViewScreenState extends State<ProfileViewScreen>
   Widget _buildFollowerCount() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('suppliers')
+          .collection('users')
           .doc(widget.supplierId)
           .collection('followers')
           .snapshots(),
