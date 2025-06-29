@@ -4499,9 +4499,8 @@ class ClientLocationMap extends StatelessWidget {
   Widget build(BuildContext context) {
     return FlutterMap(
       options: MapOptions(
-        center: clientLatLng,
-        zoom: 15,
-        interactiveFlags: InteractiveFlag.all,
+        initialCenter: clientLatLng,
+        initialZoom: 15,
       ),
       children: [
         TileLayer(
@@ -4514,7 +4513,7 @@ class ClientLocationMap extends StatelessWidget {
               width: 80,
               height: 80,
               point: clientLatLng,
-              builder: (ctx) => const Icon(
+              child: const Icon(
                 Icons.location_pin,
                 color: Colors.red,
                 size: 40,

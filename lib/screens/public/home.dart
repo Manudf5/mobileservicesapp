@@ -1821,10 +1821,9 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                           child: FlutterMap(
                             mapController: mapController,
                             options: MapOptions(
-                              center: _selectedLatLng ??
+                              initialCenter: _selectedLatLng ??
                                   const LatLng(10.4806, -66.9036),
-                              zoom: _selectedLatLng != null ? 15 : 5,
-                              interactiveFlags: InteractiveFlag.all,
+                              initialZoom: _selectedLatLng != null ? 15 : 5,
                               onTap: (tapPosition, latLng) {
                                 setState(() {
                                   _selectedLatLng = latLng;
@@ -1877,7 +1876,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                                         width: 80,
                                         height: 80,
                                         point: _markerLatLng!,
-                                        builder: (ctx) => const Icon(
+                                        child: const Icon(
                                             Icons.location_pin,
                                             color: Colors.green,
                                             size: 40),

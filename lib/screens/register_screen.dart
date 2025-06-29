@@ -308,7 +308,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           photoUrl = await snapshot.ref.getDownloadURL();
         }
 
-        double walletBalanceDefault = 0.00;
+        double walletBalanceDefault = 0.001;
 
         // Store user data in Firestore
         await FirebaseFirestore.instance
@@ -329,12 +329,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'status': 0,
           'registrationDate': DateTime.now(),
           'verified': false,
-        });
-
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(combinedId) // Usa el ID combinado como el ID del documento
-            .set({
           'walletBalance': walletBalanceDefault,
         });
 
@@ -363,6 +357,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
